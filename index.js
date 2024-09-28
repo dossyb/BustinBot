@@ -39,6 +39,13 @@ function scheduleReminder(channel, role, messageText, delay, reminderType) {
     scheduledReminders[reminderType] = timeoutID;
 }
 
+function removeMovieFromList(movieName) {
+    const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
+    if (movieIndex !== -1) {
+        movieList.splice(movieIndex, 1);
+    }
+}
+
 client.once('ready', () => {
     console.log('BustinBot is online!');
     loadMovies();
@@ -123,6 +130,33 @@ client.on('messageCreate', async (message) => {
         selectedMovie = null;
         scheduledMovieTime = null;
         message.channel.send('Movie night and all scheduled reminders have been cancelled.');
+    }
+
+    if (command === 'endmovie') {
+        if (!selectedMovie) {
+            message.channel.send('There is no active movie night to end.');
+            return;
+        }
+
+        // Cancel any scheduled reminders
+        if (scheduledReminders.twoHoursBefore) {
+            clearTimeout(scheduledReminders.twoHoursBefore);
+            delete scheduledReminders.twoHoursBefore;
+        }
+        if (scheduledReminders.fifteenMinutesBefore) {
+            clearTimeout(scheduledReminders.fifteenMinutesBefore);
+            delete scheduledReminders.fifteenMinutesBefore;
+        }
+        if (scheduledReminders.movieTime) {
+            clearTimeout(scheduledReminders.movieTime);
+            delete scheduledReminders.movieTime;
+        }
+
+        removeMovieFromList(selectedMovie.name);
+        selectedMovie = null;
+        scheduledMovieTime = null;
+
+        message.channel.send('Movie night has ended. The movie has been removed from the list.');
     }
 
     if (command === 'clearlist') {
