@@ -70,6 +70,14 @@ client.on('messageCreate', (message) => {
         }
     }
 
+    if (command === 'currentmovie') {
+        if (!selectedMovie) {
+            message.channel.send('No movie selected.');
+        } else {
+            message.channel.send(`The next movie is ${selectedMovie.name}.`);
+        }
+    }
+
     if (command === 'movielist') {
         if (movieList.length === 0) {
             message.channel.send('The movie list is empty.');
