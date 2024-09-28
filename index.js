@@ -6,6 +6,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 let movieList = [];
 let selectedMovie = null;
+let scheduledMovieTime = null;
 let scheduledReminders = {};
 
 // Emoji reactions for the poll
@@ -69,6 +70,7 @@ client.on('messageCreate', async (message) => {
         }
 
         const unixTimestamp = Math.floor(movieTime.getTime() / 1000);
+        scheduledMovieTime = unixTimestamp;
 
         const now = new Date();
         const timeUntilMovie = movieTime.getTime() - now.getTime();
@@ -118,7 +120,9 @@ client.on('messageCreate', async (message) => {
             clearTimeout(scheduledReminders.movieTime);
             delete scheduledReminders.movieTime;
         }
-        message.channel.send('Movie night has been cancelled.');
+        selectedMovie = null;
+        scheduledMovieTime = null;
+        message.channel.send('Movie night and all scheduled reminders have been cancelled.');
     }
 
     if (command === 'clearlist') {
@@ -180,15 +184,23 @@ client.on('messageCreate', async (message) => {
             return;
         } else {
             selectedMovie = movie;
-            message.channel.send(`Selected movie: ${movie.name}`);
+            message.channel.send(`Next movie: ${movie.name}`);
         }
     }
 
     if (command === 'currentmovie') {
         if (!selectedMovie) {
-            message.channel.send('No movie selected.');
+            message.channel.send('No movie has been selected for movie night.');
         } else {
-            message.channel.send(`The next movie is ${selectedMovie.name}.`);
+            let response = `The next movie is ${selectedMovie.name}.`;
+
+            if (scheduledMovieTime) {
+                response += ` Movie night is scheduled for <t:${scheduledMovieTime}:f>.`;
+            } else {
+                response += ' Movie night has not been scheduled yet.';
+            }
+
+            message.channel.send(response);
         }
     }
 
