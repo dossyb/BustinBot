@@ -343,15 +343,21 @@ client.on('messageCreate', async (message) => {
     if (command === 'moviehelp') {
         const helpMessage = `
 🎥 **BustinBot's Movie Commands** 🎥
+
 - **!addmovie <name>**: Add a movie to the list.
-- **!removemovie <name>**: Remove a movie from the list.
-- **!listmovie**: Show the current list of movies.
-- **!movie <name>**: Show details of a specific movie.
-- **!pickmovie <name>**: Manually select a movie.
+- **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number.
+- **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
+- **!movie <name|number>**: Show details of a specific movie by its name or number.
+- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night.
 - **!rollmovie**: Randomly select a movie from the list.
-- **!currentmovie**: Show the currently selected movie.
-- **!pollmovie <amount>**: Randomly select <amount> of movies and create a poll.
+- **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options.
+- **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks).
+- **!cancelmovie**: Cancel the scheduled movie night and all reminders.
+- **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule.
+- **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
 - **!moviehelp**: Show this list of commands.
+
+For the **number-based commands**, you can reference a movie by its position in the list shown in **!movielist**. Example: "!movie 2" to view the second movie in the list.
         `;
         message.channel.send(helpMessage);
     }
