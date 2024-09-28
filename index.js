@@ -60,7 +60,27 @@ client.on('messageCreate', async (message) => {
         message.channel.send(`Added ${movieName} to the movie list.`);
     }
 
-    if (command === 'pickmovie') {
+    if (command === 'removemovie' || command === 'removie') {
+        const movieName = args.join(' ');
+
+        if (!movieName) {
+            message.channel.send('Please provide a movie name.');
+            return;
+        }
+
+        const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
+
+        if (movieIndex === -1) {
+            message.channel.send(`Movie "${movieName}" not found in the list.`);
+            return;
+        } else {
+            const removedMovie = movieList.splice(movieIndex, 1);
+            saveMovies();
+            message.channel.send(`Removed ${removedMovie[0].name} from the movie list.`);
+        }
+    }
+
+    if (command === 'pickmovie' || command === 'selectmovie') {
         const movieName = args.join(' ');
 
         if (!movieName) {
@@ -87,7 +107,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    if (command === 'movielist') {
+    if (command === 'listmovie' || command === 'movielist') {
         if (movieList.length === 0) {
             message.channel.send('The movie list is empty.');
             return;
