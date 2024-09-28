@@ -43,6 +43,12 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    if (command === 'clearlist') {
+        movieList = [];
+        saveMovies();
+        message.channel.send('Cleared the movie list.');
+    }
+
     if (command === 'addmovie') {
         const movieName = args.join(' ');
 
