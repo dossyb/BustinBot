@@ -42,8 +42,11 @@ function scheduleReminder(channel, role, messageText, delay, reminderType) {
 function removeMovieFromList(movieName) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
-        movieList.splice(movieIndex, 1);
+        const removedMovie = movieList.splice(movieIndex, 1)[0];
+        saveMovies();
+        return removedMovie;
     }
+    return null;
 }
 
 client.once('ready', () => {
@@ -152,11 +155,11 @@ client.on('messageCreate', async (message) => {
             delete scheduledReminders.movieTime;
         }
 
-        removeMovieFromList(selectedMovie.name);
+        const removedMovie = removeMovieFromList(selectedMovie.name);
         selectedMovie = null;
         scheduledMovieTime = null;
 
-        message.channel.send('Movie night has ended. The movie has been removed from the list.');
+        message.channel.send(`Movie night has ended. ${removedMovie.name} has been removed from the list.`);
     }
 
     if (command === 'clearlist') {
@@ -191,15 +194,12 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
-        const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
+        const removedMovie = removeMovieFromList(movieName);
 
-        if (movieIndex === -1) {
+        if (!removedMovie){
             message.channel.send(`Movie "${movieName}" not found in the list.`);
-            return;
         } else {
-            const removedMovie = movieList.splice(movieIndex, 1);
-            saveMovies();
-            message.channel.send(`Removed ${removedMovie[0].name} from the movie list.`);
+            message.channel.send(`Removed ${removedMovie.name} from the movie list.`);
         }
     }
 
