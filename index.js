@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
+const moment = require('moment');
 const path = './movies.json';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
@@ -27,6 +28,12 @@ function getRandomMovies(amount) {
     return shuffledMovies.slice(0, amount);
 }
 
+function scheduleReminder(channel, role, messageText, delay) {
+    setTimeout(() => {
+        channel.send(`${role} ${messageText}`);
+    }, delay);
+}
+
 client.once('ready', () => {
     console.log('BustinBot is online!');
     loadMovies();
@@ -41,6 +48,57 @@ client.on('messageCreate', async (message) => {
     if (command === 'bustin') {
         message.channel.send('Bustin\' makes me feel good!');
         return;
+    }
+
+    if (command === 'movienight') {
+        const timeInput = args.join(' ');
+
+        if (!timeInput) {
+            message.channel.send('Please provide a valid time for the movie night (e.g., `!movienight 2024-09-30 18:00`).');
+            return;
+        }
+
+        const movieTime = moment(timeInput, 'YYYY-MM-DD HH:mm').toDate();
+        if (isNaN(movieTime.getTime())) {
+            message.channel.send('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
+            return;
+        }
+
+        const unixTimestamp = Math.floor(movieTime.getTime() / 1000);
+
+        const now = new Date();
+        const timeUntilMovie = movieTime.getTime() - now.getTime();
+
+        if (timeUntilMovie <= 0) {
+            message.channel.send('The movie night time must be in the future.');
+            return;
+        }
+
+        const twoHoursBefore = timeUntilMovie - 2 * 60 * 60 * 1000;
+        const fifteenMinutesBefore = timeUntilMovie - 15 * 60 * 1000;
+
+        const role = message.guild.roles.cache.find(r => r.name === 'Movie Night');
+        if (!role) {
+            message.channel.send('"Movie Night" role not found.');
+            return;
+        }
+
+        // Check if a movie is selected
+        const movieMessage = selectedMovie
+        ? `We will be watching "${selectedMovie.name}".`
+        : 'No movie has been selected yet.';
+
+        message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent two hours and fifteen minutes beforehand.`);
+
+        if (twoHoursBefore > 0) {
+            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! ${movieMessage}`, twoHoursBefore);
+        }
+
+        if (fifteenMinutesBefore > 0) {
+            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! ${movieMessage}`, fifteenMinutesBefore);
+        }
+
+        scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! ${movieMessage}`, timeUntilMovie);
     }
 
     if (command === 'clearlist') {
