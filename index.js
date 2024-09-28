@@ -50,6 +50,24 @@ client.on('messageCreate', (message) => {
         message.channel.send(`Added ${movieName} to the movie list.`);
     }
 
+    if (command === 'movie') {
+        const movieName = args.join(' ');
+
+        if (!movieName) {
+            message.channel.send('Please provide a movie name.');
+            return;
+        }
+
+        const movie = movieList.find(movie => movie.name.toLowerCase() === movieName.toLowerCase());
+
+        if (!movie) {
+            message.channel.send(`Movie "${movieName}" not found.`);
+            return;
+        } else {
+            message.channel.send(`Movie is in the list: "${movie.name}" suggested by ${movie.suggestedby}`);
+        }
+    }
+
     if (command === 'movielist') {
         if (movieList.length === 0) {
             message.channel.send('The movie list is empty.');
