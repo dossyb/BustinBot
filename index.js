@@ -38,8 +38,9 @@ client.on('messageCreate', async (message) => {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === '!bustin') {
+    if (command === 'bustin') {
         message.channel.send('Bustin\' makes me feel good!');
+        return;
     }
 
     if (command === 'addmovie') {
@@ -176,6 +177,22 @@ client.on('messageCreate', async (message) => {
         for (let i = 0; i < amount; i++) {
             await poll.react(pollEmojis[i]);
         }
+    }
+
+    if (command === 'moviehelp') {
+        const helpMessage = `
+🎥 **BustinBot's Movie Commands** 🎥
+- **!addmovie <name>**: Add a movie to the list.
+- **!removemovie <name>**: Remove a movie from the list.
+- **!listmovie**: Show the current list of movies.
+- **!movie <name>**: Show details of a specific movie.
+- **!pickmovie <name>**: Manually select a movie.
+- **!rollmovie**: Randomly select a movie from the list.
+- **!currentmovie**: Show the currently selected movie.
+- **!pollmovie <amount>**: Randomly select <amount> of movies and create a poll.
+- **!moviehelp**: Show this list of commands.
+        `;
+        message.channel.send(helpMessage);
     }
 });
 
