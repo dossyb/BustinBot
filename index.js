@@ -78,12 +78,19 @@ client.on('messageCreate', async (message) => {
             message.channel.send('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
             return;
         }
+                
+        const now = new Date();
+        const timeUntilMovie = movieTime.getTime() - now.getTime();
+
+        const maxTimeAllowed = 21 * 24 * 60 * 60 * 1000; // 21 days
+
+        if (timeUntilMovie > maxTimeAllowed) {
+            message.channel.send('Movie night cannot be scheduled more than 3 weeks in advance.');
+            return;
+        }
 
         const unixTimestamp = Math.floor(movieTime.getTime() / 1000);
         scheduledMovieTime = unixTimestamp;
-
-        const now = new Date();
-        const timeUntilMovie = movieTime.getTime() - now.getTime();
 
         if (timeUntilMovie <= 0) {
             message.channel.send('The movie night time must be in the future.');
