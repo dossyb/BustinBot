@@ -194,38 +194,55 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'removemovie' || command === 'removie') {
-        const movieName = args.join(' ');
+        const input = args.join(' ');
 
-        if (!movieName) {
-            message.channel.send('Please provide a movie name.');
+        if (!input) {
+            message.channel.send('Please provide a movie name or its list number to remove.');
             return;
         }
 
-        const removedMovie = removeMovieFromList(movieName);
+        let removedMovie;
+        if (!isNaN(input)) {
+            const movieIndex = parseInt(input) - 1;
+            if (movieIndex >= 0 && movieIndex < movieList.length) {
+                removedMovie = movieList.splice(movieIndex, 1)[0];
+                saveMovies();
+            }
+        } else {
+            removedMovie = removeMovieFromList(input);
+        }
 
         if (!removedMovie){
-            message.channel.send(`Movie "${movieName}" not found in the list.`);
+            message.channel.send(`Movie "${input}" not found in the list.`);
         } else {
             message.channel.send(`Removed ${removedMovie.name} from the movie list.`);
         }
     }
 
     if (command === 'pickmovie' || command === 'selectmovie') {
-        const movieName = args.join(' ');
+        const input = args.join(' ');
 
-        if (!movieName) {
-            message.channel.send('Please provide a movie name.');
+        if (!input) {
+            message.channel.send('Please provide a movie name or its list number to select.');
             return;
         }
 
-        const movie = movieList.find(m => m.name.toLowerCase() === movieName.toLowerCase());
+        let movieName;
+        if (!isNaN(input)) {
+            const movieIndex = parseInt(input) - 1;
+            if (movieIndex >= 0 && movieIndex < movieList.length) {
+                movieName = movieList[movieIndex];
+            }
+        } else {
+            movieName = movieList.find(m => m.name.toLowerCase() === input.toLowerCase());
+        }
 
-        if (!movie) {
-            message.channel.send(`Movie "${movieName}" not found.`);
+        if (!movieName) {
+            message.channel.send(`Movie "${input}" not found in the list.`);
             return;
         } else {
-            selectedMovie = movie;
-            message.channel.send(`Next movie: ${movie.name}`);
+            selectedMovie = movieName;
+            message.channel.send(`Next movie: ${selectedMovie.name}`);
         }
     }
 
@@ -250,26 +267,33 @@ client.on('messageCreate', async (message) => {
             message.channel.send('The movie list is empty.');
             return;
         } else {
-            const movieDescriptions = movieList.map(movie => `${movie.name} - suggested by: ${movie.suggestedby}`);
+            const movieDescriptions = movieList.map((movie, index) => `${index + 1} | ${movie.name} - suggested by: ${movie.suggestedby}`);
             message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
         }
     }
 
     if (command === 'movie') {
-        const movieName = args.join(' ');
+        const input = args.join(' ');
 
-        if (!movieName) {
-            message.channel.send('Please provide a movie name.');
+        if (!input) {
+            message.channel.send('Please provide a movie name or its list number to view.');
             return;
         }
 
-        const movie = movieList.find(movie => movie.name.toLowerCase() === movieName.toLowerCase());
-
-        if (!movie) {
-            message.channel.send(`Movie "${movieName}" not found.`);
-            return;
+        let movieName;
+        if (!isNaN(input)) {
+            const movieIndex = parseInt(input) - 1;
+            if (movieIndex >= 0 && movieIndex < movieList.length) {
+                movieName = movieList[movieIndex];
+            }
         } else {
-            message.channel.send(`Movie is in the list: "${movie.name}" suggested by ${movie.suggestedby}`);
+            movieName = movieList.find(m => m.name.toLowerCase() === input.toLowerCase());
+        }
+
+        if (!movieName) {
+            message.channel.send(`Movie "${input}" not found in the list.`);
+        } else {
+            message.channel.send(`Movie: ${movieName.name}\nSuggested by: ${movieName.suggestedby}`);
         }
     }
 
