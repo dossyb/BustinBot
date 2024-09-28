@@ -4,6 +4,7 @@ const path = './movies.json';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 let movieList = [];
+let selectedMovie = null;
 
 // Load movies from JSON file
 function loadMovies() {
@@ -50,6 +51,35 @@ client.on('messageCreate', (message) => {
         message.channel.send(`Added ${movieName} to the movie list.`);
     }
 
+    if (command === 'pickmovie') {
+        const movieName = args.join(' ');
+
+        if (!movieName) {
+            message.channel.send('Please provide a movie name.');
+            return;
+        }
+
+        const movie = movieList.find(m => m.name.toLowerCase() === movieName.toLowerCase());
+
+        if (!movie) {
+            message.channel.send(`Movie "${movieName}" not found.`);
+            return;
+        } else {
+            selectedMovie = movie;
+            message.channel.send(`Selected movie: ${movie.name}`);
+        }
+    }
+
+    if (command === 'movielist') {
+        if (movieList.length === 0) {
+            message.channel.send('The movie list is empty.');
+            return;
+        } else {
+            const movieDescriptions = movieList.map(movie => `${movie.name} - suggested by: ${movie.suggestedby}`);
+            message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
+        }
+    }
+
     if (command === 'movie') {
         const movieName = args.join(' ');
 
@@ -65,16 +95,6 @@ client.on('messageCreate', (message) => {
             return;
         } else {
             message.channel.send(`Movie is in the list: "${movie.name}" suggested by ${movie.suggestedby}`);
-        }
-    }
-
-    if (command === 'movielist') {
-        if (movieList.length === 0) {
-            message.channel.send('The movie list is empty.');
-            return;
-        } else {
-            const movieDescriptions = movieList.map(movie => `${movie.name} - suggested by: ${movie.suggestedby}`);
-            message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
         }
     }
 });
