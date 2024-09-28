@@ -6,6 +6,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 let movieList = [];
 let selectedMovie = null;
+let scheduledReminders = {};
 
 // Emoji reactions for the poll
 const pollEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
@@ -28,10 +29,13 @@ function getRandomMovies(amount) {
     return shuffledMovies.slice(0, amount);
 }
 
-function scheduleReminder(channel, role, messageText, delay) {
-    setTimeout(() => {
+function scheduleReminder(channel, role, messageText, delay, reminderType) {
+    const timeoutID = setTimeout(() => {
         channel.send(`${role} ${messageText}`);
+        delete scheduledReminders[reminderType];
     }, delay);
+
+    scheduledReminders[reminderType] = timeoutID;
 }
 
 client.once('ready', () => {
@@ -88,17 +92,33 @@ client.on('messageCreate', async (message) => {
         ? `We will be watching "${selectedMovie.name}".`
         : 'No movie has been selected yet.';
 
-        message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent two hours and fifteen minutes beforehand.`);
+        message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
 
         if (twoHoursBefore > 0) {
-            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! ${movieMessage}`, twoHoursBefore);
+            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! ${movieMessage}`, twoHoursBefore, 'twoHoursBefore');
         }
 
         if (fifteenMinutesBefore > 0) {
-            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! ${movieMessage}`, fifteenMinutesBefore);
+            scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! ${movieMessage}`, fifteenMinutesBefore, 'fifteenMinutesBefore');
         }
 
-        scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! ${movieMessage}`, timeUntilMovie);
+        scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! ${movieMessage}`, timeUntilMovie, 'movieTime');
+    }
+
+    if (command === 'cancelmovie') {
+        if (scheduledReminders.twoHoursBefore) {
+            clearTimeout(scheduledReminders.twoHoursBefore);
+            delete scheduledReminders.twoHoursBefore;
+        }
+        if (scheduledReminders.fifteenMinutesBefore) {
+            clearTimeout(scheduledReminders.fifteenMinutesBefore);
+            delete scheduledReminders.fifteenMinutesBefore;
+        }
+        if (scheduledReminders.movieTime) {
+            clearTimeout(scheduledReminders.movieTime);
+            delete scheduledReminders.movieTime;
+        }
+        message.channel.send('Movie night has been cancelled.');
     }
 
     if (command === 'clearlist') {
