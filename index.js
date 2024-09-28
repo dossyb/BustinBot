@@ -6,6 +6,9 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 let movieList = [];
 let selectedMovie = null;
 
+// Emoji reactions for the poll
+const pollEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
+
 // Load movies from JSON file
 function loadMovies() {
     if (fs.existsSync(path)) {
@@ -18,12 +21,18 @@ function saveMovies() {
     fs.writeFileSync(path, JSON.stringify(movieList, null, 4), 'utf8');
 }
 
+// Randomly shuffle and pick movies
+function getRandomMovies(amount) {
+    const shuffledMovies = movieList.sort(() => 0.5 - Math.random());
+    return shuffledMovies.slice(0, amount);
+}
+
 client.once('ready', () => {
     console.log('BustinBot is online!');
     loadMovies();
 });
 
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('!')) return;
 
     const args = message.content.slice(1).trim().split(/ +/);
@@ -103,6 +112,49 @@ client.on('messageCreate', (message) => {
             return;
         } else {
             message.channel.send(`Movie is in the list: "${movie.name}" suggested by ${movie.suggestedby}`);
+        }
+    }
+
+    if (command === 'rollmovie') {
+        if (movieList.length === 0) {
+            message.channel.send('The movie list is empty.');
+            return;
+        }
+
+        const randomIndex = Math.floor(Math.random() * movieList.length);
+        selectedMovie = movieList[randomIndex];
+        message.channel.send(`Selected movie: ${selectedMovie.name}`);
+    }
+
+    if (command === 'pollmovie') {
+        const amount = parseInt(args[0], 10);
+
+        if (isNaN(amount) || amount <= 0) {
+            message.channel.send('Please provide a valid number of movies to choose from.');
+            return;
+        }
+
+        if (amount > pollEmojis.length) {
+            message.channel.send(`Please provide a number between 1 and ${pollEmojis.length}.`);
+            return;
+        }
+
+        if (movieList.length < amount) {
+            message.channel.send('Not enough movies in the list to create a poll.');
+            return;
+        }
+
+        const randomMovies = getRandomMovies(amount);
+
+        let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
+        randomMovies.forEach((movie, index) => {
+            pollMessage += `${pollEmojis[index]} ${movie.name} - suggested by: ${movie.suggestedby}\n`;
+        });
+
+        const poll = await message.channel.send(pollMessage);
+
+        for (let i = 0; i < amount; i++) {
+            await poll.react(pollEmojis[i]);
         }
     }
 });
