@@ -344,9 +344,11 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('The movie list is empty.');
                 return;
             }
+
+            const shuffledMovieList = [...movieList];
     
-            const randomIndex = Math.floor(Math.random() * movieList.length);
-            selectedMovie = movieList[randomIndex];
+            const randomIndex = Math.floor(Math.random() * shuffledMovieList.length);
+            selectedMovie = shuffledMovieList[randomIndex];
             message.channel.send(`Selected movie: ${selectedMovie.name}`);
         }
     
