@@ -26,7 +26,7 @@ function saveMovies() {
 
 // Randomly shuffle and pick movies
 function getRandomMovies(amount) {
-    const shuffledMovies = movieList.sort(() => 0.5 - Math.random());
+    const shuffledMovies = [...movieList].sort(() => 0.5 - Math.random());
     return shuffledMovies.slice(0, amount);
 }
 
