@@ -87,8 +87,8 @@ client.on('messageCreate', async (message) => {
 - **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number.
 - **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
 - **!movie <name|number>**: Show details of a specific movie by its name or number.
-- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
+- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. (Admin only)
 - **!rollmovie**: Randomly select a movie from the list. (Admin only)
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. (Admin only)
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). (Admin only)
@@ -184,33 +184,6 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
         }
 
-        if (command === 'pickmovie' || command === 'selectmovie') {
-            const input = args.join(' ');
-    
-            if (!input) {
-                message.channel.send('Please provide a movie name or its list number to select.');
-                return;
-            }
-    
-            let movieName;
-            if (!isNaN(input)) {
-                const movieIndex = parseInt(input) - 1;
-                if (movieIndex >= 0 && movieIndex < movieList.length) {
-                    movieName = movieList[movieIndex];
-                }
-            } else {
-                movieName = movieList.find(m => m.name.toLowerCase() === input.toLowerCase());
-            }
-    
-            if (!movieName) {
-                message.channel.send(`Movie "${input}" not found in the list.`);
-                return;
-            } else {
-                selectedMovie = movieName;
-                message.channel.send(`Next movie: ${selectedMovie.name}`);
-            }
-        }
-
         if (command === 'currentmovie') {
             if (!selectedMovie) {
                 message.channel.send('No movie has been selected for movie night.');
@@ -286,6 +259,33 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
     
             scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! ${movieMessage}`, timeUntilMovie, 'movieTime');
+        }
+
+        if (command === 'pickmovie' || command === 'selectmovie') {
+            const input = args.join(' ');
+    
+            if (!input) {
+                message.channel.send('Please provide a movie name or its list number to select.');
+                return;
+            }
+    
+            let movieName;
+            if (!isNaN(input)) {
+                const movieIndex = parseInt(input) - 1;
+                if (movieIndex >= 0 && movieIndex < movieList.length) {
+                    movieName = movieList[movieIndex];
+                }
+            } else {
+                movieName = movieList.find(m => m.name.toLowerCase() === input.toLowerCase());
+            }
+    
+            if (!movieName) {
+                message.channel.send(`Movie "${input}" not found in the list.`);
+                return;
+            } else {
+                selectedMovie = movieName;
+                message.channel.send(`Next movie: ${selectedMovie.name}`);
+            }
         }
     
         if (command === 'cancelmovie') {
@@ -385,6 +385,8 @@ For the **number-based commands**, you can reference a movie by its position in 
         command === 'rollmovie' ||
         command === 'pollmovie' ||
         command === 'movienight' ||
+        command === 'pickmovie' ||
+        command === 'selectmovie' ||
         command === 'cancelmovie' ||
         command === 'endmovie' ||
         command === 'clearlist'
