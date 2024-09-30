@@ -238,7 +238,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             // Create a reaction collector
-            const filter = (reaction, user) => { return ['⏪', '⏩'].includes(reaction.emoji.name) && !user.bot;};
+            const filter = (reaction, user) => { return ['⏪', '⏩'].includes(reaction.emoji.name) && user.id === message.author.id && !user.bot;};
             const collector = embedMessage.createReactionCollector({ filter, time: 3600000 });
 
             collector.on('collect', (reaction, user) => {
