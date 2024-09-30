@@ -177,23 +177,44 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('Please provide a movie name or its list number to remove.');
                 return;
             }
+
+            // Find movie in the list
+            const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === input.toLowerCase());
     
-            let removedMovie;
-            if (!isNaN(input)) {
-                const movieIndex = parseInt(input) - 1;
-                if (movieIndex >= 0 && movieIndex < movieList.length) {
-                    removedMovie = movieList.splice(movieIndex, 1)[0];
-                    saveMovies();
-                }
-            } else {
-                removedMovie = removeMovieFromList(input);
-            }
-    
-            if (!removedMovie){
+            if (movieIndex === -1) {
                 message.channel.send(`Movie "${input}" not found in the list.`);
-            } else {
-                message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
+                return;
             }
+
+            const movie = movieList[movieIndex];
+
+            // Check if user trying to remove movie is the one who added it
+            if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
+                message.channel.send(`You can only remove movies that you have added. "${input}" was added by ${movie.suggestedby}.`);
+                return;
+            }
+
+            // Remove the movie
+            const removedMovie = movieList.splice(movieIndex, 1);
+            saveMovies();
+            message.channel.send(`Removed **${removedMovie[0].name}** from the movie list.`);
+
+            // let removedMovie;
+            // if (!isNaN(input)) {
+            //     const movieIndex = parseInt(input) - 1;
+            //     if (movieIndex >= 0 && movieIndex < movieList.length) {
+            //         removedMovie = movieList.splice(movieIndex, 1)[0];
+            //         saveMovies();
+            //     }
+            // } else {
+            //     removedMovie = removeMovieFromList(input);
+            // }
+    
+            // if (!removedMovie){
+            //     message.channel.send(`Movie "${input}" not found in the list.`);
+            // } else {
+            //     message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
+            // }
 
             setCooldown(removeMovieCooldown, userId);
         }
@@ -203,10 +224,6 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('The movie list is empty.');
                 return;
             } 
-            // else {
-            //     const movieDescriptions = movieList.map((movie, index) => `${index + 1} | **${movie.name}** - added by: *${movie.suggestedby}*`);
-            //     message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
-            // }
 
             let currentPage = 1;
             const totalPages = Math.ceil(movieList.length / MOVIES_PER_PAGE);
