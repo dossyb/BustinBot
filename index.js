@@ -135,10 +135,12 @@ For the **number-based commands**, you can reference a movie by its position in 
         if (command === 'addmovie') {
             const userId = message.author.id;
 
-            const cooldownMessage = checkCooldown(addMovieCooldown, userId);
-            if (cooldownMessage) {
-                message.channel.send(cooldownMessage);
-                return;
+            if (!hasAdminRole) {
+                const cooldownMessage = checkCooldown(addMovieCooldown, userId);
+                if (cooldownMessage) {
+                    message.channel.send(cooldownMessage);
+                    return;
+                }
             }
 
             const movieName = args.join(' ');
@@ -159,16 +161,21 @@ For the **number-based commands**, you can reference a movie by its position in 
             const moviePosition = movieList.length;
     
             message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
-            setCooldown(addMovieCooldown, userId);
+
+            if (!hasAdminRole) {
+                setCooldown(addMovieCooldown, userId);
+            }
         }
 
         if (command === 'removemovie' || command === 'removie') {
             const userId = message.author.id;
 
-            const cooldownMessage = checkCooldown(removeMovieCooldown, userId);
-            if (cooldownMessage) {
-                message.channel.send(cooldownMessage);
-                return;
+            if (!hasAdminRole) {
+                const cooldownMessage = checkCooldown(removeMovieCooldown, userId);
+                if (cooldownMessage) {
+                    message.channel.send(cooldownMessage);
+                    return;
+                }
             }
 
             const input = args.join(' ');
@@ -179,25 +186,46 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             // Find movie in the list
-            const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === input.toLowerCase());
-    
-            if (movieIndex === -1) {
-                message.channel.send(`Movie "${input}" not found in the list.`);
-                return;
+            let movieIndex;
+            let removedMovie;
+
+            // Refactor to a function later
+            if (!isNaN(input)) {
+                movieIndex = parseInt(input) - 1;
+
+                if (movieIndex < 0 || movieIndex >= movieList.length) {
+                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    return;
+                }
+                
+                const movie = movieList[movieIndex];
+
+                if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
+                    message.channel.send(`You can only remove movies that you have added. Movie #${input} was added by *${movie.suggestedby}*.`);
+                    return;
+                }
+
+                removedMovie = movieList.splice(movieIndex, 1)[0];
+            } else {
+                movieIndex = movieList.findIndex(m => m.name.toLowerCase() === input.toLowerCase());
+
+                if (movieIndex === -1) {
+                    message.channel.send(`Movie **${input}** not found in the list.`);
+                    return;
+                }
+
+                const movie = movieList[movieIndex];
+
+                if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
+                    message.channel.send(`You can only remove movies that you have added. Movie **${input}** was added by *${movie.suggestedby}*.`);
+                    return;
+                }
+
+                removedMovie = movieList.splice(movieIndex, 1)[0];
             }
 
-            const movie = movieList[movieIndex];
-
-            // Check if user trying to remove movie is the one who added it
-            if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
-                message.channel.send(`You can only remove movies that you have added. "${input}" was added by ${movie.suggestedby}.`);
-                return;
-            }
-
-            // Remove the movie
-            const removedMovie = movieList.splice(movieIndex, 1);
             saveMovies();
-            message.channel.send(`Removed **${removedMovie[0].name}** from the movie list.`);
+            message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
 
             // let removedMovie;
             // if (!isNaN(input)) {
@@ -216,7 +244,9 @@ For the **number-based commands**, you can reference a movie by its position in 
             //     message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
             // }
 
-            setCooldown(removeMovieCooldown, userId);
+            if (!hasAdminRole) {
+                setCooldown(removeMovieCooldown, userId);
+            }
         }
 
         if (command === 'listmovie' || command === 'movielist') {
