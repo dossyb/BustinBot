@@ -1,17 +1,19 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
 const fs = require('fs');
 const moment = require('moment');
 const path = './movies.json';
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
 
 //Cooldowns
 const addMovieCooldown = new Map();
 const removeMovieCooldown = new Map();
 const COOLDOWN_TIME = 15 * 1000;
+
+const MOVIES_PER_PAGE = 5;
 
 let movieList = [];
 let selectedMovie = null;
@@ -200,10 +202,64 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (movieList.length === 0) {
                 message.channel.send('The movie list is empty.');
                 return;
-            } else {
-                const movieDescriptions = movieList.map((movie, index) => `${index + 1} | **${movie.name}** - added by: *${movie.suggestedby}*`);
-                message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
+            } 
+            // else {
+            //     const movieDescriptions = movieList.map((movie, index) => `${index + 1} | **${movie.name}** - added by: *${movie.suggestedby}*`);
+            //     message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
+            // }
+
+            let currentPage = 1;
+            const totalPages = Math.ceil(movieList.length / MOVIES_PER_PAGE);
+
+            // Generate movie list embed for a specific page
+            const generateEmbed = (page) => {
+                const startIndex = (page - 1) * MOVIES_PER_PAGE;
+                const endIndex = Math.min(startIndex + MOVIES_PER_PAGE, movieList.length);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎥 Movie List 🎥')
+                    .setDescription(`Page ${page} of ${totalPages}`)
+                    .setColor('#0099ff');
+
+                movieList.slice(startIndex, endIndex).forEach((movie, index) => {
+                    embed.addFields({ name: `${startIndex + index + 1}. ${movie.name}`, value: `Added by: *${movie.suggestedby}*` });
+                });
+
+                return embed;
+            };
+
+            // Send the initial embed
+            const embedMessage = await message.channel.send({ embeds: [generateEmbed(currentPage)] });
+
+            // Add reactions for navigation
+            if (totalPages > 1) {
+                await embedMessage.react('⏪');
+                await embedMessage.react('⏩');
             }
+
+            // Create a reaction collector
+            const filter = (reaction, user) => { return ['⏪', '⏩'].includes(reaction.emoji.name) && !user.bot;};
+            const collector = embedMessage.createReactionCollector({ filter, time: 3600000 });
+
+            collector.on('collect', (reaction, user) => {
+                reaction.users.remove(user);
+
+                if (reaction.emoji.name === '⏩') {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        embedMessage.edit({ embeds: [generateEmbed(currentPage)] });
+                    }
+                } else if (reaction.emoji.name === '⏪') {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        embedMessage.edit({ embeds: [generateEmbed(currentPage)] });
+                    }
+                }
+            });
+
+            collector.on('end', () => {
+                embedMessage.reactions.removeAll();
+            });
         }
 
         if (command === 'movie') {
