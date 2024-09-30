@@ -8,6 +8,11 @@ const moment = require('moment');
 const path = './movies.json';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
+//Cooldowns
+const addMovieCooldown = new Map();
+const removeMovieCooldown = new Map();
+const COOLDOWN_TIME = 15 * 1000;
+
 let movieList = [];
 let selectedMovie = null;
 let scheduledMovieTime = null;
@@ -51,6 +56,25 @@ function removeMovieFromList(movieName) {
         return removedMovie;
     }
     return null;
+}
+
+// Cooldown helper function
+function checkCooldown(cooldownMap, userId) {
+    const currentTime = Date.now();
+    const cooldownEnd = cooldownMap.get(userId);
+
+    if (cooldownEnd && currentTime < cooldownEnd) {
+        const timeLeft = ((cooldownEnd - currentTime) / 1000).toFixed(0);
+        return `Please wait ${timeLeft} more seconds before using this command again.`;
+    }
+
+    return null;
+}
+
+// Set cooldown function
+function setCooldown(cooldownMap, userId) {
+    const currentTime = Date.now();
+    cooldownMap.set(userId, currentTime + COOLDOWN_TIME);
 }
 
 client.once('ready', () => {
@@ -107,6 +131,14 @@ For the **number-based commands**, you can reference a movie by its position in 
 
     if (hasMovieNightOrAdminRole) {
         if (command === 'addmovie') {
+            const userId = message.author.id;
+
+            const cooldownMessage = checkCooldown(addMovieCooldown, userId);
+            if (cooldownMessage) {
+                message.channel.send(cooldownMessage);
+                return;
+            }
+
             const movieName = args.join(' ');
     
             if (!movieName) {
@@ -125,9 +157,18 @@ For the **number-based commands**, you can reference a movie by its position in 
             const moviePosition = movieList.length;
     
             message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
+            setCooldown(addMovieCooldown, userId);
         }
 
         if (command === 'removemovie' || command === 'removie') {
+            const userId = message.author.id;
+
+            const cooldownMessage = checkCooldown(removeMovieCooldown, userId);
+            if (cooldownMessage) {
+                message.channel.send(cooldownMessage);
+                return;
+            }
+
             const input = args.join(' ');
     
             if (!input) {
@@ -151,6 +192,8 @@ For the **number-based commands**, you can reference a movie by its position in 
             } else {
                 message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
             }
+
+            setCooldown(removeMovieCooldown, userId);
         }
 
         if (command === 'listmovie' || command === 'movielist') {
