@@ -1,4 +1,8 @@
+require('dotenv').config();
+
 const { Client, GatewayIntentBits } = require('discord.js');
+const botMode = process.env.BOT_MODE || 'dev';
+const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
 const fs = require('fs');
 const moment = require('moment');
 const path = './movies.json';
@@ -50,7 +54,7 @@ function removeMovieFromList(movieName) {
 }
 
 client.once('ready', () => {
-    console.log('BustinBot is online!');
+    console.log(`BustinBot is online in ${botMode} mode!`);
     loadMovies();
 });
 
@@ -397,4 +401,4 @@ For the **number-based commands**, you can reference a movie by its position in 
     }
 });
 
-client.login('MTI4OTUxNjUxNDcxMzc5NjY5Mg.G4C0zj.DotDXhEw7U2aoPnUPMUQnasAgJRqw-wAkBoasU');
+client.login(token);
