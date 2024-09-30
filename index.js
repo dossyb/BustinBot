@@ -124,7 +124,7 @@ For the **number-based commands**, you can reference a movie by its position in 
     
             const moviePosition = movieList.length;
     
-            message.channel.send(`Added ${movieName} (${moviePosition}) to the movie list.`);
+            message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
         }
 
         if (command === 'removemovie' || command === 'removie') {
@@ -149,7 +149,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!removedMovie){
                 message.channel.send(`Movie "${input}" not found in the list.`);
             } else {
-                message.channel.send(`Removed ${removedMovie.name} from the movie list.`);
+                message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
             }
         }
 
@@ -158,7 +158,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('The movie list is empty.');
                 return;
             } else {
-                const movieDescriptions = movieList.map((movie, index) => `${index + 1} | ${movie.name} - added by: ${movie.suggestedby}`);
+                const movieDescriptions = movieList.map((movie, index) => `${index + 1} | **${movie.name}** - added by: *${movie.suggestedby}*`);
                 message.channel.send(`Movies in the list:\n${movieDescriptions.join('\n')}`);
             }
         }
@@ -182,9 +182,9 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
     
             if (!movieName) {
-                message.channel.send(`Movie "${input}" not found in the list.`);
+                message.channel.send(`Movie **${input}** not found in the list.`);
             } else {
-                message.channel.send(`Movie: ${movieName.name}\nAdded by: ${movieName.suggestedby}`);
+                message.channel.send(`Movie: **${movieName.name}**\nAdded by: *${movieName.suggestedby}*`);
             }
         }
 
@@ -192,7 +192,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!selectedMovie) {
                 message.channel.send('No movie has been selected for movie night.');
             } else {
-                let response = `The selected movie for next movie night is ${selectedMovie.name}.`;
+                let response = `The selected movie for next movie night is **${selectedMovie.name}**.`;
     
                 if (scheduledMovieTime) {
                     response += ` Movie night is scheduled for <t:${scheduledMovieTime}:f>.`;
@@ -249,20 +249,20 @@ For the **number-based commands**, you can reference a movie by its position in 
     
             // Check if a movie is selected
             const movieMessage = selectedMovie
-            ? `We will be watching "${selectedMovie.name}".`
+            ? `We will be watching **${selectedMovie.name}**.`
             : 'No movie has been selected yet.';
     
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
     
             if (twoHoursBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! ${movieMessage}`, twoHoursBefore, 'twoHoursBefore');
+                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! **${movieMessage}**`, twoHoursBefore, 'twoHoursBefore');
             }
     
             if (fifteenMinutesBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! ${movieMessage}`, fifteenMinutesBefore, 'fifteenMinutesBefore');
+                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! **${movieMessage}**`, fifteenMinutesBefore, 'fifteenMinutesBefore');
             }
     
-            scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! ${movieMessage}`, timeUntilMovie, 'movieTime');
+            scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie, 'movieTime');
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
@@ -284,11 +284,11 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
     
             if (!movieName) {
-                message.channel.send(`Movie "${input}" not found in the list.`);
+                message.channel.send(`Movie **${input}** not found in the list.`);
                 return;
             } else {
                 selectedMovie = movieName;
-                message.channel.send(`Next movie: ${selectedMovie.name}`);
+                message.channel.send(`Next movie: **${selectedMovie.name}**`);
             }
         }
     
@@ -334,7 +334,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             selectedMovie = null;
             scheduledMovieTime = null;
     
-            message.channel.send(`Movie night has ended. ${removedMovie.name} has been removed from the list.`);
+            message.channel.send(`Movie night has ended. **${removedMovie.name}** has been removed from the list.`);
         }
     
         if (command === 'clearlist') {
@@ -353,7 +353,7 @@ For the **number-based commands**, you can reference a movie by its position in 
     
             const randomIndex = Math.floor(Math.random() * shuffledMovieList.length);
             selectedMovie = shuffledMovieList[randomIndex];
-            message.channel.send(`Selected movie: ${selectedMovie.name}`);
+            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1})`);
         }
     
         if (command === 'pollmovie') {
@@ -378,7 +378,7 @@ For the **number-based commands**, you can reference a movie by its position in 
     
             let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
             randomMovies.forEach((movie, index) => {
-                pollMessage += `${pollEmojis[index]} ${movie.name} - added by: ${movie.suggestedby}\n`;
+                pollMessage += `${pollEmojis[index]} **${movie.name}** - added by: *${movie.suggestedby}*\n`;
             });
     
             const poll = await message.channel.send(pollMessage);
