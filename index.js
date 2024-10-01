@@ -183,11 +183,17 @@ For the **number-based commands**, you can reference a movie by its position in 
     
             const moviePosition = movieList.length;
     
-            message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
-
             if (!hasAdminRole) {
                 userMovieCount[userId]++;
                 saveUserMovieCount();
+
+                const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
+                message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list. You can add ${moviesLeft} more movie(s).`);
+            } else {
+                message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
+            }
+
+            if (!hasAdminRole) {
                 setCooldown(addMovieCooldown, userId);
             }
         }
@@ -272,6 +278,9 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!hasAdminRole) {
                 userMovieCount[userId]--;
                 saveUserMovieCount();
+
+                const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
+                message.channel.send(`You can now add ${moviesLeft} more movie(s).`);
                 setCooldown(removeMovieCooldown, userId);
             }
         }
