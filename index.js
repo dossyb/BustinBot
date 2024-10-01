@@ -67,7 +67,7 @@ function findReminderChannel(guild) {
     }
 }
 
-function scheduleReminder(guild, role, messageText, delay) {
+function scheduleReminder(guild, role, messageText, delay, reminderKey) {
     const reminderChannel = findReminderChannel(guild);
 
     if (!reminderChannel) {
@@ -75,10 +75,13 @@ function scheduleReminder(guild, role, messageText, delay) {
         return;
     }
 
-    setTimeout(() => {
+    const reminderTimeout = setTimeout(() => {
         const currentMovie = selectedMovie ? `We will be watching **${selectedMovie.name}**.` : 'No movie has been selected yet.';
         reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie}`);
+        delete scheduledReminders[reminderKey];
     }, delay);
+
+    scheduledReminders[reminderKey] = reminderTimeout;
 }
 
 function removeMovieFromList(movieName) {
@@ -463,14 +466,14 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
     
             if (twoHoursBefore > 0) {
-                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore);
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
             }
     
             if (fifteenMinutesBefore > 0) {
-                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore);
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
             }
     
-            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie);
+            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie, 'movieTime');
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
