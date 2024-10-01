@@ -6,6 +6,7 @@ const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DI
 const fs = require('fs');
 const moment = require('moment');
 const path = './movies.json';
+const userMovieCountPath = './userMovieCount.json';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
 
 //Cooldowns
@@ -35,6 +36,18 @@ function loadMovies() {
 // Save movies to JSON file
 function saveMovies() {
     fs.writeFileSync(path, JSON.stringify(movieList, null, 4), 'utf8');
+}
+
+// Load user movie count from JSON file
+function loadUserMovieCount() {
+    if (fs.existsSync(userMovieCountPath)) {
+        userMovieCount = JSON.parse(fs.readFileSync(userMovieCountPath, 'utf8'));
+    }           
+}
+
+// Save user movie count to JSON file
+function saveUserMovieCount() {
+    fs.writeFileSync(userMovieCountPath, JSON.stringify(userMovieCount, null, 4), 'utf8');
 }
 
 // Randomly shuffle and pick movies
@@ -82,6 +95,7 @@ function setCooldown(cooldownMap, userId) {
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     loadMovies();
+    loadUserMovieCount();
 });
 
 client.on('messageCreate', async (message) => {
@@ -173,6 +187,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             if (!hasAdminRole) {
                 userMovieCount[userId]++;
+                saveUserMovieCount();
                 setCooldown(addMovieCooldown, userId);
             }
         }
@@ -256,6 +271,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             if (!hasAdminRole) {
                 userMovieCount[userId]--;
+                saveUserMovieCount();
                 setCooldown(removeMovieCooldown, userId);
             }
         }
