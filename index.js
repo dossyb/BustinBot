@@ -41,13 +41,11 @@ function getRandomMovies(amount) {
     return shuffledMovies.slice(0, amount);
 }
 
-function scheduleReminder(channel, role, messageText, delay, reminderType) {
-    const timeoutID = setTimeout(() => {
-        channel.send(`${role} ${messageText}`);
-        delete scheduledReminders[reminderType];
+function scheduleReminder(channel, role, messageText, delay) {
+    setTimeout(() => {
+        const currentMovie = selectedMovie ? `We will be watching **${selectedMovie.name}**.` : 'No movie has been selected yet.';
+        channel.send(`${role.toString()} ${messageText} ${currentMovie}`);
     }, delay);
-
-    scheduledReminders[reminderType] = timeoutID;
 }
 
 function removeMovieFromList(movieName) {
@@ -335,19 +333,19 @@ For the **number-based commands**, you can reference a movie by its position in 
         }
 
         if (command === 'currentmovie') {
+            let response = '';
             if (!selectedMovie) {
-                message.channel.send('No movie has been selected for movie night.');
+                response += 'No movie has been selected for movie night.';
             } else {
-                let response = `The selected movie for next movie night is **${selectedMovie.name}**.`;
-    
-                if (scheduledMovieTime) {
-                    response += ` Movie night is scheduled for <t:${scheduledMovieTime}:f>.`;
-                } else {
-                    response += ' Movie night has not been scheduled yet.';
-                }
-    
-                message.channel.send(response);
+                response += `The selected movie for next movie night is **${selectedMovie.name}**.`;             
             }
+
+            if (scheduledMovieTime) {
+                response += ` Movie night is scheduled for <t:${scheduledMovieTime}:f>.`;
+            } else {
+                response += ' Movie night has not been scheduled yet.';
+            }
+            message.channel.send(response);
         }
     }
 
@@ -401,14 +399,14 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
     
             if (twoHoursBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours! **${movieMessage}**`, twoHoursBefore, 'twoHoursBefore');
+                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore);
             }
     
             if (fifteenMinutesBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes! **${movieMessage}**`, fifteenMinutesBefore, 'fifteenMinutesBefore');
+                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore);
             }
     
-            scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie, 'movieTime');
+            scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie);
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
