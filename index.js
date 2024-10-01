@@ -56,10 +56,28 @@ function getRandomMovies(amount) {
     return shuffledMovies.slice(0, amount);
 }
 
-function scheduleReminder(channel, role, messageText, delay) {
+// Find appropriate channel for reminders
+function findReminderChannel(guild) {
+    let movieNightChannel = guild.channels.cache.find(c => c.name === 'movie-night');
+    if (movieNightChannel && movieNightChannel.isTextBased()) {
+        return movieNightChannel;
+    } else {
+        // Fallback to general channel
+        return guild.channels.cache.find(c => c.name === 'general' && c.isTextBased());
+    }
+}
+
+function scheduleReminder(guild, role, messageText, delay) {
+    const reminderChannel = findReminderChannel(guild);
+
+    if (!reminderChannel) {
+        console.error('No suitable channel found for sending reminders.');
+        return;
+    }
+
     setTimeout(() => {
         const currentMovie = selectedMovie ? `We will be watching **${selectedMovie.name}**.` : 'No movie has been selected yet.';
-        channel.send(`${role.toString()} ${messageText} ${currentMovie}`);
+        reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie}`);
     }, delay);
 }
 
@@ -445,14 +463,14 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
     
             if (twoHoursBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore);
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore);
             }
     
             if (fifteenMinutesBefore > 0) {
-                scheduleReminder(message.channel, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore);
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore);
             }
     
-            scheduleReminder(message.channel, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie);
+            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie);
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
