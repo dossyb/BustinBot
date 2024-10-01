@@ -67,6 +67,14 @@ function removeMovieFromList(movieName) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
         const removedMovie = movieList.splice(movieIndex, 1)[0];
+        const userTag = removedMovie.suggestedby;
+        const userId = Object.keys(userMovieCount).find(id => client.users.cache.get(id).tag === userTag);
+
+        if (userId && userMovieCount[userId] > 0) {
+            userMovieCount[userId]--;
+            saveUserMovieCount();
+        }
+
         saveMovies();
         return removedMovie;
     }
