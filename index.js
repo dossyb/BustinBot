@@ -14,11 +14,13 @@ const removeMovieCooldown = new Map();
 const COOLDOWN_TIME = 15 * 1000;
 
 const MOVIES_PER_PAGE = 5;
+const MAX_MOVIES_PER_USER = 3;
 
 let movieList = [];
 let selectedMovie = null;
 let scheduledMovieTime = null;
 let scheduledReminders = {};
+let userMovieCount = {};
 
 // Emoji reactions for the poll
 const pollEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
@@ -103,7 +105,7 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.roles.cache.some(role => role.id === adminRole.id);
 
     if (command === 'bustin') {
-        message.channel.send('Bustin\' makes me feel good!');
+        message.channel.send('Bustin\' makes me feel good! <a:Bustin:1290456273522921606>');
         return;
     }
 
@@ -139,6 +141,15 @@ For the **number-based commands**, you can reference a movie by its position in 
                     message.channel.send(cooldownMessage);
                     return;
                 }
+
+                if (!userMovieCount[userId]) {
+                    userMovieCount[userId] = 0;
+                }
+    
+                if (userMovieCount[userId] >= MAX_MOVIES_PER_USER) {
+                    message.channel.send(`You have reached the maximum limit of ${MAX_MOVIES_PER_USER} movies per user.`);
+                    return;
+                }
             }
 
             const movieName = args.join(' ');
@@ -161,6 +172,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
 
             if (!hasAdminRole) {
+                userMovieCount[userId]++;
                 setCooldown(addMovieCooldown, userId);
             }
         }
@@ -243,6 +255,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             // }
 
             if (!hasAdminRole) {
+                userMovieCount[userId]--;
                 setCooldown(removeMovieCooldown, userId);
             }
         }
