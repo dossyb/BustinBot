@@ -341,7 +341,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             if (scheduledMovieTime) {
-                response += ` Movie night is scheduled for <t:${scheduledMovieTime}:f>.`;
+                response += ` Movie night is scheduled for <t:${scheduledMovieTime}:F>.`;
             } else {
                 response += ' Movie night has not been scheduled yet.';
             }
@@ -396,7 +396,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             ? `We will be watching **${selectedMovie.name}**.`
             : 'No movie has been selected yet.';
     
-            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:f>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
+            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
     
             if (twoHoursBefore > 0) {
                 scheduleReminder(message.channel, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore);
