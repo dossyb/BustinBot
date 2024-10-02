@@ -433,22 +433,33 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('Please provide a movie name or its list number to view.');
                 return;
             }
-    
-            let movieName;
+            
+            let movieIndex;
+            let movieToShow;
+
+            // Check if input is a number
             if (!isNaN(input)) {
-                const movieIndex = parseInt(input) - 1;
-                if (movieIndex >= 0 && movieIndex < movieList.length) {
-                    movieName = movieList[movieIndex];
+                movieIndex = parseInt(input) - 1;
+
+                if (movieIndex < 0 || movieIndex >= movieList.length) {
+                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    return;
                 }
+
+                movieToShow = movieList[movieIndex];
             } else {
-                movieName = movieList.find(m => m.name.toLowerCase() === input.toLowerCase());
+                movieIndex = movieList.findIndex(m => m.name.toLowerCase() === input.toLowerCase());
+
+                if (movieIndex === -1) {
+                    message.channel.send(`Movie **${input}** not found in the list.`);
+                    return;
+                }
+
+                movieToShow = movieList[movieIndex];
             }
-    
-            if (!movieName) {
-                message.channel.send(`Movie **${input}** not found in the list.`);
-            } else {
-                message.channel.send(`Movie: **${movieName.name}**\nAdded by: *${movieName.suggestedby}*`);
-            }
+
+            // Display movie position, name and who added it
+            message.channel.send(`Number: ${movieIndex + 1}\nMovie: **${movieToShow.name}**\nAdded by: *${movieToShow.suggestedby}*`);
         }
 
         if (command === 'currentmovie') {
