@@ -227,6 +227,58 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
         }
 
+        if (command === 'editmovie') {
+            const userId = message.author.id;
+
+            // Check if user provided required arguments
+            const movieNumber = args[0];
+            const newMovieName = args.slice(1).join(' ');
+
+            if (!movieNumber || !newMovieName) {
+                message.channel.send('Please provide a movie number and a new movie name. Example: `!editmovie 2 New Movie Name`.');
+                return;
+            }
+
+            let movieIndex;
+            let movieToEdit;
+
+            // Find movie in the list
+            if (!isNaN(movieNumber)) {
+                movieIndex = parseInt(movieNumber) - 1;
+
+                if (movieIndex < 0 || movieIndex >= movieList.length) {
+                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    return;
+                }
+
+                movieToEdit = movieList[movieIndex];
+            } else {
+                movieIndex = movieList.findIndex(m => m.name.toLowerCase() === movieNumber.toLowerCase());
+
+                if (movieIndex === -1) {
+                    message.channel.send(`Movie **${movieNumber}** not found in the list.`);
+                    return;
+                }
+
+                movieToEdit = movieList[movieIndex];
+            }
+
+            // Check if user has permission to edit the movie
+            const hasAdminRole = message.member.roles.cache.some(role => role.name === 'BustinBot Admin');
+
+            if (movieToEdit.suggestedby !== message.author.tag && !hasAdminRole) {
+                message.channel.send(`You can only edit movies that you have added. Movie #${movieIndex + 1} was added by *${movieToEdit.suggestedby}*.`);
+                return;
+            }
+
+            // Edit the movie
+            const oldMovieName = movieToEdit.name;
+            movieToEdit.name = newMovieName;
+            saveMovies();
+
+            message.channel.send(`Updated movie **${oldMovieName}** to **${newMovieName}**.`);
+        }
+
         if (command === 'removemovie' || command === 'removie') {
             const userId = message.author.id;
 
