@@ -574,27 +574,40 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('Please provide a valid number of movies to choose from.');
                 return;
             }
+
+            const moviesByUser = movieList.reduce((acc, movie) => {
+                if (!acc[movie.suggestedby]) {
+                    acc[movie.suggestedby] = [];
+                }
+                acc[movie.suggestedby].push(movie);
+                return acc;
+            }, {});
+
+            const uniqueUsers = Object.keys(moviesByUser);
     
-            if (amount > pollEmojis.length) {
-                message.channel.send(`Please provide a number between 1 and ${pollEmojis.length}.`);
+            // Check if the number of movies requested exceeds the number of users
+            if (amount > uniqueUsers.length) {
+                message.channel.send(`You requested ${amount} movies, but only ${uniqueUsers.length} unique users have added movies. Please choose a smaller number.`);
                 return;
             }
+
+            // Randomly shuffle the list of users
+            const shuffledUsers = [...uniqueUsers].sort(() => 0.5 - Math.random());
     
-            if (movieList.length < amount) {
-                message.channel.send('Not enough movies in the list to create a poll.');
-                return;
-            }
-    
-            const randomMovies = getRandomMovies(amount);
+            // Select one movie from each user
+            const selectedMovies = shuffledUsers.slice(0, amount).map(user => {
+                const userMovies = moviesByUser[user];
+                return userMovies[Math.floor(Math.random() * userMovies.length)];
+            });
     
             let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
-            randomMovies.forEach((movie, index) => {
+            selectedMovies.forEach((movie, index) => {
                 pollMessage += `${pollEmojis[index]} **${movie.name}** - added by: *${movie.suggestedby}*\n`;
             });
     
             const poll = await message.channel.send(pollMessage);
     
-            for (let i = 0; i < amount; i++) {
+            for (let i = 0; i < selectedMovies.length; i++) {
                 await poll.react(pollEmojis[i]);
             }
         }
