@@ -90,8 +90,14 @@ function removeMovieFromList(movieName) {
     if (movieIndex !== -1) {
         const removedMovie = movieList.splice(movieIndex, 1)[0];
         const userTag = removedMovie.suggestedby;
-        const userId = Object.keys(userMovieCount).find(id => client.users.cache.get(id).tag === userTag);
 
+        // Check if the user exists in the cache
+        const userId = Object.keys(userMovieCount).find(id => {
+            const user = client.users.cache.get(id);
+            return user && user.tag === userTag;
+        });
+
+        // Only update movie count if the user is found
         if (userId && userMovieCount[userId] > 0) {
             userMovieCount[userId]--;
             saveUserMovieCount();
