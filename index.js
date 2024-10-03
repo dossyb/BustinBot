@@ -548,7 +548,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
             }
     
-            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel! **${movieMessage}**`, timeUntilMovie, 'movieTime');
+            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel!`, timeUntilMovie, 'movieTime');
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
