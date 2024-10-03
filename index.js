@@ -157,17 +157,22 @@ client.on('messageCreate', async (message) => {
         const helpMessage = `
 🎥 **BustinBot's Movie Commands** 🎥
 
+**Standard Users**:
 - **!addmovie <name>**: Add a movie to the list.
-- **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number.
+- **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number. Standard users can only remove movies they have added.
+- **!editmovie <number> <new name>**: Edit a movie's name. Standard users can only edit movies they have added.
 - **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
 - **!movie <name|number>**: Show details of a specific movie by its name or number.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
-- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. (Admin only)
-- **!rollmovie**: Randomly select a movie from the list. (Admin only)
-- **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. (Admin only)
-- **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). (Admin only)
-- **!cancelmovie**: Cancel the scheduled movie night and all reminders. (Admin only)
-- **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. (Admin only)
+
+**Admins**:
+- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
+- **!rollmovie**: Randomly select a movie from the list. 
+- **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
+- **!pollclose**: Close the active poll, count the votes, and select the winning movie.
+- **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
+- **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
+- **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
 - **!moviehelp**: Show this list of commands.
 
 For the **number-based commands**, you can reference a movie by its position in the list shown in **!movielist**. Example: "!movie 2" to view the second movie in the list.
