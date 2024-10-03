@@ -3,6 +3,12 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
+
+if (!token) {
+    console.error('Bot token is missing. Please check your environment variables.');
+    process.exit(1); // Exit if the token is missing
+}
+
 const fs = require('fs');
 const moment = require('moment');
 const path = './movies.json';
