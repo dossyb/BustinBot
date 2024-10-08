@@ -626,7 +626,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             selectedMovie = null;
             scheduledMovieTime = null;
     
-            message.channel.send(`Movie night has ended. **${removedMovie.name}** has been removed from the list.`);
+            message.channel.send(`Thanks for watching! I hope you all enjoyed **${removedMovie.name}**, it has now been removed from the list.`);
         }
     
         if (command === 'clearlist') {
