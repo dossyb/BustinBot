@@ -65,12 +65,12 @@ function getRandomMovies(amount) {
 
 // Find appropriate channel for reminders
 function findReminderChannel(guild) {
-    let movieNightChannel = guild.channels.cache.find(c => c.name === 'movie-night');
+    let movieNightChannel = guild.channels.cache.find(c => c.name === '🎥movie-night');
     if (movieNightChannel && movieNightChannel.isTextBased()) {
         return movieNightChannel;
     } else {
         // Fallback to general channel
-        return guild.channels.cache.find(c => c.name === 'general' && c.isTextBased());
+        return guild.channels.cache.find(c => c.name === '✨general' && c.isTextBased());
     }
 }
 
