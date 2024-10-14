@@ -65,12 +65,12 @@ function getRandomMovies(amount) {
 
 // Find appropriate channel for reminders
 function findReminderChannel(guild) {
-    let movieNightChannel = guild.channels.cache.find(c => c.name === 'movie-night');
+    let movieNightChannel = guild.channels.cache.find(c => c.name === '🎥movie-night');
     if (movieNightChannel && movieNightChannel.isTextBased()) {
         return movieNightChannel;
     } else {
         // Fallback to general channel
-        return guild.channels.cache.find(c => c.name === 'general' && c.isTextBased());
+        return guild.channels.cache.find(c => c.name === '✨general' && c.isTextBased());
     }
 }
 
@@ -626,7 +626,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             selectedMovie = null;
             scheduledMovieTime = null;
     
-            message.channel.send(`Movie night has ended. **${removedMovie.name}** has been removed from the list.`);
+            message.channel.send(`Thanks for watching! I hope you all enjoyed **${removedMovie.name}**, it has now been removed from the list.`);
         }
     
         if (command === 'clearlist') {
