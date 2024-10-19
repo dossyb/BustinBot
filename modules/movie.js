@@ -168,7 +168,7 @@ async function handleMovieCommands(message) {
 - **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
 - **!rollmovie**/**!randommovie**: Randomly select a movie from the list. 
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
-- **!pollclose**: Close the active poll, count the votes, and select the winning movie.
+- **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
 - **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
@@ -696,7 +696,7 @@ if (hasAdminRole) {
         message.channel.send('To end the poll and count the votes, use `!pollclose`.');
     }
 
-    if (command === 'pollclose') {
+    if (command === 'pollclose' || command === 'closepoll') {
         message.channel.send('Closing the movie poll and counting votes...');
         // Check for active poll to close
         if (!activePoll) {
@@ -787,6 +787,7 @@ if (hasAdminRole) {
     command === 'selectmovie' ||
     command === 'cancelmovie' ||
     command === 'pollclose' ||
+    command === 'closepoll' ||
     command === 'endmovie' ||
     command === 'clearlist'
 ) {
