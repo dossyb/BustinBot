@@ -15,12 +15,13 @@ const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
 
-let bustinCount = 0;
-
 function loadCounter() {
-    if (fs.existsSync(pathCounter)) {
-        bustinCount = JSON.parse(fs.readFileSync(pathCounter, 'utf8')).bustinCount; 
+    if (!fs.existsSync(pathCounter)) {
+        const initialData = { bustinCount: 0 };
+        fs.writeFileSync(pathCounter, JSON.stringify(initialData, null, 4), 'utf8');
     }
+    const data = fs.readFileSync(pathCounter, 'utf8');
+    return JSON.parse(data).bustinCount;
 }
 
 function saveCounter() {
@@ -33,7 +34,7 @@ client.once('ready', () => {
     movieModule.loadUserMovieCount();
 });
 
-loadCounter();
+let bustinCount = loadCounter();
 
 client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('!')) return;

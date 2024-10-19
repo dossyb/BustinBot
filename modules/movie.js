@@ -2,8 +2,8 @@ const fs = require('fs');
 const moment = require('moment');
 const { EmbedBuilder } = require('discord.js');
 
-const path = './movies.json';
-const userMovieCountPath = './userMovieCount.json';
+const pathMovies = './movies.json';
+const pathUserMovieCount = './userMovieCount.json';
 
 //Cooldowns
 const addMovieCooldown = new Map();
@@ -13,11 +13,9 @@ const COOLDOWN_TIME = 15 * 1000;
 const MOVIES_PER_PAGE = 5;
 const MAX_MOVIES_PER_USER = 3;
 
-let movieList = [];
 let selectedMovie = null;
 let scheduledMovieTime = null;
 let scheduledReminders = {};
-let userMovieCount = {};
 let activePoll = null;
 
 // Emoji reactions for the poll
@@ -25,26 +23,32 @@ const pollEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️
 
 // Load movies from JSON file
 function loadMovies() {
-    if (fs.existsSync(path)) {
-        movieList = JSON.parse(fs.readFileSync(path, 'utf8'));
+    if (!fs.existsSync(pathMovies)) {
+        const initialData = [];
+        fs.writeFileSync(pathMovies, JSON.stringify(initialData, null, 4), 'utf8');
     }
+    const data = fs.readFileSync(pathMovies, 'utf8');
+    return JSON.parse(data);
 }
 
 // Save movies to JSON file
 function saveMovies() {
-    fs.writeFileSync(path, JSON.stringify(movieList, null, 4), 'utf8');
+    fs.writeFileSync(pathMovies, JSON.stringify(movieList, null, 4), 'utf8');
 }
 
 // Load user movie count from JSON file
 function loadUserMovieCount() {
-    if (fs.existsSync(userMovieCountPath)) {
-        userMovieCount = JSON.parse(fs.readFileSync(userMovieCountPath, 'utf8'));
+    if (!fs.existsSync(pathUserMovieCount)) {
+        const initialData = {};
+        fs.writeFileSync(pathUserMovieCount, JSON.stringify(initialData, null, 4), 'utf8');
     }
+    const data = fs.readFileSync(pathUserMovieCount, 'utf8');
+    return JSON.parse(data);
 }
 
 // Save user movie count to JSON file
 function saveUserMovieCount() {
-    fs.writeFileSync(userMovieCountPath, JSON.stringify(userMovieCount, null, 4), 'utf8');
+    fs.writeFileSync(pathUserMovieCount, JSON.stringify(userMovieCount, null, 4), 'utf8');
 }
 
 // Randomly shuffle and pick movies
@@ -123,6 +127,9 @@ function setCooldown(cooldownMap, userId) {
     const currentTime = Date.now();
     cooldownMap.set(userId, currentTime + COOLDOWN_TIME);
 }
+
+let movieList = loadMovies();
+let userMovieCount = loadUserMovieCount();
 
 async function handleMovieCommands(message) {
     const args = message.content.slice(1).trim().split(/ +/);
