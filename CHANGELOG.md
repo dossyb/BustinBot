@@ -16,3 +16,15 @@ Changelog:
 - Updated movie poll to randomly select one movie from each user.
 - Added !pollclose command to select the movie with the most votes and close the active poll.
 - Bustin
+
+# v1.1.1
+- Fixed channel names for movie night reminder messages.
+- Updated !endmovie message to thank attendees for watching.
+- Bustin
+
+# v1.1.2
+- Refactored code structure ahead of future modules.
+- Added !bustinhelp command to provide user with help commands for each module.
+- Updated !moviehelp command to only show commands available to the user based on their roles.
+- Added !bustincount command to track how many times the !bustin command is used.
+- Added !moviecount/!countmovie command to show what movies the user has added and how many they have left.
