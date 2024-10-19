@@ -85,7 +85,7 @@ function scheduleReminder(guild, role, messageText, delay, reminderKey) {
     scheduledReminders[reminderKey] = reminderTimeout;
 }
 
-function removeMovieFromList(movieName) {
+function removeMovieFromList(movieName, client) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
         const removedMovie = movieList.splice(movieIndex, 1)[0];
@@ -160,6 +160,7 @@ async function handleMovieCommands(message) {
 - **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
 - **!movie <name|number>**: Show details of a specific movie by its name or number.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
+- **!moviecount**/**!countmovie**: List the movies you have added and show how many you can still add.
 `;
 
         if (hasAdminRole) {
@@ -483,6 +484,30 @@ if (hasMovieNightOrAdminRole) {
             response += ' Movie night has not been scheduled yet.';
         }
         message.channel.send(response);
+    }
+
+    if (command === 'moviecount' || command === 'countmovie') {
+        const userId = message.author.id;
+
+        if (!userMovieCount[userId]) {
+            userMovieCount[userId] = 0;
+        }
+
+        const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
+        const moviesAdded = movieList.filter(movie => movie.suggestedby === message.author.tag);
+        
+        let response = `You have ${moviesLeft} movie(s) left to add.\n\n**Movies added by you:**\n`;
+
+        if (moviesAdded.length === 0) {
+            response += 'No movies added yet.';
+        } else {
+            moviesAdded.forEach((movie, index) => {
+                response += `${index + 1}. **${movie.name}**\n`;
+            });
+        }
+
+        message.channel.send(response);
+        return;
     }
 }
 

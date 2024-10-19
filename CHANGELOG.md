@@ -27,3 +27,4 @@ Changelog:
 - Added !bustinhelp command to provide user with help commands for each module.
 - Updated !moviehelp command to only show commands available to the user based on their roles.
 - Added !bustincount command to track how many times the !bustin command is used.
+- Added !moviecount/!countmovie command to show what movies the user has added and how many they have left.
