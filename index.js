@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
 
@@ -10,14 +9,31 @@ if (!token) {
 }
 
 const movieModule = require('./modules/movie');
+const fs = require('fs');
+const pathCounter = './counters.json';
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
+
+let bustinCount = 0;
+
+function loadCounter() {
+    if (fs.existsSync(pathCounter)) {
+        bustinCount = JSON.parse(fs.readFileSync(pathCounter, 'utf8')).bustinCount; 
+    }
+}
+
+function saveCounter() {
+    fs.writeFileSync(pathCounter, JSON.stringify({ bustinCount }, null, 4), 'utf8');
+}
 
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
 });
+
+loadCounter();
 
 client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('!')) return;
@@ -26,7 +42,16 @@ client.on('messageCreate', async (message) => {
     const command = args.shift().toLowerCase();
 
     if (command === 'bustin') {
+        bustinCount++;
+        saveCounter();
+
         message.channel.send('Bustin\' makes me feel good! <a:Bustin:1290456273522921606>');
+        return;
+    }
+
+    if (command === 'bustincount') {
+        loadCounter();
+        message.channel.send('`!bustin` has been used ' + `${bustinCount}` + ' time(s)! <a:Bustin:1290456273522921606>');
         return;
     }
 
