@@ -166,7 +166,7 @@ async function handleMovieCommands(message) {
             helpMessage += `
 **Admins**:
 - **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
-- **!rollmovie**: Randomly select a movie from the list. 
+- **!rollmovie**/**!randommovie**: Randomly select a movie from the list. 
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
 - **!pollclose**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
@@ -624,7 +624,7 @@ if (hasAdminRole) {
         message.channel.send('Cleared the movie list.');
     }
 
-    if (command === 'rollmovie') {
+    if (command === 'rollmovie' || command === 'randommovie') {
         if (movieList.length === 0) {
             message.channel.send('The movie list is empty.');
             return;
@@ -780,6 +780,7 @@ if (hasAdminRole) {
     }
 } else if (
     command === 'rollmovie' ||
+    command === 'randommovie' ||
     command === 'pollmovie' ||
     command === 'movienight' ||
     command === 'pickmovie' ||
