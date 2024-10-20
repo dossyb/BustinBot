@@ -33,6 +33,7 @@ client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
+    taskModule.schedulePoll(client);
 });
 
 let bustinCount = loadCounter();
@@ -62,7 +63,7 @@ client.on('messageCreate', async (message) => {
     }
 
     movieModule.handleMovieCommands(message);
-    taskModule.handleTaskCommands(message);
+    await taskModule.handleTaskCommands(message, client);
 });
 
 client.login(token);

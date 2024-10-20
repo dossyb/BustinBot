@@ -1,0 +1,27 @@
+[
+    {
+        "id": 1,
+        "taskName": "Get 4 Barrows armor pieces",
+        "instructions": "Submit a screenshot of each chest."
+    },
+    {
+        "id": 2,
+        "taskName": "Get 30 LMS points",
+        "instructions": "Submit a screenshot of your points."
+    },
+    {
+        "id": 3,
+        "taskName": "Get 50 Sarachnis kc",
+        "instructions": "Submit a screenshot before and after your kc."
+    },
+    {
+        "id": 4,
+        "taskName": "Get 50 Zulrah kc",
+        "instructions": "Submit a screenshot before and after your kc."
+    },
+    {
+        "id": 5,
+        "taskName": "Get 50 Vorkath kc",
+        "instructions": "Submit a screenshot before and after your kc."
+    }
+]
