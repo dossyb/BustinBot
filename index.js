@@ -9,6 +9,7 @@ if (!token) {
 }
 
 const movieModule = require('./modules/movie');
+const taskModule = require('./modules/task');
 const fs = require('fs');
 const pathCounter = './counters.json';
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
@@ -61,6 +62,7 @@ client.on('messageCreate', async (message) => {
     }
 
     movieModule.handleMovieCommands(message);
+    taskModule.handleTaskCommands(message);
 });
 
 client.login(token);
