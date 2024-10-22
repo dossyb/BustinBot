@@ -116,10 +116,74 @@ async function closeTaskPoll(client) {
     const winningIndex = voteCounts.indexOf(maxVotes);
     const winningTask = tasks[winningIndex];
 
-    await message.channel.send(`The winning task is **${winningTask.taskName}**!`);
+    if (!winningTask) {
+        console.log('No winning task found');
+        return null;
+    }
+
+    // await message.channel.send(`The winning task is **${winningTask.taskName}**!`);
 
     activePoll = null;
+    return winningTask;
 }
+
+function scheduleTaskAnnouncement(client) {
+    const now = new Date();
+
+    let nextMonday = new Date(now);
+    nextMonday.setUTCDate(now.getUTCDate() + ((8 - now.getUTCDay()) % 7));
+    nextMonday.setUTCHours(0, 0, 0, 0);
+
+    if (nextMonday.getTime() <= now.getTime()) {
+        nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
+    }
+
+    const timeUntilNextMonday = nextMonday.getTime() - now.getTime();
+
+    console.log(`Next task announcement scheduled in ${(timeUntilNextMonday / 1000 / 60 / 60).toFixed(2)} hours.`);
+
+    setTimeout(() => {
+        postTaskAnnouncement(client);
+        scheduleTaskAnnouncement(client);
+    }, timeUntilNextMonday);
+}
+
+async function postTaskAnnouncement(client) {
+    if (!activePoll) {
+        console.log('No active poll to announce');
+        return;
+    }
+
+    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    if (!channel) {
+        console.log('Weekly task channel not found');
+        return;
+    }
+
+    // Close the poll
+    const selectedTask = await closeTaskPoll(client);
+
+    if (!selectedTask) {
+        console.log('No winning task found.');
+        return;
+    }
+
+    const taskAnnouncementEmbed = new EmbedBuilder()
+        .setTitle("This Week's Task")
+        .setDescription(`**${selectedTask.taskName}**\nSubmission instructions: ${selectedTask.instructions}\n\nTask ends Sunday at 11:59 PM UTC.`)
+        .setColor("#FF0000");
+
+    const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
+    await channel.send({
+        content: `<@&${role.id}>`,
+        embeds: [taskAnnouncementEmbed]
+    });
+
+    activePoll = null;
+
+    console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
+}
+
 
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
@@ -132,12 +196,14 @@ async function handleTaskCommands(message, client) {
 
     if (command === 'starttaskpoll') {
         await postTaskPoll(client);
-        message.channel.send('Poll started successfully.');
     }
 
     if (command === 'closetaskpoll') {
         await closeTaskPoll(client);
-        message.channel.send('Poll closed successfully.');
+    }
+
+    if (command === 'announcetask') {
+        await postTaskAnnouncement(client);
     }
 }
 
@@ -145,5 +211,7 @@ module.exports = {
     handleTaskCommands,
     schedulePoll,
     postTaskPoll,
-    closeTaskPoll
+    closeTaskPoll,
+    scheduleTaskAnnouncement,
+    postTaskAnnouncement
 };
