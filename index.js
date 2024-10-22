@@ -67,7 +67,7 @@ client.on('messageCreate', async (message) => {
         message.channel.send('Check out the movie commands with `!moviehelp`! <a:Bustin:1290456273522921606>');
     }
 
-    movieModule.handleMovieCommands(message);
+    movieModule.handleMovieCommands(message, client);
     await taskModule.handleTaskCommands(message, client);
 });
 
