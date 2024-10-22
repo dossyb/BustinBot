@@ -35,6 +35,7 @@ client.once('ready', () => {
     movieModule.loadUserMovieCount();
     taskModule.schedulePoll(client);
     taskModule.scheduleTaskAnnouncement(client);
+    taskModule.scheduleWinnerAnnouncement(client);
 });
 
 let bustinCount = loadCounter();

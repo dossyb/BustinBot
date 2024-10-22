@@ -1,3 +1,5 @@
+const { time } = require('console');
+const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const pathTasks = './tasks.json';
@@ -253,6 +255,116 @@ async function postTaskAnnouncement(client) {
     console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
 
+// Get weighted user list for monthly roll
+function getWeightedUserList(users) {
+    let weightedList = [];
+    users.forEach(user => {
+        for (let i = 0; i < user.submissions; i++) {
+            weightedList.push(user.id);
+        }
+    });
+    return weightedList;
+}
+
+function pickMonthlyWinner() {
+    let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+    let weightedList = getWeightedUserList(monthlyUsers);
+
+    if (weightedList.length === 0) {
+        console.log('No submissions to pick from.');
+        return null;
+    }
+
+    const randomIndex = Math.floor(Math.random() * weightedList.length);
+    return weightedList[randomIndex];
+}
+
+function scheduleWinnerAnnouncement(client) {
+    const now = new Date();
+    const fourthTuesday = getNextFourthTuesday(now);
+
+    const timeUntilFourthTuesday = fourthTuesday.getTime() - now.getTime();
+
+    if (timeUntilFourthTuesday > 2147483647) {
+        console.log('Time until fourth Tuesday is too long to schedule right now.');
+        
+        // Schedule for 18 days from now and check again
+        setTimeout(() => {
+            scheduleWinnerAnnouncement(client);
+        }, 18 * 24 * 60 * 60 * 1000);
+    } else {
+        console.log(`Next winner announcement scheduled in ${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours.`);
+
+        setTimeout(() => {
+            postWinnerAnnouncement(client);
+            scheduleWinnerAnnouncement(client);
+        }, timeUntilFourthTuesday);
+    }
+}
+
+// Get the next fourth Tuesday of the month
+function getNextFourthTuesday(now) {
+    let fourthTuesday = new Date(now);
+    fourthTuesday.setUTCDate(1);
+    let dayCount = 0;
+
+    while (dayCount < 4) {
+        if (fourthTuesday.getUTCDay() === 2) {
+            dayCount++;
+        }
+        if (dayCount < 4) {
+            fourthTuesday.setUTCDate(fourthTuesday.getUTCDate() + 1);
+        }
+    }
+
+    fourthTuesday.setUTCHours(0, 0, 0, 0);
+    if (fourthTuesday < now) {
+        fourthTuesday.setUTCMonth(fourthTuesday.getUTCMonth() + 1);
+        return getNextFourthTuesday(fourthTuesday);
+    }
+
+    return fourthTuesday;
+}
+
+async function postWinnerAnnouncement(client) {
+    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    if (!channel) {
+        console.log('Weekly task channel not found');
+        return;
+    }
+
+    let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+
+    if (monthlyUsers.length === 0) {
+        await channel.send('No submissions this month, therefore no winner.');
+        return;
+    }
+
+    // Calculate total submissions and participants
+    const totalSubmissions = monthlyUsers.reduce((total, user) => total + user.submissions, 0);
+    const totalParticipants = monthlyUsers.length;
+
+    // Pick a winner
+    const winnerId = pickMonthlyWinner();
+    if (!winnerId) {
+        console.log('No winner could be determined.');
+        return;
+    }
+
+    // Announce the winner
+    const announcementEmbed = new EmbedBuilder() 
+        .setTitle('And the winner is...')
+        .setDescription('In the last month, there were...\n\n **' + totalSubmissions + '** submissions from **' + totalParticipants + '** participants!\n\n**The winner is <@' + winnerId + '>!**\n\n Congratulations! Please message an admin to claim your prize.')
+        .setColor("#0000FF");
+
+    await channel.send({ embeds: [announcementEmbed] });
+
+    // Reset monthly user submissions
+    saveUsers(pathTaskMonthlyUsers, []);
+
+    console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
+}
+
 initialiseTaskUserFiles();
 
 async function handleTaskCommands(message, client) {
@@ -275,6 +387,10 @@ async function handleTaskCommands(message, client) {
     if (command === 'announcetask') {
         await postTaskAnnouncement(client);
     }
+
+    if (command === 'rollwinner') {
+        await postWinnerAnnouncement(client);
+    }
 }
 
 module.exports = {
@@ -284,5 +400,6 @@ module.exports = {
     closeTaskPoll,
     scheduleTaskAnnouncement,
     postTaskAnnouncement,
-    handleTaskSubmissions
+    handleTaskSubmissions,
+    scheduleWinnerAnnouncement
 };
