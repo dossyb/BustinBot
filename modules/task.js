@@ -1,10 +1,79 @@
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const pathTasks = './tasks.json';
-// const pathTaskUsers = './taskUsers.json';
+const pathTaskMonthlyUsers = './taskMonthlyUsers.json';
+const pathTaskAllUsers = './taskAllUsers.json';
 
 let pollSchedule = null;
 let activePoll = null;
+
+// Ensure task user files exist
+function initialiseTaskUserFiles() {
+    if (!fs.existsSync(pathTaskMonthlyUsers)) {
+        fs.writeFileSync(pathTaskMonthlyUsers, JSON.stringify({ users: []}, null, 4), 'utf8');
+    }
+    if (!fs.existsSync(pathTaskAllUsers)) {
+        fs.writeFileSync(pathTaskAllUsers, JSON.stringify({ users: []}, null, 4), 'utf8');
+    }
+}
+
+function loadUsers(filePath) {
+    const data = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(data).users;
+}
+
+function saveUsers(filePath, users) {
+    fs.writeFileSync(filePath, JSON.stringify({ users }, null, 4), 'utf8');
+}
+
+function updateSubmissionCount(users, userId) {
+    const user = users.find(user => user.id === userId);
+    if (user) {
+        user.submissions++;
+    } else {
+        users.push({ id: userId, submissions: 1 });
+    }
+
+    return users;
+}
+
+// Handle task submissions
+async function handleTaskSubmissions(message, client) {
+    if (message.channel.name === 'task-submissions') {
+        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin');
+        const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
+
+        collector.on('collect', async (reaction, user) => {
+            const userId = message.author.id;
+
+            // Add user to both user lists
+            let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+            let allUsers = loadUsers(pathTaskAllUsers);
+            
+            monthlyUsers = updateSubmissionCount(monthlyUsers, userId);
+            allUsers = updateSubmissionCount(allUsers, userId);
+
+            saveUsers(pathTaskMonthlyUsers, monthlyUsers);
+            saveUsers(pathTaskAllUsers, allUsers);
+
+            // React to the message to confirm submission
+            const bustinEmote = client.emojis.cache.find(emoji => emoji.name === 'Bustin');
+            if (bustinEmote) {
+                await message.react(bustinEmote);
+            } else {
+                console.log('Bustin emote not found, BustinBot is very concerned.');
+            }
+
+            console.log('Task submission confirmed for user ' + userId);
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                console.log('No approval within the alotted time for ' + message.author.id + '\'s task submission.');
+            }
+        });
+    }
+}
 
 // Load tasks from tasks.json
 function loadTasks() {
@@ -184,6 +253,7 @@ async function postTaskAnnouncement(client) {
     console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
 
+initialiseTaskUserFiles();
 
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
@@ -213,5 +283,6 @@ module.exports = {
     postTaskPoll,
     closeTaskPoll,
     scheduleTaskAnnouncement,
-    postTaskAnnouncement
+    postTaskAnnouncement,
+    handleTaskSubmissions
 };

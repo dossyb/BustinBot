@@ -40,7 +40,10 @@ client.once('ready', () => {
 let bustinCount = loadCounter();
 
 client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith('!')) return;
+    if (!message.content.startsWith('!')) {
+        taskModule.handleTaskSubmissions(message, client);
+        return;
+    } 
 
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
