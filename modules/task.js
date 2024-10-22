@@ -12,10 +12,10 @@ let activePoll = null;
 // Ensure task user files exist
 function initialiseTaskUserFiles() {
     if (!fs.existsSync(pathTaskMonthlyUsers)) {
-        fs.writeFileSync(pathTaskMonthlyUsers, JSON.stringify({ users: []}, null, 4), 'utf8');
+        fs.writeFileSync(pathTaskMonthlyUsers, JSON.stringify({ users: [] }, null, 4), 'utf8');
     }
     if (!fs.existsSync(pathTaskAllUsers)) {
-        fs.writeFileSync(pathTaskAllUsers, JSON.stringify({ users: []}, null, 4), 'utf8');
+        fs.writeFileSync(pathTaskAllUsers, JSON.stringify({ users: [] }, null, 4), 'utf8');
     }
 }
 
@@ -41,7 +41,7 @@ function updateSubmissionCount(users, userId) {
 
 // Handle task submissions
 async function handleTaskSubmissions(message, client) {
-    if (message.channel.name === 'task-submissions') {
+    if (message.channel.name === '📥task-submissions') {
         const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin');
         const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
 
@@ -51,7 +51,7 @@ async function handleTaskSubmissions(message, client) {
             // Add user to both user lists
             let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
-            
+
             monthlyUsers = updateSubmissionCount(monthlyUsers, userId);
             allUsers = updateSubmissionCount(allUsers, userId);
 
@@ -127,8 +127,8 @@ async function postTaskPoll(client) {
         return;
     }
 
-    // Find the appropriate channel (weekly-tasks)
-    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    // Find the appropriate channel (weekly-task)
+    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
         console.log('Weekly task channel not found');
         return;
@@ -173,7 +173,7 @@ async function closeTaskPoll(client) {
         return;
     }
 
-    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
     const reactions = message.reactions.cache;
     const tasks = activePoll.tasks;
@@ -225,7 +225,7 @@ async function postTaskAnnouncement(client) {
         return;
     }
 
-    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
         console.log('Weekly task channel not found');
         return;
@@ -287,7 +287,7 @@ function scheduleWinnerAnnouncement(client) {
 
     if (timeUntilFourthTuesday > 2147483647) {
         console.log('Time until fourth Tuesday is too long to schedule right now.');
-        
+
         // Schedule for 18 days from now and check again
         setTimeout(() => {
             scheduleWinnerAnnouncement(client);
@@ -327,7 +327,7 @@ function getNextFourthTuesday(now) {
 }
 
 async function postWinnerAnnouncement(client) {
-    const channel = client.channels.cache.find(channel => channel.name === 'weekly-tasks');
+    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
         console.log('Weekly task channel not found');
         return;
@@ -352,12 +352,16 @@ async function postWinnerAnnouncement(client) {
     }
 
     // Announce the winner
-    const announcementEmbed = new EmbedBuilder() 
+    const announcementEmbed = new EmbedBuilder()
         .setTitle('And the winner is...')
         .setDescription('In the last month, there were...\n\n **' + totalSubmissions + '** submissions from **' + totalParticipants + '** participants!\n\n**The winner is <@' + winnerId + '>!**\n\n Congratulations! Please message an admin to claim your prize.')
         .setColor("#0000FF");
 
-    await channel.send({ embeds: [announcementEmbed] });
+    const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
+    await channel.send({
+        content: `<@&${role.id}>`,
+        embeds: [announcementEmbed]
+    });
 
     // Reset monthly user submissions
     saveUsers(pathTaskMonthlyUsers, []);
