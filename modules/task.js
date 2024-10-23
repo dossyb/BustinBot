@@ -5,6 +5,7 @@ const fs = require('fs');
 const pathTasks = './tasks.json';
 const pathTaskMonthlyUsers = './taskMonthlyUsers.json';
 const pathTaskAllUsers = './taskAllUsers.json';
+const pathPollVotes = './pollVotes.json';
 
 let pollSchedule = null;
 let activePoll = null;
@@ -32,6 +33,34 @@ function loadUsers(filePath) {
 
 function saveUsers(filePath, users) {
     fs.writeFileSync(filePath, JSON.stringify({ users }, null, 4), 'utf8');
+}
+
+function savePollData() {
+    const pollData = {
+        activePoll,
+    };
+    fs.writeFileSync('./pollData.json', JSON.stringify(pollData, null, 4), 'utf8');
+}
+
+function loadPollData() {
+    if (fs.existsSync('./pollData.json')) {
+        const data = fs.readFileSync('./pollData.json', 'utf8');
+        const parsedData = JSON.parse(data);
+        activePoll = parsedData.activePoll;
+    }
+}
+
+function savePollVotes(voteCounts) {
+    fs.writeFileSync(pathPollVotes, JSON.stringify({ votes: voteCounts }, null, 4), 'utf8');
+}
+
+function loadPollVotes() {
+    if (fs.existsSync(pathPollVotes)) {
+        const data = fs.readFileSync(pathPollVotes, 'utf8');
+        const parsedData = JSON.parse(data);
+        return parsedData.votes;
+    }
+    return [0, 0, 0];
 }
 
 function updateSubmissionCount(users, userId) {
@@ -179,10 +208,25 @@ async function postTaskPoll(client) {
         channelId: channel.id
     }
 
+    let voteCounts = loadPollVotes();
+
+    const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
+    const collector = message.createReactionCollector({ filter, time: 24 * 60 * 60 * 1000 });
+
+    collector.on('collect', (reaction) => {
+        if (reaction.emoji.name === '1️⃣') voteCounts[0]++;
+        if (reaction.emoji.name === '2️⃣') voteCounts[1]++;
+        if (reaction.emoji.name === '3️⃣') voteCounts[2]++;
+
+        savePollVotes(voteCounts);
+    });
+
     // Set timeout to close poll after 24 hours
     setTimeout(() => {
         closeTaskPoll(client, message, tasks);
     }, 24 * 60 * 60 * 1000);
+
+    savePollData();
 }
 
 async function closeTaskPoll(client) {
@@ -395,6 +439,10 @@ async function postWinnerAnnouncement(client) {
 }
 
 initialiseTaskUserFiles();
+loadPollData();
+if (activePoll) {
+    console.log('Resuming active poll: ', activePoll.messageId);
+}
 
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
