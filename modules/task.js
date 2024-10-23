@@ -239,11 +239,7 @@ async function closeTaskPoll(client) {
     const message = await channel.messages.fetch(activePoll.messageId);
     const reactions = message.reactions.cache;
     const tasks = activePoll.tasks;
-    const voteCounts = [
-        reactions.get('1️⃣')?.count - 1 || 0,
-        reactions.get('2️⃣')?.count - 1 || 0,
-        reactions.get('3️⃣')?.count - 1 || 0
-    ];
+    const voteCounts = loadPollVotes();
 
     const maxVotes = Math.max(...voteCounts);
     const winningIndex = voteCounts.indexOf(maxVotes);
@@ -257,6 +253,7 @@ async function closeTaskPoll(client) {
     // await message.channel.send(`The winning task is **${winningTask.taskName}**!`);
 
     activePoll = null;
+    fs.unlinkSync(pathPollVotes);
     return winningTask;
 }
 
@@ -462,9 +459,9 @@ async function handleTaskCommands(message, client) {
             await postTaskPoll(client);
         }
     
-        // if (command === 'closetaskpoll') {
-        //     await closeTaskPoll(client);
-        // }
+        if (command === 'closetaskpoll') {
+            await closeTaskPoll(client);
+        }
     
         if (command === 'announcetask') {
             await postTaskAnnouncement(client);
