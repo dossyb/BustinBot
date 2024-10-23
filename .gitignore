@@ -3,3 +3,5 @@ node_modules
 movies.json
 userMovieCount.json
 counters.json
+taskAllUsers.json
+taskMonthlyUsers.json
