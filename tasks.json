@@ -1,27 +1,62 @@
 [
     {
         "id": 1,
-        "taskName": "Get 4 Barrows armor pieces",
-        "instructions": "Submit a screenshot of each chest."
+        "taskName": "Get {amount} Barrows armor pieces",
+        "amounts": [2, 4],
+        "instruction": 1
     },
     {
         "id": 2,
-        "taskName": "Get 30 LMS points",
-        "instructions": "Submit a screenshot of your points."
+        "taskName": "Get {amount} LMS points",
+        "amounts": [15, 30, 5],
+        "instruction": 2
     },
     {
         "id": 3,
-        "taskName": "Get 50 Sarachnis kc",
-        "instructions": "Submit a screenshot before and after your kc."
+        "taskName": "Get {amount} Pearls from Aerial Fishing",
+        "amounts": [40, 75, 5],
+        "instruction": 1
     },
     {
         "id": 4,
-        "taskName": "Get 50 Zulrah kc",
-        "instructions": "Submit a screenshot before and after your kc."
+        "taskName": "Get {amount} Sarachnis kc",
+        "amounts": [50, 100, 10],
+        "instruction": 2
     },
     {
         "id": 5,
-        "taskName": "Get 50 Vorkath kc",
-        "instructions": "Submit a screenshot before and after your kc."
+        "taskName": "Do {amount} laps of any agility rooftop course",
+        "amounts": [150, 250, 5],
+        "instruction": 2
+    },
+    {
+        "id": 6,
+        "taskName": "Get {amount}k total XP",
+        "amounts": [750, 1000, 50],
+        "instruction": 3
+    },
+    {
+        "id": 7,
+        "taskName": "Catch {amount} implings of any kind",
+        "amounts": [200, 400, 25],
+        "instruction": 1
+    },
+    {
+        "id": 8,
+        "taskName": "Hunt {amount} Herbiboar",
+        "amounts": [200, 350, 25],
+        "instruction": 2
+    },
+    {
+        "id": 9,
+        "taskName": "Get {amount} Mossy Keys",
+        "amounts": [5],
+        "instruction": 1
+    },
+    {
+        "id": 10,
+        "taskName": "Do {amount} beginner clues",
+        "amounts": [25, 50, 5],
+        "instruction": 2
     }
 ]

@@ -93,7 +93,19 @@ function loadTasks() {
 function getRandomTasks(amount) {
     const allTasks = loadTasks();
     const shuffled = allTasks.sort(() => 0.5 - Math.random());
-    const selectedTasks = shuffled.slice(0, amount);
+
+    // Select random tasks
+    const selectedTasks = shuffled.slice(0, amount).map(task => {
+        const randomAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+
+        const taskNameWithAmount = task.taskName.replace('{amount}', randomAmount);
+
+        return {
+            ...task,
+            selectedAmount: randomAmount,
+            taskName: taskNameWithAmount
+        };
+    });
     return selectedTasks;
 }
 
@@ -375,25 +387,50 @@ async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === 'taskhelp') {
-        message.channel.send('Check out the task commands with `!taskhelp`!');
+    // Limit commands to admins
+    if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+        message.channel.send('You do not have permission to use this command.');
         return;
-    }
+    } else {
+        if (command === 'taskhelp') {
+            message.channel.send('Check out the task commands with `!taskhelp`!');
+            return;
+        }
+    
+        if (command === 'taskpoll') {
+            await postTaskPoll(client);
+        }
+    
+        // if (command === 'closetaskpoll') {
+        //     await closeTaskPoll(client);
+        // }
+    
+        if (command === 'announcetask') {
+            await postTaskAnnouncement(client);
+        }
+    
+        if (command === 'rollwinner') {
+            await postWinnerAnnouncement(client);
+        }
 
-    if (command === 'starttaskpoll') {
-        await postTaskPoll(client);
-    }
+        if (command === 'listtasks') {
+            const allTasks = loadTasks();
+            let taskList = '';
+            let taskCount = 0;
 
-    if (command === 'closetaskpoll') {
-        await closeTaskPoll(client);
-    }
+            allTasks.forEach(task => {
+                taskList += `${task.taskName}\n`;
+                taskCount++;
+                if (taskCount % 20 === 0) {
+                    message.channel.send(taskList);
+                    taskList = '';
+                }
+            });
 
-    if (command === 'announcetask') {
-        await postTaskAnnouncement(client);
-    }
-
-    if (command === 'rollwinner') {
-        await postWinnerAnnouncement(client);
+            if (taskList) {
+                message.channel.send(taskList);
+            }
+        }
     }
 }
 
