@@ -60,6 +60,28 @@ client.on('messageCreate', async (message) => {
         message.channel.send('Check out the movie commands with `!moviehelp`! <a:Bustin:1290456273522921606>');
     }
 
+    if (command === 'sendas') {
+        // Check for BustinBot Admin role
+        if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+            message.reply('You do not have the required role to use this command.');
+            return;
+        }
+
+        const args = message.content.split(' ');
+        const channelName = args[1];
+        const msgContent = args.slice(2).join(' ');
+
+        const channel = message.guild.channels.cache.find(channel => channel.name === channelName);
+
+        if (channel) {
+            channel.send(msgContent)
+                .then(() => message.reply(`Message sent to ${channelName}!`))
+                .catch(console.error);
+        } else {
+            message.reply(`Channel ${channelName} not found.`);
+        }
+    }
+
     movieModule.handleMovieCommands(message);
 });
 
