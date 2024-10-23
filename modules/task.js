@@ -6,6 +6,7 @@ const pathTasks = './tasks.json';
 const pathTaskMonthlyUsers = './taskMonthlyUsers.json';
 const pathTaskAllUsers = './taskAllUsers.json';
 const pathPollVotes = './pollVotes.json';
+const activeTaskPath = './activeTask.json';
 
 let pollSchedule = null;
 let activePoll = null;
@@ -61,6 +62,19 @@ function loadPollVotes() {
         return parsedData.votes;
     }
     return [0, 0, 0];
+}
+
+function saveActiveTask(task) {
+    fs.writeFileSync(activeTaskPath, JSON.stringify(task, null, 4), 'utf8');
+}
+
+function loadActiveTask() {
+    if (fs.existsSync(activeTaskPath)) {
+        const data = fs.readFileSync(activeTaskPath, 'utf8');
+        const parsedData = JSON.parse(data);
+        return parsedData;
+    }
+    return null;
 }
 
 function updateSubmissionCount(users, userId) {
@@ -318,6 +332,8 @@ async function postTaskAnnouncement(client) {
 
     activePoll = null;
 
+    saveActiveTask(selectedTask);
+
     console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
 
@@ -454,19 +470,19 @@ async function handleTaskCommands(message, client) {
             message.channel.send('Check out the task commands with `!taskhelp`!');
             return;
         }
-    
+
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
-    
+
         if (command === 'closetaskpoll') {
             await closeTaskPoll(client);
         }
-    
+
         if (command === 'announcetask') {
             await postTaskAnnouncement(client);
         }
-    
+
         if (command === 'rollwinner') {
             await postWinnerAnnouncement(client);
         }
@@ -488,6 +504,29 @@ async function handleTaskCommands(message, client) {
             if (taskList) {
                 message.channel.send(taskList);
             }
+        }
+
+        if (command === 'activetask') {
+            const activeTask = loadActiveTask();
+
+            if (!activeTask) {
+                message.channel.send('No active task found.');
+                return;
+            }
+
+            const instructionText = instructionMap[activeTask.instruction];
+            const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
+
+            const taskEmbed = new EmbedBuilder()
+                .setTitle("This Week's Task")
+                .setDescription(`**${activeTask.taskName}**
+                \n**Submission instructions**: 
+                ${instructionText}
+                \nPost all screenshots as **one message** in ${submissionChannel}
+                \nTask ends Sunday at 11:59 PM UTC.`)
+                .setColor("#FF0000");
+
+            await message.channel.send({ embeds: [taskEmbed] });
         }
     }
 }
