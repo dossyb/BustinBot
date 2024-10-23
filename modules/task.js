@@ -258,13 +258,14 @@ async function postTaskAnnouncement(client) {
     }
 
     const instructionText = instructionMap[selectedTask.instruction];
+    const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
 
     const taskAnnouncementEmbed = new EmbedBuilder()
         .setTitle("This Week's Task")
         .setDescription(`**${selectedTask.taskName}**
             \n**Submission instructions**: 
             ${instructionText}
-            \nPost all screenshots as **one message** in <#1297484319341940736>
+            \nPost all screenshots as **one message** in ${submissionChannel}
             \nTask ends Sunday at 11:59 PM UTC.`)
         .setColor("#FF0000");
 
