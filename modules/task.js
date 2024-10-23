@@ -9,6 +9,12 @@ const pathTaskAllUsers = './taskAllUsers.json';
 let pollSchedule = null;
 let activePoll = null;
 
+const instructionMap = {
+    1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
+    2: "Provide a screenshot of your current amount/kc and a second screenshot of the amount/kc after completing the task. Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
+    3: "Provide evidence of the XP being obtained within the week, such as via an XP tracker or a before and after screenshot."
+};
+
 // Ensure task user files exist
 function initialiseTaskUserFiles() {
     if (!fs.existsSync(pathTaskMonthlyUsers)) {
@@ -154,7 +160,7 @@ async function postTaskPoll(client) {
 
     const taskPollEmbed = new EmbedBuilder()
         .setTitle("Vote for next task")
-        .setDescription(`Voting lasts 24 hours. \n\n1️⃣ **${tasks[0].taskName}**\n2️⃣ **${tasks[1].taskName}**\n3️⃣ **${tasks[2].taskName}**`)
+        .setDescription(`Voting lasts 24 hours. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
         .setColor("#00FF00");
 
     const message = await channel.send({
@@ -251,9 +257,15 @@ async function postTaskAnnouncement(client) {
         return;
     }
 
+    const instructionText = instructionMap[selectedTask.instruction];
+
     const taskAnnouncementEmbed = new EmbedBuilder()
         .setTitle("This Week's Task")
-        .setDescription(`**${selectedTask.taskName}**\nSubmission instructions: ${selectedTask.instructions}\n\nTask ends Sunday at 11:59 PM UTC.`)
+        .setDescription(`**${selectedTask.taskName}**
+            \n**Submission instructions**: 
+            ${instructionText}
+            \nPost all screenshots as **one message** in <#1297484319341940736>
+            \nTask ends Sunday at 11:59 PM UTC.`)
         .setColor("#FF0000");
 
     const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
