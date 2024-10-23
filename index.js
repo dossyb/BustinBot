@@ -9,6 +9,7 @@ if (!token) {
 }
 
 const movieModule = require('./modules/movie');
+const taskModule = require('./modules/task');
 const fs = require('fs');
 const pathCounter = './counters.json';
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
@@ -32,12 +33,18 @@ client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
+    taskModule.schedulePoll(client);
+    taskModule.scheduleTaskAnnouncement(client);
+    taskModule.scheduleWinnerAnnouncement(client);
 });
 
 let bustinCount = loadCounter();
 
 client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith('!')) return;
+    if (!message.content.startsWith('!')) {
+        taskModule.handleTaskSubmissions(message, client);
+        return;
+    } 
 
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -82,7 +89,8 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    movieModule.handleMovieCommands(message);
+    movieModule.handleMovieCommands(message, client);
+    await taskModule.handleTaskCommands(message, client);
 });
 
 client.login(token);

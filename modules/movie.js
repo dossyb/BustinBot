@@ -131,7 +131,7 @@ function setCooldown(cooldownMap, userId) {
 let movieList = loadMovies();
 let userMovieCount = loadUserMovieCount();
 
-async function handleMovieCommands(message) {
+async function handleMovieCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
@@ -636,7 +636,7 @@ if (hasAdminRole) {
             delete scheduledReminders.movieTime;
         }
 
-        const removedMovie = removeMovieFromList(selectedMovie.name);
+        const removedMovie = removeMovieFromList(selectedMovie.name, client);
         selectedMovie = null;
         scheduledMovieTime = null;
 
