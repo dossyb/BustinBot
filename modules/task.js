@@ -203,7 +203,7 @@ async function postTaskPoll(client) {
 
     const taskPollEmbed = new EmbedBuilder()
         .setTitle("Vote for next task")
-        .setDescription(`Voting lasts 24 hours. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
+        .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
         .setColor("#00FF00");
 
     const message = await channel.send({
@@ -315,13 +315,18 @@ async function postTaskAnnouncement(client) {
     const instructionText = instructionMap[selectedTask.instruction];
     const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
 
+    const now = new Date();
+    const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
+    nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
+    const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
+
     const taskAnnouncementEmbed = new EmbedBuilder()
         .setTitle("This Week's Task")
         .setDescription(`**${selectedTask.taskName}**
             \n**Submission instructions**: 
             ${instructionText}
             \nPost all screenshots as **one message** in ${submissionChannel}
-            \nTask ends Sunday at 11:59 PM UTC.`)
+            \nTask ends <t:${unixTimestamp}:F>.`)
         .setColor("#FF0000");
 
     const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
@@ -517,13 +522,18 @@ async function handleTaskCommands(message, client) {
             const instructionText = instructionMap[activeTask.instruction];
             const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
 
+            const now = new Date();
+            const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
+            nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
+            const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
+
             const taskEmbed = new EmbedBuilder()
                 .setTitle("This Week's Task")
                 .setDescription(`**${activeTask.taskName}**
                 \n**Submission instructions**: 
                 ${instructionText}
                 \nPost all screenshots as **one message** in ${submissionChannel}
-                \nTask ends Sunday at 11:59 PM UTC.`)
+                \nTask ends <t:${unixTimestamp}:F>.`)
                 .setColor("#FF0000");
 
             await message.channel.send({ embeds: [taskEmbed] });
