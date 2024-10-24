@@ -541,6 +541,29 @@ async function handleTaskCommands(message, client) {
 
             await message.channel.send({ embeds: [taskEmbed] });
         }
+
+        if (command === 'completions') {
+            const allUsers = loadUsers(pathTaskAllUsers);
+            let userList = '';
+
+            allUsers.forEach(async user => {
+                try {
+                    const discordUser = await client.users.fetch(user.id);
+                    const username = discordUser.username;
+                    userList += `${username}: ${user.submissions} task completions\n`;
+                } catch (error) {
+                    console.error('Error fetching user: ', error);
+                }
+            });
+
+            setTimeout(() => {
+                if (userList) {
+                    message.channel.send(userList);
+                } else {
+                    message.channel.send('No task completions found.');
+                }
+            }, 1000);
+        }
     }
 }
 
