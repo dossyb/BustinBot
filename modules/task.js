@@ -498,7 +498,10 @@ async function handleTaskCommands(message, client) {
             let taskCount = 0;
 
             allTasks.forEach(task => {
-                taskList += `${task.taskName}\n`;
+                const amountsString = task.amounts.join(', ');
+                const taskWithAmounts = task.taskName.replace('{amount}', '{' + amountsString + '}');
+
+                taskList += `${task.id}: ${taskWithAmounts}\n`;
                 taskCount++;
                 if (taskCount % 20 === 0) {
                     message.channel.send(taskList);
