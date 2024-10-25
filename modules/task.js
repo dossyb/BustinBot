@@ -143,16 +143,22 @@ function getRandomTasks(amount) {
     const allTasks = loadTasks();
     const shuffled = allTasks.sort(() => 0.5 - Math.random());
 
+    let taskName = '';
     // Select random tasks
     const selectedTasks = shuffled.slice(0, amount).map(task => {
-        const randomAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+        if (!task.amounts || task.amounts.length === 0) {
+            taskName = task.taskName;
+            amount = null;
+        } else {
+            const amount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
 
-        const taskNameWithAmount = task.taskName.replace('{amount}', randomAmount);
+            taskName = task.taskName.replace('{amount}', amount);
+        }
 
         return {
             ...task,
-            selectedAmount: randomAmount,
-            taskName: taskNameWithAmount
+            selectedAmount: amount,
+            taskName: taskName
         };
     });
     return selectedTasks;
@@ -498,7 +504,13 @@ async function handleTaskCommands(message, client) {
             let taskCount = 0;
 
             allTasks.forEach(task => {
+                if (!task.amounts || task.amounts.length === 0) {
+                    taskList += `${task.id}: ${task.taskName}\n`;
+                    taskCount++;
+                    return;
+                }
                 const amountsString = task.amounts.join(', ');
+
                 const taskWithAmounts = task.taskName.replace('{amount}', '{' + amountsString + '}');
 
                 taskList += `${task.id}: ${taskWithAmounts}\n`;
