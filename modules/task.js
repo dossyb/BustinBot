@@ -107,7 +107,7 @@ function updateSubmissionCount(users, userId) {
 // Handle task submissions
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
-        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin');
+        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
         const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
 
         collector.on('collect', async (reaction, user) => {
