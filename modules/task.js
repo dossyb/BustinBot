@@ -214,13 +214,15 @@ async function postTaskPoll(client) {
     // Find the appropriate channel (weekly-task)
     const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
-        console.log('Weekly task channel not found');
+        const errorMsg = 'Weekly task channel not found.';
+        reportError(client, null, errorMsg);
         return;
     }
 
     const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
     if (!role) {
-        console.log('Community event/competition role not found');
+        const errorMsg = 'Community event/competition role not found.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -268,7 +270,8 @@ async function postTaskPoll(client) {
 
 async function closeTaskPoll(client) {
     if (!activePoll) {
-        console.log('No active poll to close');
+        const errorMsg = 'No active poll to close.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -283,11 +286,10 @@ async function closeTaskPoll(client) {
     const winningTask = tasks[winningIndex];
 
     if (!winningTask) {
-        console.log('No winning task found');
+        const errorMsg = 'No winning task found.';
+        reportError(client, null, errorMsg);
         return null;
     }
-
-    // await message.channel.send(`The winning task is **${winningTask.taskName}**!`);
 
     activePoll = null;
     fs.unlinkSync(pathPollVotes);
@@ -317,13 +319,15 @@ function scheduleTaskAnnouncement(client) {
 
 async function postTaskAnnouncement(client) {
     if (!activePoll) {
-        console.log('No active poll to announce');
+        const errorMsg = 'No active poll to announce.';
+        reportError(client, null, errorMsg);
         return;
     }
 
     const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
-        console.log('Weekly task channel not found');
+        const errorMsg = 'Weekly task channel not found.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -331,7 +335,8 @@ async function postTaskAnnouncement(client) {
     const selectedTask = await closeTaskPoll(client);
 
     if (!selectedTask) {
-        console.log('No winning task found.');
+        const errorMsg = 'No winning task found.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -396,7 +401,7 @@ function scheduleWinnerAnnouncement(client) {
     const timeUntilFourthTuesday = fourthTuesday.getTime() - now.getTime();
 
     if (timeUntilFourthTuesday > 2147483647) {
-        console.log('Time until fourth Tuesday is too long to schedule right now.');
+        console.log('Time until fourth Tuesday is too long to schedule right now, will try again 18 days from now.');
 
         // Schedule for 18 days from now and check again
         setTimeout(() => {
@@ -439,7 +444,8 @@ function getNextFourthTuesday(now) {
 async function postWinnerAnnouncement(client) {
     const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
     if (!channel) {
-        console.log('Weekly task channel not found');
+        const errorMsg = 'Weekly task channel not found.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -457,7 +463,8 @@ async function postWinnerAnnouncement(client) {
     // Pick a winner
     const winnerId = pickMonthlyWinner();
     if (!winnerId) {
-        console.log('No winner could be determined.');
+        const errorMsg = 'No winner could be determined.';
+        reportError(client, null, errorMsg);
         return;
     }
 
