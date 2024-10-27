@@ -620,6 +620,19 @@ async function handleTaskCommands(message, client) {
         
             await message.channel.send({ embeds: [taskEmbed] });
         }
+
+        if (command === 'settask') {
+            const taskId = args[0];
+            const task = loadTasks().find(task => task.id === taskId);
+
+            if (!task) {
+                message.channel.send('Task not found.');
+                return;
+            }
+
+            saveActiveTask(task);
+            message.channel.send('Active task set to: ' + task.taskName);
+        }
     }
 }
 
