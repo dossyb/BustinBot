@@ -2,6 +2,7 @@ const { time } = require('console');
 const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
+const { parse } = require('path');
 const { report } = require('process');
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
@@ -55,12 +56,12 @@ function savePollData() {
     const pollData = {
         activePoll,
     };
-    fs.writeFileSync('./pollData.json', JSON.stringify(pollData, null, 4), 'utf8');
+    fs.writeFileSync('./data/task/pollData.json', JSON.stringify(pollData, null, 4), 'utf8');
 }
 
 function loadPollData() {
-    if (fs.existsSync('./pollData.json')) {
-        const data = fs.readFileSync('./pollData.json', 'utf8');
+    if (fs.existsSync('./data/task/pollData.json')) {
+        const data = fs.readFileSync('./data/task/pollData.json', 'utf8');
         const parsedData = JSON.parse(data);
         activePoll = parsedData.activePoll;
     }
@@ -623,15 +624,34 @@ async function handleTaskCommands(message, client) {
 
         if (command === 'settask') {
             const taskId = args[0];
-            const task = loadTasks().find(task => task.id === taskId);
+            const specifiedAmount = args[1] ? parseInt(args[1], 10) : null;
+            
+            if (!taskId) {
+                message.channel.send('Please provide a task ID.');
+                return;
+            }
+            const task = loadTasks().find(task => task.id === parseInt(taskId), 10);
 
             if (!task) {
-                message.channel.send('Task not found.');
+                message.channel.send(`Task with ID ${taskId} not found.`);
                 return;
             }
 
+            let selectedAmount = null;
+            if (task.amounts && task.amounts.length > 0) {
+                if (specifiedAmount) {
+                    if (!task.amounts.includes(specifiedAmount)) {
+                        message.channel.send(`Amount ${specifiedAmount} is not valid for this task.`);
+                        return;
+                    }
+                    selectedAmount = specifiedAmount;
+                } else {
+                    selectedAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+                }
+            }
+
             saveActiveTask(task);
-            message.channel.send('Active task set to: ' + task.taskName);
+            message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
         }
     }
 }
