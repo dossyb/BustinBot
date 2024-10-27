@@ -2,11 +2,12 @@ const { time } = require('console');
 const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
-const pathTasks = './tasks.json';
-const pathTaskMonthlyUsers = './taskMonthlyUsers.json';
-const pathTaskAllUsers = './taskAllUsers.json';
-const pathPollVotes = './pollVotes.json';
-const activeTaskPath = './activeTask.json';
+const { report } = require('process');
+const pathTasks = './data/task/tasks.json';
+const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
+const pathTaskAllUsers = './data/task/taskAllUsers.json';
+const pathPollVotes = './data/task/pollVotes.json';
+const activeTaskPath = './data/task/activeTask.json';
 
 let pollSchedule = null;
 let activePoll = null;
@@ -16,6 +17,20 @@ const instructionMap = {
     2: "Provide a screenshot of your current amount/kc and a second screenshot of the amount/kc after completing the task. Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
     3: "Provide evidence of the XP being obtained within the week, such as via an XP tracker or a before and after screenshot."
 };
+
+function reportError(client, message, error) {
+    const botAdminChannel = message.guild.channels.cache.find(channel => channel.name === 'botadmin');
+
+    const errorMessage = `An error occurred: ${error.message || error}`;
+
+    if (botAdminChannel) {
+        botAdminChannel.send(errorMessage).catch((err) => {
+            console.error('Error sending error message to botadmin: ', err);
+        });
+    } else {
+        console.error(errorMessage);
+    }
+}
 
 // Ensure task user files exist
 function initialiseTaskUserFiles() {
@@ -120,7 +135,8 @@ async function handleTaskSubmissions(message, client) {
 
         collector.on('end', collected => {
             if (collected.size === 0) {
-                console.log('No approval within the alotted time for ' + message.author.id + '\'s task submission.');
+                const errorMsg = 'No approval within the alotted time for ' + message.author.id + '\'s task submission.';
+                reportError(client, message, errorMsg);
             }
         });
     }
@@ -190,7 +206,8 @@ function schedulePoll(client) {
 async function postTaskPoll(client) {
     const tasks = getRandomTasks(3);
     if (tasks.length < 3) {
-        console.log('Not enough tasks to post poll.');
+        const errorMsg = 'Not enough tasks to post poll.';
+        reportError(client, null, errorMsg);
         return;
     }
 
@@ -563,8 +580,8 @@ async function handleTaskCommands(message, client) {
                     const discordUser = await client.users.fetch(user.id);
                     const username = discordUser.username;
                     userList += `${username}: ${user.submissions} task completions\n`;
-                } catch (error) {
-                    console.error('Error fetching user: ', error);
+                } catch (fetchError) {
+                    reportError(client, message, fetchError);
                 }
             });
 
@@ -575,6 +592,26 @@ async function handleTaskCommands(message, client) {
                     message.channel.send('No task completions found.');
                 }
             }, 1000);
+        }
+
+        if (command === 'activepoll') {
+            if (!activePoll) {
+                message.channel.send('No active poll found.');
+                return;
+            }
+        
+            const tasks = activePoll.tasks;
+            if (tasks.length < 3) {
+                message.channel.send('Not enough tasks for a poll.');
+                return;
+            }
+        
+            const taskEmbed = new EmbedBuilder()
+                .setTitle("Vote for next task")
+                .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
+                .setColor("#00FF00");
+        
+            await message.channel.send({ embeds: [taskEmbed] });
         }
     }
 }

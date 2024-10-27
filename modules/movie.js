@@ -2,8 +2,8 @@ const fs = require('fs');
 const moment = require('moment');
 const { EmbedBuilder } = require('discord.js');
 
-const pathMovies = './movies.json';
-const pathUserMovieCount = './userMovieCount.json';
+const pathMovies = './data/movie/movies.json';
+const pathUserMovieCount = './data/movie/userMovieCount.json';
 
 //Cooldowns
 const addMovieCooldown = new Map();

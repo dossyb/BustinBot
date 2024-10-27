@@ -183,7 +183,7 @@
     },
   {
         "id": 57,
-        "taskName": "Get {amount} Dagganoth Kings kc",
+        "taskName": "Get {amount} Dagannoth Kings kc",
         "amounts": [50, 150, 50],
         "instruction": 2
     },
@@ -217,7 +217,7 @@
     },
   {
         "id": 63,
-        "taskName": "Get {amount} Herblore xp",
+        "taskName": "Get {amount}k Herblore xp",
         "amounts": [100, 300, 50],
         "instruction": 3
     },

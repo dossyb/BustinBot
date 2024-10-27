@@ -11,7 +11,7 @@ if (!token) {
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 const fs = require('fs');
-const pathCounter = './counters.json';
+const pathCounter = './data/counters.json';
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
