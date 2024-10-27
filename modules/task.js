@@ -613,10 +613,23 @@ async function handleTaskCommands(message, client) {
                 message.channel.send('Not enough tasks for a poll.');
                 return;
             }
-        
+
+            const pollVotes = loadPollVotes();
+
+            const votes = pollVotes || [0, 0, 0];
+            if (votes.length < 3) {
+                message.channel.send('Vote data is incomplete.');
+                return;
+            }
+
+            const description = `Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n` +
+            `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
+            `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
+            `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
+
             const taskEmbed = new EmbedBuilder()
                 .setTitle("Vote for next task")
-                .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
+                .setDescription(description)
                 .setColor("#00FF00");
         
             await message.channel.send({ embeds: [taskEmbed] });
