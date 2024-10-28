@@ -19,10 +19,18 @@ const instructionMap = {
     3: "Provide evidence of the XP being obtained within the week, such as via an XP tracker or a before and after screenshot."
 };
 
-function reportError(client, message, error) {
-    const botAdminChannel = message.guild.channels.cache.find(channel => channel.name === 'botadmin');
+function getChannelByName(client, channelName) {
+    return client.channels.cache.find(channel => channel.name === channelName);
+}
 
-    const errorMessage = `An error occurred: ${error.message || error}`;
+function getRoleByName(guild, roleName) {
+    return guild.roles.cache.find(role => role.name === roleName);
+}
+
+function reportError(client, message, errorMsg) {
+    const botAdminChannel = getChannelByName(client, 'botadmin');
+
+    const errorMessage = `An error occurred: ${errorMsg}`;
 
     if (botAdminChannel) {
         botAdminChannel.send(errorMessage).catch((err) => {
@@ -31,6 +39,18 @@ function reportError(client, message, error) {
     } else {
         console.error(errorMessage);
     }
+}
+
+function readJSON(filePath) {
+    if (fs.existsSync(filePath)) {
+        const data = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(data);
+    }
+    return null;
+}
+
+function writeJSON(filePath, data) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 4), 'utf8');
 }
 
 // Ensure task user files exist
@@ -44,53 +64,50 @@ function initialiseTaskUserFiles() {
 }
 
 function loadUsers(filePath) {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data).users;
+    const data = readJSON(filePath);
+    return data ? data.users : [];
 }
 
 function saveUsers(filePath, users) {
-    fs.writeFileSync(filePath, JSON.stringify({ users }, null, 4), 'utf8');
+    writeJSON(filePath, { users });
+}
+
+function loadPollData() {
+    const pollData = readJSON('./data/task/pollData.json');
+    if (pollData && pollData.activePoll) {
+        activePoll = pollData.activePoll;
+    }
 }
 
 function savePollData() {
     const pollData = {
         activePoll,
     };
-    fs.writeFileSync('./data/task/pollData.json', JSON.stringify(pollData, null, 4), 'utf8');
-}
-
-function loadPollData() {
-    if (fs.existsSync('./data/task/pollData.json')) {
-        const data = fs.readFileSync('./data/task/pollData.json', 'utf8');
-        const parsedData = JSON.parse(data);
-        activePoll = parsedData.activePoll;
-    }
-}
-
-function savePollVotes(voteCounts) {
-    fs.writeFileSync(pathPollVotes, JSON.stringify({ votes: voteCounts }, null, 4), 'utf8');
+    writeJSON('./data/task/pollData.json', pollData);
 }
 
 function loadPollVotes() {
-    if (fs.existsSync(pathPollVotes)) {
-        const data = fs.readFileSync(pathPollVotes, 'utf8');
-        const parsedData = JSON.parse(data);
-        return parsedData.votes;
-    }
-    return [0, 0, 0];
+    const pollVotes = readJSON(pathPollVotes);
+    return pollVotes ? pollVotes.votes : [0, 0, 0];
 }
 
-function saveActiveTask(task) {
-    fs.writeFileSync(activeTaskPath, JSON.stringify(task, null, 4), 'utf8');
+function savePollVotes(voteCounts) {
+    writeJSON(pathPollVotes, { votes: voteCounts });
 }
 
 function loadActiveTask() {
-    if (fs.existsSync(activeTaskPath)) {
-        const data = fs.readFileSync(activeTaskPath, 'utf8');
-        const parsedData = JSON.parse(data);
-        return parsedData;
-    }
-    return null;
+    return readJSON(activeTaskPath);
+}
+
+function saveActiveTask(task) {
+    writeJSON(activeTaskPath, task);
+}
+
+// Load tasks from tasks.json
+function loadTasks() {
+    let data = readJSON(pathTasks);
+
+    return Array.isArray(data) ? data : [];
 }
 
 function updateSubmissionCount(users, userId) {
@@ -136,23 +153,10 @@ async function handleTaskSubmissions(message, client) {
 
         collector.on('end', collected => {
             if (collected.size === 0) {
-                const errorMsg = 'No approval within the alotted time for ' + message.author.id + '\'s task submission.';
-                reportError(client, message, errorMsg);
+                reportError(client, message, 'No approval within the alotted time for ' + message.author.id + '\'s task submission.');
             }
         });
     }
-}
-
-// Load tasks from tasks.json
-function loadTasks() {
-    if (!fs.existsSync(pathTasks)) {
-        const initialData = { tasks: [] };
-        fs.writeFileSync(pathTasks, JSON.stringify(initialData, null, 4), 'utf8');
-    }
-    const data = fs.readFileSync(pathTasks, 'utf8');
-    const parsedData = JSON.parse(data);
-
-    return Array.isArray(parsedData) ? parsedData : [];
 }
 
 // Function to randomly select tasks for the poll
@@ -181,19 +185,29 @@ function getRandomTasks(amount) {
     return selectedTasks;
 }
 
+function getNextDayOfWeek(dayOfWeek, hour = 0, minute = 0) {
+    const now = new Date();
+    let nextDay = new Date(now);
+
+    // Calculate the days to add to reach the next desired day
+    const daysUntilNext = (7 - now.getUTCDay() + dayOfWeek) % 7 || 7;
+    nextDay.setUTCDate(now.getUTCDate() + daysUntilNext);
+    nextDay.setUTCHours(hour, minute, 0, 0);
+
+    return nextDay;
+}
+
+function createPollEmbed(tasks) {
+    return new EmbedBuilder()
+        .setTitle("Vote for next task")
+        .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
+        .setColor("#00FF00");
+}
+
 // Schedule poll every Sunday at 12AM UTC
 function schedulePoll(client) {
-    const now = new Date();
-
-    let nextSunday = new Date(now);
-    nextSunday.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()));
-    nextSunday.setUTCHours(0, 0, 0, 0);
-
-    if (nextSunday.getTime() <= now.getTime()) {
-        nextSunday.setUTCDate(nextSunday.getUTCDate() + 7);
-    }
-
-    const timeUntilNextSunday = nextSunday.getTime() - now.getTime();
+    const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
+    const timeUntilNextSunday = nextSunday.getTime() - Date.now();
 
     console.log(`Next poll scheduled in ${(timeUntilNextSunday / 1000 / 60 / 60).toFixed(2)} hours.`);
 
@@ -207,30 +221,24 @@ function schedulePoll(client) {
 async function postTaskPoll(client) {
     const tasks = getRandomTasks(3);
     if (tasks.length < 3) {
-        const errorMsg = 'Not enough tasks to post poll.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'Not enough tasks to post poll.');
         return;
     }
 
     // Find the appropriate channel (weekly-task)
-    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
+    const channel = getChannelByName(client, '📆weekly-task');
     if (!channel) {
-        const errorMsg = 'Weekly task channel not found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'Weekly task channel not found.');
         return;
     }
 
-    const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
+    const role = getRoleByName(channel.guild, 'Community event/competition');
     if (!role) {
-        const errorMsg = 'Community event/competition role not found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'Community event/competition role not found.');
         return;
     }
 
-    const taskPollEmbed = new EmbedBuilder()
-        .setTitle("Vote for next task")
-        .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
-        .setColor("#00FF00");
+    const taskPollEmbed = createPollEmbed(tasks);
 
     const message = await channel.send({
         content: `<@&${role.id}>`,
@@ -271,12 +279,11 @@ async function postTaskPoll(client) {
 
 async function closeTaskPoll(client) {
     if (!activePoll) {
-        const errorMsg = 'No active poll to close.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'No active poll to close.');
         return;
     }
 
-    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
+    const channel = getChannelByName(client, '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
     const reactions = message.reactions.cache;
     const tasks = activePoll.tasks;
@@ -287,8 +294,7 @@ async function closeTaskPoll(client) {
     const winningTask = tasks[winningIndex];
 
     if (!winningTask) {
-        const errorMsg = 'No winning task found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'No winning task found.');
         return null;
     }
 
@@ -297,18 +303,20 @@ async function closeTaskPoll(client) {
     return winningTask;
 }
 
+function createTaskAnnouncementEmbed(task, submissionChannel, unixTimestamp, instructionText) {
+    return new EmbedBuilder()
+        .setTitle("This Week's Task")
+        .setDescription(`**${task.taskName}**
+        \n**Submission instructions**: 
+        ${instructionText}
+        \nPost all screenshots as **one message** in ${submissionChannel}
+        \nTask ends <t:${unixTimestamp}:F> (<t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>).`)
+        .setColor("#FF0000");
+}
+
 function scheduleTaskAnnouncement(client) {
-    const now = new Date();
-
-    let nextMonday = new Date(now);
-    nextMonday.setUTCDate(now.getUTCDate() + ((8 - now.getUTCDay()) % 7));
-    nextMonday.setUTCHours(0, 0, 0, 0);
-
-    if (nextMonday.getTime() <= now.getTime()) {
-        nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
-    }
-
-    const timeUntilNextMonday = nextMonday.getTime() - now.getTime();
+    const nextMonday = getNextDayOfWeek(1); // 1 = Monday
+    const timeUntilNextMonday = nextMonday.getTime() - Date.now();
 
     console.log(`Next task announcement scheduled in ${(timeUntilNextMonday / 1000 / 60 / 60).toFixed(2)} hours.`);
 
@@ -320,15 +328,13 @@ function scheduleTaskAnnouncement(client) {
 
 async function postTaskAnnouncement(client) {
     if (!activePoll) {
-        const errorMsg = 'No active poll to announce.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'No active poll to announce.');
         return;
     }
 
-    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
+    const channel = getChannelByName(client, '📆weekly-task');
     if (!channel) {
-        const errorMsg = 'Weekly task channel not found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'Weekly task channel not found.');
         return;
     }
 
@@ -336,29 +342,21 @@ async function postTaskAnnouncement(client) {
     const selectedTask = await closeTaskPoll(client);
 
     if (!selectedTask) {
-        const errorMsg = 'No winning task found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'No winning task found.');
         return;
     }
 
     const instructionText = instructionMap[selectedTask.instruction];
-    const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
+    const submissionChannel = getChannelByName(client, '📥task-submissions');
 
     const now = new Date();
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
     const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
 
-    const taskAnnouncementEmbed = new EmbedBuilder()
-        .setTitle("This Week's Task")
-        .setDescription(`**${selectedTask.taskName}**
-            \n**Submission instructions**: 
-            ${instructionText}
-            \nPost all screenshots as **one message** in ${submissionChannel}
-            \nTask ends <t:${unixTimestamp}:F>.`)
-        .setColor("#FF0000");
+    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, unixTimestamp, instructionText);
 
-    const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
+    const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
         content: `<@&${role.id}>`,
         embeds: [taskAnnouncementEmbed]
@@ -443,10 +441,9 @@ function getNextFourthTuesday(now) {
 }
 
 async function postWinnerAnnouncement(client) {
-    const channel = client.channels.cache.find(channel => channel.name === '📆weekly-task');
+    const channel = getChannelByName(client, '📆weekly-task');
     if (!channel) {
-        const errorMsg = 'Weekly task channel not found.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'Weekly task channel not found.');
         return;
     }
 
@@ -464,8 +461,7 @@ async function postWinnerAnnouncement(client) {
     // Pick a winner
     const winnerId = pickMonthlyWinner();
     if (!winnerId) {
-        const errorMsg = 'No winner could be determined.';
-        reportError(client, null, errorMsg);
+        reportError(client, null, 'No winner could be determined.');
         return;
     }
 
@@ -475,7 +471,7 @@ async function postWinnerAnnouncement(client) {
         .setDescription('In the last month, there were...\n\n **' + totalSubmissions + '** submissions from **' + totalParticipants + '** participants!\n\n**The winner is <@' + winnerId + '>!**\n\n Congratulations! Please message an admin to claim your prize.')
         .setColor("#0000FF");
 
-    const role = channel.guild.roles.cache.find(role => role.name === 'Community event/competition');
+    const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
         content: `<@&${role.id}>`,
         embeds: [announcementEmbed]
@@ -514,7 +510,7 @@ async function handleTaskCommands(message, client) {
 - **!activetask**: Show the details of the currently active task.
 - **!completions**: List all users and the number of tasks they have completed.
 - **!activepoll**: Display the active task poll and the current voting status.
-- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount.
+- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
        
 **Note**: Ensure that you have the required permissions before using these commands.
         `;
@@ -571,21 +567,14 @@ async function handleTaskCommands(message, client) {
             }
 
             const instructionText = instructionMap[activeTask.instruction];
-            const submissionChannel = client.channels.cache.find(channel => channel.name === '📥task-submissions');
+            const submissionChannel = getChannelByName(client, '📥task-submissions');
 
             const now = new Date();
             const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
             nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
             const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
 
-            const taskEmbed = new EmbedBuilder()
-                .setTitle("This Week's Task")
-                .setDescription(`**${activeTask.taskName}**
-                \n**Submission instructions**: 
-                ${instructionText}
-                \nPost all screenshots as **one message** in ${submissionChannel}
-                \nTask ends <t:${unixTimestamp}:F>.`)
-                .setColor("#FF0000");
+            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, unixTimestamp, instructionText);
 
             await message.channel.send({ embeds: [taskEmbed] });
         }
