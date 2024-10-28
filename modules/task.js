@@ -497,22 +497,33 @@ async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Limit commands to admins
+    // Limit commands to BustinBot admins
     if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
         message.channel.send('You do not have permission to use this command.');
         return;
     } else {
         if (command === 'taskhelp') {
-            message.channel.send('Check out the task commands with `!taskhelp`!');
-            return;
+            let helpMessage = `
+        📥 **BustinBot's Task Commands** 📥
+        
+**These commands require admin privileges.**
+- **!taskpoll**: Create a new task poll for the community to vote on.
+- **!announcetask**: Close the active poll and announce the active task for the current week.
+- **!rollwinner**: Randomly select a winner from the task submissions.
+- **!listtasks**: Display a list of all available tasks and their details.
+- **!activetask**: Show the details of the currently active task.
+- **!completions**: List all users and the number of tasks they have completed.
+- **!activepoll**: Display the active task poll and the current voting status.
+- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount.
+       
+**Note**: Ensure that you have the required permissions before using these commands.
+        `;
+
+            message.channel.send(helpMessage);
         }
 
         if (command === 'taskpoll') {
             await postTaskPoll(client);
-        }
-
-        if (command === 'closetaskpoll') {
-            await closeTaskPoll(client);
         }
 
         if (command === 'announcetask') {
@@ -607,7 +618,7 @@ async function handleTaskCommands(message, client) {
                 message.channel.send('No active poll found.');
                 return;
             }
-        
+
             const tasks = activePoll.tasks;
             if (tasks.length < 3) {
                 message.channel.send('Not enough tasks for a poll.');
@@ -623,22 +634,22 @@ async function handleTaskCommands(message, client) {
             }
 
             const description = `Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n` +
-            `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
-            `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
-            `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
+                `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
+                `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
+                `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
 
             const taskEmbed = new EmbedBuilder()
                 .setTitle("Vote for next task")
                 .setDescription(description)
                 .setColor("#00FF00");
-        
+
             await message.channel.send({ embeds: [taskEmbed] });
         }
 
         if (command === 'settask') {
             const taskId = args[0];
             const specifiedAmount = args[1] ? parseInt(args[1], 10) : null;
-            
+
             if (!taskId) {
                 message.channel.send('Please provide a task ID.');
                 return;
