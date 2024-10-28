@@ -2,6 +2,7 @@ const { time } = require('console');
 const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
+const path = require('path');
 const { parse } = require('path');
 const { report } = require('process');
 const pathTasks = './data/task/tasks.json';
@@ -217,6 +218,19 @@ function schedulePoll(client) {
     }, timeUntilNextSunday);
 }
 
+function updateVoteCounts(reaction, voteCounts) {
+    if (reaction.emoji.name === '1️⃣') voteCounts[0]++;
+    if (reaction.emoji.name === '2️⃣') voteCounts[1]++;
+    if (reaction.emoji.name === '3️⃣') voteCounts[2]++;
+}
+
+async function updateVotesFromReacts(message, voteCounts) {
+    const reactions = message.reactions.cache;
+    voteCounts[0] = reactions.get('1️⃣').count - 1 || 0;
+    voteCounts[1] = reactions.get('2️⃣').count - 1 || 0;
+    voteCounts[2] = reactions.get('3️⃣').count - 1 || 0;
+}
+
 // Post task poll
 async function postTaskPoll(client) {
     const tasks = getRandomTasks(3);
@@ -262,17 +276,31 @@ async function postTaskPoll(client) {
     const collector = message.createReactionCollector({ filter, time: 24 * 60 * 60 * 1000 });
 
     collector.on('collect', (reaction) => {
-        if (reaction.emoji.name === '1️⃣') voteCounts[0]++;
-        if (reaction.emoji.name === '2️⃣') voteCounts[1]++;
-        if (reaction.emoji.name === '3️⃣') voteCounts[2]++;
-
+        updateVoteCounts(reaction, voteCounts);
         savePollVotes(voteCounts);
     });
 
-    // Set timeout to close poll after 24 hours
-    setTimeout(() => {
+    const interval = setInterval(async () => {
+        try {
+            // Only update votes if there is an active poll.
+            if (!activePoll) {
+                clearInterval(interval); 
+                return;
+            }
+    
+            const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
+            await updateVotesFromReacts(fetchedMessage, voteCounts);
+            savePollVotes(voteCounts);
+        } catch (error) {
+            console.error('Error fetching message or updating votes:', error);
+            reportError(client, null, 'Error updating votes from reactions.');
+        }
+    }, 30000);
+
+    collector.on('end', () => {
+        clearInterval(interval);
         closeTaskPoll(client, message, tasks);
-    }, 24 * 60 * 60 * 1000);
+    });
 
     savePollData();
 }
@@ -285,7 +313,6 @@ async function closeTaskPoll(client) {
 
     const channel = getChannelByName(client, '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
-    const reactions = message.reactions.cache;
     const tasks = activePoll.tasks;
     const voteCounts = loadPollVotes();
 
@@ -299,18 +326,20 @@ async function closeTaskPoll(client) {
     }
 
     activePoll = null;
-    fs.unlinkSync(pathPollVotes);
+    if (fs.existsSync(pathPollVotes)) {
+        fs.unlinkSync(pathPollVotes);
+    }
     return winningTask;
 }
 
-function createTaskAnnouncementEmbed(task, submissionChannel, unixTimestamp, instructionText) {
+function createTaskAnnouncementEmbed(task, submissionChannel, instructionText) {
     return new EmbedBuilder()
         .setTitle("This Week's Task")
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
         \nPost all screenshots as **one message** in ${submissionChannel}
-        \nTask ends <t:${unixTimestamp}:F> (<t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>).`)
+        \nTask ends <t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>.`)
         .setColor("#FF0000");
 }
 
@@ -352,9 +381,8 @@ async function postTaskAnnouncement(client) {
     const now = new Date();
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
-    const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
 
-    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, unixTimestamp, instructionText);
+    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, instructionText);
 
     const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
@@ -572,9 +600,8 @@ async function handleTaskCommands(message, client) {
             const now = new Date();
             const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
             nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
-            const unixTimestamp = Math.floor(nextSunday.getTime() / 1000);
 
-            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, unixTimestamp, instructionText);
+            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, instructionText);
 
             await message.channel.send({ embeds: [taskEmbed] });
         }
