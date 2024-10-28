@@ -64,7 +64,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'bustinhelp') {
-        message.channel.send('Check out the movie commands with `!moviehelp`! <a:Bustin:1290456273522921606>');
+        message.channel.send('Check out the movie commands with `!moviehelp` <a:Bustin:1290456273522921606>\nCheck out the task commands with `!taskhelp` (admins only) <a:Bustin:1290456273522921606> ');
     }
 
     if (command === 'sendas') {

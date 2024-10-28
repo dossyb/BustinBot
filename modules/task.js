@@ -523,7 +523,7 @@ async function handleTaskCommands(message, client) {
 
     // Limit commands to BustinBot admins
     if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
-        message.channel.send('You do not have permission to use this command.');
+        message.reply('You do not have permission to use this command.');
         return;
     } else {
         if (command === 'taskhelp') {
@@ -543,7 +543,7 @@ async function handleTaskCommands(message, client) {
 **Note**: Ensure that you have the required permissions before using these commands.
         `;
 
-            message.channel.send(helpMessage);
+            message.reply(helpMessage);
         }
 
         if (command === 'taskpoll') {
