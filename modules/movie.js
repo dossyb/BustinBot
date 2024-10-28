@@ -180,7 +180,7 @@ async function handleMovieCommands(message, client) {
         helpMessage += `
 For the **number-based commands**, you can reference a movie by its position in the list shown in **!movielist**. Example: "!movie 2" to view the second movie in the list.
         `;
-        message.channel.send(helpMessage);
+        message.reply(helpMessage);
     }
 
     if (hasMovieNightOrAdminRole) {
@@ -190,7 +190,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!hasAdminRole) {
                 const cooldownMessage = checkCooldown(addMovieCooldown, userId);
                 if (cooldownMessage) {
-                    message.channel.send(cooldownMessage);
+                    message.reply(cooldownMessage);
                     return;
                 }
 
@@ -199,7 +199,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 }
 
                 if (userMovieCount[userId] >= MAX_MOVIES_PER_USER) {
-                    message.channel.send(`You have reached the maximum limit of ${MAX_MOVIES_PER_USER} movies per user.`);
+                    message.reply(`You have reached the maximum limit of ${MAX_MOVIES_PER_USER} movies per user.`);
                     return;
                 }
             }
@@ -207,7 +207,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const movieName = args.join(' ');
 
             if (!movieName) {
-                message.channel.send('Please provide a movie name.');
+                message.reply('Please provide a movie name.');
                 return;
             }
 
@@ -226,9 +226,9 @@ For the **number-based commands**, you can reference a movie by its position in 
                 saveUserMovieCount();
 
                 const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
-                message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list. You can add ${moviesLeft} more movie(s).`);
+                message.reply(`Added **${movieName}** (${moviePosition}) to the movie list. You can add ${moviesLeft} more movie(s).`);
             } else {
-                message.channel.send(`Added **${movieName}** (${moviePosition}) to the movie list.`);
+                message.reply(`Added **${movieName}** (${moviePosition}) to the movie list.`);
             }
 
             if (!hasAdminRole) {
@@ -244,7 +244,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const newMovieName = args.slice(1).join(' ');
 
             if (!movieNumber || !newMovieName) {
-                message.channel.send('Please provide a movie number and a new movie name. Example: `!editmovie 2 New Movie Name`.');
+                message.reply('Please provide a movie number and a new movie name. Example: `!editmovie 2 New Movie Name`.');
                 return;
             }
 
@@ -256,7 +256,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = parseInt(movieNumber) - 1;
 
                 if (movieIndex < 0 || movieIndex >= movieList.length) {
-                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    message.reply(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
                     return;
                 }
 
@@ -265,7 +265,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = movieList.findIndex(m => m.name.toLowerCase() === movieNumber.toLowerCase());
 
                 if (movieIndex === -1) {
-                    message.channel.send(`Movie **${movieNumber}** not found in the list.`);
+                    message.reply(`Movie **${movieNumber}** not found in the list.`);
                     return;
                 }
 
@@ -276,7 +276,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const hasAdminRole = message.member.roles.cache.some(role => role.name === 'BustinBot Admin');
 
             if (movieToEdit.suggestedby !== message.author.tag && !hasAdminRole) {
-                message.channel.send(`You can only edit movies that you have added. Movie #${movieIndex + 1} was added by *${movieToEdit.suggestedby}*.`);
+                message.reply(`You can only edit movies that you have added. Movie #${movieIndex + 1} was added by *${movieToEdit.suggestedby}*.`);
                 return;
             }
 
@@ -285,7 +285,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             movieToEdit.name = newMovieName;
             saveMovies();
 
-            message.channel.send(`Updated movie **${oldMovieName}** to **${newMovieName}**.`);
+            message.reply(`Updated movie **${oldMovieName}** to **${newMovieName}**.`);
         }
 
         if (command === 'removemovie' || command === 'removie') {
@@ -294,7 +294,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!hasAdminRole) {
                 const cooldownMessage = checkCooldown(removeMovieCooldown, userId);
                 if (cooldownMessage) {
-                    message.channel.send(cooldownMessage);
+                    message.reply(cooldownMessage);
                     return;
                 }
             }
@@ -302,7 +302,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const input = args.join(' ');
 
             if (!input) {
-                message.channel.send('Please provide a movie name or its list number to remove.');
+                message.reply('Please provide a movie name or its list number to remove.');
                 return;
             }
 
@@ -315,14 +315,14 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = parseInt(input) - 1;
 
                 if (movieIndex < 0 || movieIndex >= movieList.length) {
-                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    message.reply(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
                     return;
                 }
 
                 const movie = movieList[movieIndex];
 
                 if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
-                    message.channel.send(`You can only remove movies that you have added. Movie #${input} was added by *${movie.suggestedby}*.`);
+                    message.reply(`You can only remove movies that you have added. Movie #${input} was added by *${movie.suggestedby}*.`);
                     return;
                 }
 
@@ -331,14 +331,14 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = movieList.findIndex(m => m.name.toLowerCase() === input.toLowerCase());
 
                 if (movieIndex === -1) {
-                    message.channel.send(`Movie **${input}** not found in the list.`);
+                    message.reply(`Movie **${input}** not found in the list.`);
                     return;
                 }
 
                 const movie = movieList[movieIndex];
 
                 if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
-                    message.channel.send(`You can only remove movies that you have added. Movie **${input}** was added by *${movie.suggestedby}*.`);
+                    message.reply(`You can only remove movies that you have added. Movie **${input}** was added by *${movie.suggestedby}*.`);
                     return;
                 }
 
@@ -346,24 +346,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             saveMovies();
-            message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
-
-            // let removedMovie;
-            // if (!isNaN(input)) {
-            //     const movieIndex = parseInt(input) - 1;
-            //     if (movieIndex >= 0 && movieIndex < movieList.length) {
-            //         removedMovie = movieList.splice(movieIndex, 1)[0];
-            //         saveMovies();
-            //     }
-            // } else {
-            //     removedMovie = removeMovieFromList(input);
-            // }
-
-            // if (!removedMovie){
-            //     message.channel.send(`Movie "${input}" not found in the list.`);
-            // } else {
-            //     message.channel.send(`Removed **${removedMovie.name}** from the movie list.`);
-            // }
+            message.reply(`Removed **${removedMovie.name}** from the movie list.`);
 
             if (!hasAdminRole) {
                 userMovieCount[userId]--;
@@ -402,7 +385,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             };
 
             // Send the initial embed
-            const embedMessage = await message.channel.send({ embeds: [generateEmbed(currentPage)] });
+            const embedMessage = await message.reply({ embeds: [generateEmbed(currentPage)] });
 
             // Add reactions for navigation
             if (totalPages > 1) {
@@ -439,7 +422,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const input = args.join(' ');
 
             if (!input) {
-                message.channel.send('Please provide a movie name or its list number to view.');
+                message.reply('Please provide a movie name or its list number to view.');
                 return;
             }
 
@@ -451,7 +434,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = parseInt(input) - 1;
 
                 if (movieIndex < 0 || movieIndex >= movieList.length) {
-                    message.channel.send(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
+                    message.reply(`Invalid movie number. Please provide a valid number between 1 and ${movieList.length}.`);
                     return;
                 }
 
@@ -460,7 +443,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 movieIndex = movieList.findIndex(m => m.name.toLowerCase() === input.toLowerCase());
 
                 if (movieIndex === -1) {
-                    message.channel.send(`Movie **${input}** not found in the list.`);
+                    message.reply(`Movie **${input}** not found in the list.`);
                     return;
                 }
 
@@ -507,7 +490,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 });
             }
 
-            message.channel.send(response);
+            message.reply(response);
             return;
         }
     }
@@ -517,13 +500,13 @@ For the **number-based commands**, you can reference a movie by its position in 
             const timeInput = args.join(' ');
 
             if (!timeInput) {
-                message.channel.send('Please provide a valid time for the movie night (e.g., `!movienight 2024-09-30 18:00`).');
+                message.reply('Please provide a valid time for the movie night (e.g., `!movienight 2024-09-30 18:00`).');
                 return;
             }
 
             const movieTime = moment(timeInput, 'YYYY-MM-DD HH:mm').toDate();
             if (isNaN(movieTime.getTime())) {
-                message.channel.send('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
+                message.reply('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
                 return;
             }
 
@@ -576,7 +559,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const input = args.join(' ');
 
             if (!input) {
-                message.channel.send('Please provide a movie name or its list number to select.');
+                message.reply('Please provide a movie name or its list number to select.');
                 return;
             }
 
@@ -591,7 +574,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             if (!movieName) {
-                message.channel.send(`Movie **${input}** not found in the list.`);
+                message.reply(`Movie **${input}** not found in the list.`);
                 return;
             } else {
                 selectedMovie = movieName;
@@ -619,7 +602,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
         if (command === 'endmovie') {
             if (!selectedMovie) {
-                message.channel.send('There is no active movie night to end.');
+                message.reply('There is no active movie night to end.');
                 return;
             }
 
@@ -667,7 +650,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const amount = parseInt(args[0], 10);
 
             if (isNaN(amount) || amount <= 0) {
-                message.channel.send('Please provide a valid number of movies to choose from.');
+                message.reply('Please provide a valid number of movies to choose from.');
                 return;
             }
 
@@ -683,12 +666,12 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             // Check if the number of movies requested exceeds the number of users
             if (amount > uniqueUsers.length) {
-                message.channel.send(`You requested ${amount} movies, but only ${uniqueUsers.length} unique users have added movies. Please choose a smaller number.`);
+                message.reply(`You requested ${amount} movies, but only ${uniqueUsers.length} unique users have added movies. Please choose a smaller number.`);
                 return;
             }
 
             if (amount > pollEmojis.length) {
-                message.channel.send(`You requested ${amount} movies, but the maximum number of movies for a poll is ${pollEmojis.length}.`);
+                message.reply(`You requested ${amount} movies, but the maximum number of movies for a poll is ${pollEmojis.length}.`);
                 return;
             }
 
@@ -726,7 +709,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send('Closing the movie poll and counting votes...');
             // Check for active poll to close
             if (!activePoll) {
-                message.channel.send('There is no active movie poll to close.');
+                message.reply('There is no active movie poll to close.');
                 return;
             }
 
@@ -735,7 +718,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             const pollMessage = await pollChannel.messages.fetch(activePoll.message);
 
             if (!pollMessage) {
-                message.channel.send('The poll message could not be found.');
+                message.reply('The poll message could not be found.');
                 return;
             }
 
@@ -817,7 +800,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         command === 'endmovie' ||
         command === 'clearlist'
     ) {
-        message.channel.send('You do not have permission to use this command.');
+        message.reply('You do not have permission to use this command.');
     }
 }
 
