@@ -1,11 +1,12 @@
 # BustinBot
 
-**BustinBot** is a general-purpose Discord bot designed to enhance community engagement through a modular approach. The bot features submodules for specific functionalities, making it easy to expand and customize for various needs. Currently, the bot includes a **Movie Night Manager** to help organize and manage movie nights for your Discord server.
+**BustinBot** is a general-purpose Discord bot designed to enhance community engagement through a modular approach. The bot features submodules for specific functionalities, making it easy to expand and customize for various needs. Currently, the bot includes a **Movie Night Manager** and **Weekly Task Manager** to help organize and manage movie nights for your Discord server.
 
 ## Features
 
 - **Modular Design**: BustinBot is designed with submodules, allowing easy addition of new features without cluttering the main bot logic.
 - **Movie Night Manager**: Schedule and manage movie nights with a comprehensive set of commands, including adding, removing, and polling movies.
+- **Weekly Task Manager**: Facilitate community engagement with weekly task polls, announcements, and rewards for participation.
 - **Custom Role Requirements**: Commands are restricted to users with specific roles, ensuring only authorized members can access certain features.
 
 ## Submodules
@@ -20,6 +21,15 @@ The Movie Night Manager allows members to suggest, vote on, and schedule movies 
 - **Schedule Movie Nights**: Admins can schedule movie nights for specific dates and times.
 - **Poll Movies**: Run polls for members to vote on movies.
 - **Reminders**: Automatic reminders are sent before movie night starts.
+
+### 2. **Weekly Task Manager**
+The Weekly Task Manager allows community admins to organize and manage weekly tasks, offering voting, announcements, and rewards to enhance user engagement.
+
+#### Key Features:
+- **Weekly Polls**: Automatically posts a poll every Sunday at 12 am UTC for community members to vote on the next weekly task.
+- **Automatic Announcements**: Closes the poll and announces the selected task for the week.
+- **Completion Tracking**: Tracks user task completions and displays them upon request.
+- **Random Winner Selection**: Picks a winner among task participants, adding an element of fun and reward for involvement.
 
 ## Installation
 
@@ -72,23 +82,26 @@ node index.js
 - `!endmovie`: End the movie night and remove the selected movie.
 - `!clearlist`: Clear the entire movie list.
 
+### Weekly Task Manager Commands:
+These commands require admin privileges.
+
+- `!taskpoll`: Create a new task poll for the community to vote on.
+- `!announcetask`: Close the active poll and announce the active task for the current week.
+- `!rollwinner`: Randomly select a winner from the task submissions.
+- `!listtasks`: Display a list of all available tasks and their details.
+- `!activetask`: Show the details of the currently active task.
+- `!completions`: List all users and the number of tasks they have completed.
+- `!activepoll`: Display the active task poll and the current voting status.
+- `!settask <task ID> [amount]`: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
+
 ## Customization
 
 BustinBot’s modular design allows for easy extension. To add a new feature:
-1. Create a new submodule file (e.g., `osrstask.js`).
+1. Create a new submodule file (e.g., `giveaway.js`).
 2. Add specific functionality to your submodule.
 3. Update `index.js` to load and handle the new module.
 
 Each submodule should manage its own state and commands to keep the bot maintainable and flexible.
 
-## Contributing
 
-We welcome contributions! If you’d like to add features or improve existing functionality:
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes and commit them.
-4. Submit a pull request with a detailed description of your changes.
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

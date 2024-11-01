@@ -11,7 +11,7 @@ if (!token) {
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 const fs = require('fs');
-const pathCounter = './counters.json';
+const pathCounter = './data/counters.json';
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
@@ -44,7 +44,7 @@ client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('!')) {
         taskModule.handleTaskSubmissions(message, client);
         return;
-    } 
+    }
 
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -64,7 +64,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'bustinhelp') {
-        message.channel.send('Check out the movie commands with `!moviehelp`! <a:Bustin:1290456273522921606>');
+        message.channel.send('Check out the movie commands with `!moviehelp` <a:Bustin:1290456273522921606>\nCheck out the task commands with `!taskhelp` (admins only) <a:Bustin:1290456273522921606> ');
     }
 
     if (command === 'sendas') {

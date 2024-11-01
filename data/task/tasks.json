@@ -1,0 +1,576 @@
+[
+  {
+    "id": 1,
+    "taskName": "Get {amount} Barrows armor pieces",
+    "amounts": [
+      2,
+      4
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 2,
+    "taskName": "Get {amount} LMS points",
+    "amounts": [
+      15,
+      30,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 3,
+    "taskName": "Get {amount} Pearls from Aerial Fishing",
+    "amounts": [
+      40,
+      75,
+      5
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 4,
+    "taskName": "Get {amount} Sarachnis kc",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 5,
+    "taskName": "Do {amount} laps of any agility rooftop course",
+    "amounts": [
+      150,
+      250,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 6,
+    "taskName": "Get {amount}k total XP",
+    "amounts": [
+      750,
+      1000,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 7,
+    "taskName": "Catch {amount} implings of any kind",
+    "amounts": [
+      200,
+      400,
+      25
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 8,
+    "taskName": "Hunt {amount} Herbiboar",
+    "amounts": [
+      200,
+      350,
+      25
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 9,
+    "taskName": "Get 5 Mossy Keys",
+    "instruction": 1
+  },
+  {
+    "id": 10,
+    "taskName": "Do {amount} beginner clues",
+    "amounts": [
+      25,
+      50,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 11,
+    "taskName": "Get {amount} Giant Mole kc",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 12,
+    "taskName": "Get {amount} Deranged Archaeologist kc",
+    "amounts": [
+      25,
+      50,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 13,
+    "taskName": "Get {amount} Agility Arena Tickets",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 14,
+    "taskName": "Do {amount} Mahogany Homes contracts",
+    "amounts": [
+      50,
+      150,
+      25
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 15,
+    "taskName": "Get {amount}k Mining xp",
+    "amounts": [
+      100,
+      200,
+      25
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 16,
+    "taskName": "Do {amount} Easy clues",
+    "amounts": [
+      20,
+      40,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 17,
+    "taskName": "Get a Pharaoh's Sceptre from Pyramid Plunder",
+    "instruction": 1
+  },
+  {
+    "id": 18,
+    "taskName": "Get {amount}k Woodcutting xp",
+    "amounts": [
+      250,
+      500,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 19,
+    "taskName": "Get {amount}k Runecrafting xp",
+    "amounts": [
+      150,
+      300,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 20,
+    "taskName": "Get 5 Giant Keys",
+    "instruction": 1
+  },
+  {
+    "id": 21,
+    "taskName": "Get {amount} Spiritflakes from Tempoross permits",
+    "amounts": [
+      1200,
+      2400,
+      600
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 22,
+    "taskName": "Get {amount} Abyssal Pearls from GOTR",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 23,
+    "taskName": "Get {amount} reward crates from Wintertodt",
+    "amounts": [
+      30,
+      60,
+      10
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 24,
+    "taskName": "Gain {amount} Mahogany Homes points",
+    "amounts": [
+      150,
+      300,
+      50
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 25,
+    "taskName": "Get {amount} Zalcano kc",
+    "amounts": [
+      30,
+      50,
+      5
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 51,
+    "taskName": "Get {amount}k Smithing xp",
+    "amounts": [
+      250,
+      500,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 52,
+    "taskName": "Get an Odium or Malediction shard",
+    "instruction": 1
+  },
+  {
+    "id": 53,
+    "taskName": "Achieve {amount} total combat achievement points",
+    "amounts": [
+      6,
+      10,
+      1
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 54,
+    "taskName": "Get {amount} Zulrah kc",
+    "amounts": [
+      30,
+      60,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 55,
+    "taskName": "Get {amount}k Prayer xp",
+    "amounts": [
+      250,
+      500,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 56,
+    "taskName": "Complete {amount} Hard clues",
+    "amounts": [
+      5,
+      10,
+      1
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 57,
+    "taskName": "Get {amount} Dagannoth Kings kc",
+    "amounts": [
+      50,
+      150,
+      50
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 58,
+    "taskName": "Get {amount} Brimstone Keys",
+    "amounts": [
+      10,
+      20,
+      2
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 59,
+    "taskName": "Get a Wintertodt crate with 28 rolls (13500 point game)",
+    "instruction": 1
+  },
+  {
+    "id": 60,
+    "taskName": "Get a new boss specific collection log item",
+    "instruction": 1
+  },
+  {
+    "id": 61,
+    "taskName": "Get {amount} Phantom Muspah kc",
+    "amounts": [
+      30,
+      60,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 62,
+    "taskName": "Get {amount}k Fletching xp",
+    "amounts": [
+      250,
+      500,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 63,
+    "taskName": "Get {amount}k Herblore xp",
+    "amounts": [
+      100,
+      300,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 64,
+    "taskName": "Gain 75k Smithing xp via an anvil",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 65,
+    "taskName": "Thieve {amount} Ranarr seeds from Master Farmers",
+    "amounts": [
+      2,
+      6,
+      8
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 66,
+    "taskName": "Obtain {amount} Slayer Points",
+    "amounts": [
+      150,
+      200,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 67,
+    "taskName": "Obtain 500 of the highest logs you can woodcut. Fletch these into 500 bows / 250 shields",
+    "instruction": 2
+  },
+  {
+    "id": 68,
+    "taskName": "Get {amount} kc at any boss",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 69,
+    "taskName": "Obtain {amount} Marks of Grace",
+    "amounts": [
+      30,
+      60,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 70,
+    "taskName": "Obtain {amount} stardust from shooting stars",
+    "amounts": [
+      1000,
+      1500,
+      100
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 71,
+    "taskName": "Empower 150 Unpowered Orbs",
+    "instruction": 2
+  },
+  {
+    "id": 72,
+    "taskName": "Make 300 house tabs",
+    "instruction": 2
+  },
+  {
+    "id": 73,
+    "taskName": "Mine 50 Red Topaz",
+    "instruction": 2
+  },
+  {
+    "id": 74,
+    "taskName": "Obtain {amount} Crystal Shards via any method you like",
+    "amounts": [
+      75,
+      150,
+      25
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 75,
+    "taskName": "Do {amount} laps of the Ape Atoll Agility Course",
+    "amounts": [
+      100,
+      250,
+      50
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 76,
+    "taskName": "Gain {amount}k Construction xp",
+    "amounts": [
+      250,
+      750,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 77,
+    "taskName": "Make 1000 Cannonballs",
+    "instruction": 2
+  },
+  {
+    "id": 78,
+    "taskName": "Obtain {amount}k gp from Thieving",
+    "amounts": [
+      100,
+      250,
+      50
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 79,
+    "taskName": "Obtain a unique from any raids drop table. Can be a duplicate",
+    "instruction": 1
+  },
+  {
+    "id": 80,
+    "taskName": "Farm over 85 Herbs in one run",
+    "instruction": 1
+  },
+  {
+    "id": 81,
+    "taskName": "Get a third age or gilded piece",
+    "instruction": 1
+  },
+  {
+    "id": 82,
+    "taskName": "Do Barrows until you get an Elite clue",
+    "instruction": 1
+  },
+  {
+    "id": 83,
+    "taskName": "Kill the Priff Rabbit Boss",
+    "instruction": 2
+  },
+  {
+    "id": 84,
+    "taskName": "Kill Vorkath with no weapon",
+    "instruction": 1
+  },
+  {
+    "id": 85,
+    "taskName": "Kill each God Wars Dungeon Boss Twice",
+    "instruction": 2
+  },
+  {
+    "id": 87,
+    "taskName": "Get 3 Ecumenical Keys. If you already have max keys, use 3 then get 3 more",
+    "instruction": 2
+  },
+  {
+    "id": 88,
+    "taskName": "Get {amount}k ancient essence from the Phantom Muspah",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 89,
+    "taskName": "Get {amount}k Firemaking xp",
+    "amounts": [
+      500,
+      750,
+      50
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 90,
+    "taskName": "Complete any raid {amount} times",
+    "amounts": [
+      5,
+      10,
+      1
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 91,
+    "taskName": "Obtain a Dragon Pickaxe or Dragon 2h sword from any source",
+    "amounts": [
+      50,
+      100,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 92,
+    "taskName": "Get a 2m+ drop from any source",
+    "instruction": 1
+  },
+  {
+    "id": 93,
+    "taskName": "Get {amount} Corporal Beast kc",
+    "amounts": [
+      5,
+      10,
+      1
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 94,
+    "taskName": "Obtain a pet",
+    "instruction": 1
+  }
+]
