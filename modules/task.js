@@ -543,10 +543,7 @@ async function handleTaskCommands(message, client) {
     }
 
     // Limit commands to BustinBot admins
-    if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
-        message.reply('You do not have permission to use this command.');
-        return;
-    } else {
+    if (message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
@@ -694,6 +691,18 @@ async function handleTaskCommands(message, client) {
             saveActiveTask(task);
             message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
         }
+    } else if (
+        command === 'taskpoll' ||
+        command === 'announcetask' ||
+        command === 'rollwinner' ||
+        command === 'listtasks' ||
+        command === 'activetask' ||
+        command === 'completions' ||
+        command === 'activepoll' ||
+        command === 'settask'
+    ) {
+        message.reply('You do not have permission to use this command.');
+        return;
     }
 }
 

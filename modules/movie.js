@@ -234,6 +234,8 @@ For the **number-based commands**, you can reference a movie by its position in 
             if (!hasAdminRole) {
                 setCooldown(addMovieCooldown, userId);
             }
+
+            return;
         }
 
         if (command === 'editmovie') {
