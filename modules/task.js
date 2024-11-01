@@ -521,16 +521,11 @@ async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Limit commands to BustinBot admins
-    if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
-        message.reply('You do not have permission to use this command.');
-        return;
-    } else {
-        if (command === 'taskhelp') {
-            let helpMessage = `
-        📥 **BustinBot's Task Commands** 📥
-        
-**These commands require admin privileges.**
+    if (command === 'taskhelp') {
+        let helpMessage = `
+    📥 **BustinBot's Task Commands** 📥
+    
+**These commands require the BustinBot Admin role.**
 - **!taskpoll**: Create a new task poll for the community to vote on.
 - **!announcetask**: Close the active poll and announce the active task for the current week.
 - **!rollwinner**: Randomly select a winner from the task submissions.
@@ -539,13 +534,19 @@ async function handleTaskCommands(message, client) {
 - **!completions**: List all users and the number of tasks they have completed.
 - **!activepoll**: Display the active task poll and the current voting status.
 - **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
-       
-**Note**: Ensure that you have the required permissions before using these commands.
-        `;
+   
+**Note**: Ensure that you have the required permissions before using these commands. The Task Admin role only has the ability to approve task submissions in the task-submissions channel.
+    `;
 
-            message.reply(helpMessage);
-        }
+        message.reply(helpMessage);
+        return;
+    }
 
+    // Limit commands to BustinBot admins
+    if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+        message.reply('You do not have permission to use this command.');
+        return;
+    } else {
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
