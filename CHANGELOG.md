@@ -2,7 +2,6 @@
 Initial release
 
 # v1.1.0
-Changelog:
 - Added a 15 second cooldown per non-privileged user to the !addmovie and !removemovie commands.
 - Updated formatting of all commands to show movie names in bold and usernames in italics.
 - Reformatted the movie list into an interactive Discord embed that shows 5 movies per page that the user can control via reactions for up to 60 minutes.
@@ -28,3 +27,19 @@ Changelog:
 - Updated !moviehelp command to only show commands available to the user based on their roles.
 - Added !bustincount command to track how many times the !bustin command is used.
 - Added !moviecount/!countmovie command to show what movies the user has added and how many they have left.
+
+# v1.2.0
+- Refactor code into modules for each separate overall function (e.g. movie, task)
+- Introduced task module for scheduling and handling weekly tasks
+
+## Task Module
+- Added a weekly poll and subsequent task that runs on a schedule
+- Added handling of votes on polls
+- Added submission handling and monthly winner logic
+- Added randomised selection of tasks from a list
+- Added persistence for polls, votes and submissions
+- Added admin commands for testing and manual execution
+
+## Movie Module
+- Fixed bug that caused bot to crash when using !endmovie
+- Updated several bot message sends to message replies
