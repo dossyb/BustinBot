@@ -213,7 +213,8 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const movieObject = {
                 name: movieName,
-                suggestedby: message.author.tag
+                suggestedby: message.author.tag,
+                userId: userId
             };
 
             movieList.push(movieObject);
@@ -311,6 +312,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             // Find movie in the list
             let movieIndex;
             let removedMovie;
+            let movieOwnerId;
 
             // Refactor to a function later
             if (!isNaN(input)) {
@@ -322,8 +324,9 @@ For the **number-based commands**, you can reference a movie by its position in 
                 }
 
                 const movie = movieList[movieIndex];
+                movieOwnerId = movie.userId;
 
-                if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
+                if (movieOwnerId !== userId && !hasAdminRole) {
                     message.reply(`You can only remove movies that you have added. Movie #${input} was added by *${movie.suggestedby}*.`);
                     return;
                 }
@@ -338,8 +341,9 @@ For the **number-based commands**, you can reference a movie by its position in 
                 }
 
                 const movie = movieList[movieIndex];
+                movieOwnerId = movie.userId;
 
-                if (movie.suggestedby !== message.author.tag && !hasAdminRole) {
+                if (movieOwnerId !== userId && !hasAdminRole) {
                     message.reply(`You can only remove movies that you have added. Movie **${input}** was added by *${movie.suggestedby}*.`);
                     return;
                 }
@@ -350,12 +354,17 @@ For the **number-based commands**, you can reference a movie by its position in 
             saveMovies();
             message.reply(`Removed **${removedMovie.name}** from the movie list.`);
 
-            if (!hasAdminRole) {
-                userMovieCount[userId]--;
+            if (userMovieCount[movieOwnerId] > 0) {
+                userMovieCount[movieOwnerId]--;
                 saveUserMovieCount();
 
-                const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
-                message.channel.send(`You can now add ${moviesLeft} more movie(s).`);
+                if (movieOwnerId === userId) {
+                    const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[movieOwnerId];
+                    message.channel.send(`You can now add ${moviesLeft} more movie(s).`);
+                }
+            }
+
+            if (!hasAdminRole) {
                 setCooldown(removeMovieCooldown, userId);
             }
         }
