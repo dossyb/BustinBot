@@ -166,6 +166,21 @@ async function handleTaskSubmissions(message, client) {
         const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
         const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
 
+        const messageDeletedPromise = new Promise((resolve) => {
+            const messageDeleteListener = async (deletedMessage) => {
+                if (deletedMessage.id === message.id) {
+                    resolve(true);
+                    collector.stop();
+                }
+            };
+
+            client.on('messageDelete', messageDeleteListener);
+
+            collector.on('end', () => client.off('messageDelete', messageDeleteListener));
+        });
+
+        const messageDeleted = await messageDeletedPromise.catch(() => false);
+
         collector.on('collect', async (reaction, user) => {
             const userId = message.author.id;
 
@@ -191,7 +206,7 @@ async function handleTaskSubmissions(message, client) {
         });
 
         collector.on('end', collected => {
-            if (collected.size === 0) {
+            if (collected.size === 0 && !messageDeleted) {
                 reportError(client, message, 'No approval within the alotted time for ' + message.author.id + '\'s task submission.');
             }
         });
