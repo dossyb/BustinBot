@@ -10,14 +10,16 @@ const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
 const pathPollVotes = './data/task/pollVotes.json';
 const activeTaskPath = './data/task/activeTask.json';
+const keywordsPath = './data/task/keywords.json';
+const recentKeywordsPath = './data/task/recentKeywords.json';
 
 let pollSchedule = null;
 let activePoll = null;
 
 const instructionMap = {
-    1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
-    2: "Provide a screenshot of your current amount/kc and a second screenshot of the amount/kc after completing the task. Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
-    3: "Provide evidence of the XP being obtained within the week, such as via an XP tracker or a before and after screenshot."
+    1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
+    2: "Provide a before and after screenshot of the amount/KC showing this has been obtained within the 7 day task period. Both screenshots must have the **keyword** displayed in the in-game chat.",
+    3: "Provide evidence of the XP being obtained within the 7 day task period. The preferred submission method is a before and after screenshot with the XP totals displayed, both screenshots must have the **keyword** displayed in the in-game chat."
 };
 
 function getChannelByName(client, channelName) {
@@ -45,7 +47,12 @@ function reportError(client, message, errorMsg) {
 function readJSON(filePath) {
     if (fs.existsSync(filePath)) {
         const data = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(data);
+        try {
+            return JSON.parse(data);
+        } catch (error) {
+            console.error(`Error parsing JSON from ${filePath}:`, error);
+            return null;
+        }
     }
     return null;
 }
@@ -102,6 +109,37 @@ function loadActiveTask() {
 
 function saveActiveTask(task) {
     writeJSON(activeTaskPath, task);
+}
+
+function loadRecentKeywords() {
+    const data = readJSON(recentKeywordsPath);
+    return data ? data : [];
+}
+
+function saveRecentKeywords(keywords) {
+    writeJSON(recentKeywordsPath, keywords);
+}
+
+function getUniqueKeyword() {
+    const keywords = readJSON(keywordsPath);
+    const recentKeywords = loadRecentKeywords();
+
+    const availableKeywords = keywords.filter(keyword => !recentKeywords.includes(keyword));
+
+    if (availableKeywords.length === 0) {
+        console.error('No available keywords found.');
+        return null;
+    }
+
+    const selectedKeyword = availableKeywords[Math.floor(Math.random() * availableKeywords.length)];
+
+    recentKeywords.push(selectedKeyword);
+    if (recentKeywords.length > 20) {
+        recentKeywords.shift();
+    }
+    saveRecentKeywords(recentKeywords);
+
+    return selectedKeyword;
 }
 
 // Load tasks from tasks.json
@@ -332,12 +370,13 @@ async function closeTaskPoll(client) {
     return winningTask;
 }
 
-function createTaskAnnouncementEmbed(task, submissionChannel, instructionText) {
+function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, uniqueKeyword) {
     return new EmbedBuilder()
         .setTitle("This Week's Task")
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
+        \nThis week's keyword: **${uniqueKeyword}**
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>.`)
         .setColor("#FF0000");
@@ -375,6 +414,12 @@ async function postTaskAnnouncement(client) {
         return;
     }
 
+    const uniqueKeyword = getUniqueKeyword();
+    if (!uniqueKeyword) {
+        reportError(client, null, 'No unique keyword found.');
+        return;
+    }
+
     const instructionText = instructionMap[selectedTask.instruction];
     const submissionChannel = getChannelByName(client, '📥task-submissions');
 
@@ -382,7 +427,7 @@ async function postTaskAnnouncement(client) {
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
 
-    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, instructionText);
+    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, instructionText, uniqueKeyword);
 
     const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
