@@ -391,7 +391,7 @@ function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, u
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
-        \nThis week's keyword: **${uniqueKeyword}**
+        \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>.`)
         .setColor("#FF0000");
