@@ -726,7 +726,15 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             // Fetch poll message from stored message ID
             const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
-            const pollMessage = await pollChannel.messages.fetch(activePoll.message);
+            let pollMessage;
+
+            try {
+                pollMessage = await pollChannel.messages.fetch(activePoll.message);
+            } catch (error) {
+                message.reply('Error fetching poll message.');
+                activePoll = null;
+                return;
+            }
 
             if (!pollMessage) {
                 message.reply('The poll message could not be found.');
