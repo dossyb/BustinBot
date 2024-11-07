@@ -112,6 +112,10 @@ function saveActiveTask(task) {
 }
 
 function loadRecentKeywords() {
+    if (!fs.existsSync(recentKeywordsPath)) {
+        fs.writeFileSync(recentKeywordsPath, JSON.stringify([], null, 4), 'utf8');
+        return []; 
+    }
     const data = readJSON(recentKeywordsPath);
     return data ? data : [];
 }
@@ -163,23 +167,29 @@ function updateSubmissionCount(users, userId) {
 // Handle task submissions
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
-        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
+        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.some(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
         const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
 
-        const messageDeletedPromise = new Promise((resolve) => {
-            const messageDeleteListener = async (deletedMessage) => {
-                if (deletedMessage.id === message.id) {
-                    resolve(true);
-                    collector.stop();
-                }
-            };
+        const messageDeleteListener = (deletedMessage) => {
+            if (deletedMessage.id === message.id) {
+                console.log('Message deleted before approval.');
+                client.off('messageDelete', messageDeleteListener);
+                collector.stop();
+            }
+        };
 
-            client.on('messageDelete', messageDeleteListener);
+        client.on('messageDelete', messageDeleteListener);
 
-            collector.on('end', () => client.off('messageDelete', messageDeleteListener));
+        collector.on('end', (collected, reason) => {
+            if (reason === 'messageDelete') {
+                return;
+            }
+
+            client.off('messageDelete', messageDeleteListener);
+            if (collected.size === 0) {
+                reportError(client, message, 'No approval within the allotted time for ' + message.author.id + '\'s task submission.');
+            }
         });
-
-        const messageDeleted = await messageDeletedPromise.catch(() => false);
 
         collector.on('collect', async (reaction, user) => {
             const userId = message.author.id;
@@ -203,12 +213,6 @@ async function handleTaskSubmissions(message, client) {
             }
 
             console.log('Task submission confirmed for user ' + userId);
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0 && !messageDeleted) {
-                reportError(client, message, 'No approval within the alotted time for ' + message.author.id + '\'s task submission.');
-            }
         });
     }
 }
@@ -591,7 +595,8 @@ async function handleTaskCommands(message, client) {
 - **!rollwinner**: Randomly select a winner from the task submissions.
 - **!listtasks**: Display a list of all available tasks and their details.
 - **!activetask**: Show the details of the currently active task.
-- **!completions**: List all users and the number of tasks they have completed.
+- **!monthlycompletions**: List all users and the number of tasks they have completed for the month.
+- **!allcompletions**: List all users and the number of tasks they have completed.
 - **!activepoll**: Display the active task poll and the current voting status.
 - **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
    
@@ -664,7 +669,30 @@ async function handleTaskCommands(message, client) {
             await message.channel.send({ embeds: [taskEmbed] });
         }
 
-        if (command === 'completions') {
+        if (command === 'monthlycompletions') {
+            const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+            let userList = '';
+
+            monthlyUsers.forEach(async user => {
+                try {
+                    const discordUser = await client.users.fetch(user.id);
+                    const username = discordUser.username;
+                    userList += `${username}: ${user.submissions} task completions\n`;
+                } catch (fetchError) {
+                    reportError(client, message, fetchError);
+                }
+            });
+
+            setTimeout(() => {
+                if (userList) {
+                    message.channel.send(userList);
+                } else {
+                    message.channel.send('No task completions found.');
+                }
+            }, 1000);
+        }
+
+        if (command === 'allcompletions') {
             const allUsers = loadUsers(pathTaskAllUsers);
             let userList = '';
 
