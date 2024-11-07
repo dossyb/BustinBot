@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "taskName": "Get {amount} Barrows armor pieces",
+    "taskName": "Get {amount} different Barrows armor pieces",
     "amounts": [
       2,
       4
@@ -22,9 +22,9 @@
     "id": 3,
     "taskName": "Get {amount} Pearls from Aerial Fishing",
     "amounts": [
-      40,
-      75,
-      5
+      30,
+      50,
+      10
     ],
     "instruction": 1
   },
@@ -34,17 +34,17 @@
     "amounts": [
       50,
       100,
-      10
+      25
     ],
     "instruction": 2
   },
   {
     "id": 5,
-    "taskName": "Do {amount} laps of any agility rooftop course",
+    "taskName": "Do {amount} laps of any agility course",
     "amounts": [
       150,
       250,
-      5
+      50
     ],
     "instruction": 2
   },
@@ -54,7 +54,7 @@
     "amounts": [
       750,
       1000,
-      50
+      150
     ],
     "instruction": 3
   },
@@ -64,7 +64,7 @@
     "amounts": [
       200,
       400,
-      25
+      50
     ],
     "instruction": 1
   },
@@ -72,16 +72,21 @@
     "id": 8,
     "taskName": "Hunt {amount} Herbiboar",
     "amounts": [
-      200,
-      350,
-      25
+      100,
+      250,
+      150
     ],
     "instruction": 2
   },
   {
     "id": 9,
-    "taskName": "Get 5 Mossy Keys",
-    "instruction": 1
+    "taskName": "Get {amount} Hunter rumours of any tier",
+    "amounts": [
+      100,
+      50,
+      50
+    ],
+    "instruction": 2
   },
   {
     "id": 10,
@@ -89,7 +94,7 @@
     "amounts": [
       25,
       50,
-      5
+      25
     ],
     "instruction": 2
   },
@@ -99,7 +104,7 @@
     "amounts": [
       50,
       100,
-      10
+      50
     ],
     "instruction": 2
   },
@@ -109,7 +114,7 @@
     "amounts": [
       25,
       50,
-      5
+      25
     ],
     "instruction": 2
   },
@@ -118,8 +123,8 @@
     "taskName": "Get {amount} Agility Arena Tickets",
     "amounts": [
       50,
-      100,
-      10
+      75,
+      25
     ],
     "instruction": 2
   },
@@ -128,7 +133,7 @@
     "taskName": "Do {amount} Mahogany Homes contracts",
     "amounts": [
       50,
-      150,
+      75,
       25
     ],
     "instruction": 2
@@ -137,9 +142,9 @@
     "id": 15,
     "taskName": "Get {amount}k Mining xp",
     "amounts": [
-      100,
       200,
-      25
+      150,
+      150
     ],
     "instruction": 3
   },
@@ -147,9 +152,9 @@
     "id": 16,
     "taskName": "Do {amount} Easy clues",
     "amounts": [
-      20,
-      40,
-      5
+      25,
+      50,
+      25
     ],
     "instruction": 2
   },
@@ -164,7 +169,7 @@
     "amounts": [
       250,
       500,
-      50
+      100
     ],
     "instruction": 3
   },
@@ -173,14 +178,14 @@
     "taskName": "Get {amount}k Runecrafting xp",
     "amounts": [
       150,
-      300,
-      50
+      200,
+      100
     ],
     "instruction": 3
   },
   {
     "id": 20,
-    "taskName": "Get 5 Giant Keys",
+    "taskName": "Get 5 Giant/Mossy Keys",
     "instruction": 1
   },
   {
@@ -199,27 +204,27 @@
     "amounts": [
       50,
       100,
-      10
+      50
     ],
     "instruction": 2
   },
   {
     "id": 23,
-    "taskName": "Get {amount} reward crates from Wintertodt",
+    "taskName": "Get {amount} Scurrius kc",
     "amounts": [
-      30,
-      60,
-      10
+      50,
+      100,
+      50
     ],
-    "instruction": 1
+    "instruction": 2
   },
   {
     "id": 24,
-    "taskName": "Gain {amount} Mahogany Homes points",
+    "taskName": "Gain {amount} Barbarian Assault points",
     "amounts": [
       150,
-      300,
-      50
+      200,
+      100
     ],
     "instruction": 2
   },
@@ -227,9 +232,9 @@
     "id": 25,
     "taskName": "Get {amount} Zalcano kc",
     "amounts": [
-      30,
       50,
-      5
+      50,
+      100
     ],
     "instruction": 2
   },
@@ -237,9 +242,9 @@
     "id": 51,
     "taskName": "Get {amount}k Smithing xp",
     "amounts": [
-      250,
+      300,
       500,
-      50
+      150
     ],
     "instruction": 3
   },
@@ -252,9 +257,9 @@
     "id": 53,
     "taskName": "Achieve {amount} total combat achievement points",
     "amounts": [
-      6,
+      7,
       10,
-      1
+      5
     ],
     "instruction": 2
   },
@@ -262,9 +267,9 @@
     "id": 54,
     "taskName": "Get {amount} Zulrah kc",
     "amounts": [
-      30,
-      60,
-      10
+      50,
+      150,
+      100
     ],
     "instruction": 2
   },
@@ -272,9 +277,9 @@
     "id": 55,
     "taskName": "Get {amount}k Prayer xp",
     "amounts": [
-      250,
-      500,
-      50
+      200,
+      300,
+      150
     ],
     "instruction": 3
   },
@@ -282,9 +287,9 @@
     "id": 56,
     "taskName": "Complete {amount} Hard clues",
     "amounts": [
-      5,
+      15,
       10,
-      1
+      10
     ],
     "instruction": 2
   },
@@ -294,7 +299,7 @@
     "amounts": [
       50,
       150,
-      50
+      100
     ],
     "instruction": 2
   },
@@ -303,28 +308,33 @@
     "taskName": "Get {amount} Brimstone Keys",
     "amounts": [
       10,
-      20,
-      2
+      15,
+      5
     ],
     "instruction": 2
   },
   {
     "id": 59,
-    "taskName": "Get a Wintertodt crate with 28 rolls (13500 point game)",
-    "instruction": 1
+    "taskName": "Get {amount} Amoxliatl kc",
+    "amounts": [
+      50,
+      100,
+      50
+    ],
+    "instruction": 2
   },
   {
     "id": 60,
-    "taskName": "Get a new boss specific collection log item",
+    "taskName": "Get a new boss or minigame specific collection log item",
     "instruction": 1
   },
   {
     "id": 61,
     "taskName": "Get {amount} Phantom Muspah kc",
     "amounts": [
-      30,
-      60,
-      10
+      50,
+      100,
+      50
     ],
     "instruction": 2
   },
@@ -332,9 +342,9 @@
     "id": 62,
     "taskName": "Get {amount}k Fletching xp",
     "amounts": [
-      250,
+      350,
       500,
-      50
+      150
     ],
     "instruction": 3
   },
@@ -342,29 +352,24 @@
     "id": 63,
     "taskName": "Get {amount}k Herblore xp",
     "amounts": [
-      100,
+      250,
       300,
-      50
+      150
     ],
     "instruction": 3
   },
   {
     "id": 64,
     "taskName": "Gain 75k Smithing xp via an anvil",
-    "amounts": [
-      50,
-      100,
-      10
-    ],
     "instruction": 3
   },
   {
     "id": 65,
     "taskName": "Thieve {amount} Ranarr seeds from Master Farmers",
     "amounts": [
-      2,
-      6,
-      8
+      15,
+      25,
+      35
     ],
     "instruction": 1
   },
@@ -372,15 +377,20 @@
     "id": 66,
     "taskName": "Obtain {amount} Slayer Points",
     "amounts": [
-      150,
-      200,
-      10
+      2500,
+      1500,
+      1000
     ],
     "instruction": 2
   },
   {
     "id": 67,
-    "taskName": "Obtain 500 of the highest logs you can woodcut. Fletch these into 500 bows / 250 shields",
+    "taskName": "Get {amount} Moons of Peril kc",
+    "amounts": [
+      25,
+      75,
+      50
+    ],
     "instruction": 2
   },
   {
@@ -398,8 +408,8 @@
     "taskName": "Obtain {amount} Marks of Grace",
     "amounts": [
       30,
-      60,
-      10
+      40,
+      20
     ],
     "instruction": 2
   },
@@ -409,7 +419,7 @@
     "amounts": [
       1000,
       1500,
-      100
+      500
     ],
     "instruction": 2
   },
@@ -432,9 +442,9 @@
     "id": 74,
     "taskName": "Obtain {amount} Crystal Shards via any method you like",
     "amounts": [
-      75,
+      100,
       150,
-      25
+      75
     ],
     "instruction": 2
   },
@@ -452,15 +462,15 @@
     "id": 76,
     "taskName": "Gain {amount}k Construction xp",
     "amounts": [
-      250,
+      500,
       750,
-      50
+      250
     ],
     "instruction": 3
   },
   {
     "id": 77,
-    "taskName": "Make 1000 Cannonballs",
+    "taskName": "Make 10000 Cannonballs",
     "instruction": 2
   },
   {
@@ -469,7 +479,7 @@
     "amounts": [
       100,
       250,
-      50
+      300
     ],
     "instruction": 2
   },
@@ -510,7 +520,12 @@
   },
   {
     "id": 87,
-    "taskName": "Get 3 Ecumenical Keys. If you already have max keys, use 3 then get 3 more",
+    "taskName": "Get {amount} Hueycoatl kc",
+    "amounts": [
+      100,
+      75,
+      50
+    ],
     "instruction": 2
   },
   {
@@ -518,8 +533,8 @@
     "taskName": "Get {amount}k ancient essence from the Phantom Muspah",
     "amounts": [
       50,
-      100,
-      10
+      75,
+      25
     ],
     "instruction": 2
   },
@@ -529,7 +544,7 @@
     "amounts": [
       500,
       750,
-      50
+      350
     ],
     "instruction": 3
   },
@@ -539,19 +554,14 @@
     "amounts": [
       5,
       10,
-      1
+      5
     ],
     "instruction": 2
   },
   {
     "id": 91,
     "taskName": "Obtain a Dragon Pickaxe or Dragon 2h sword from any source",
-    "amounts": [
-      50,
-      100,
-      10
-    ],
-    "instruction": 2
+    "instruction": 1
   },
   {
     "id": 92,
@@ -562,15 +572,95 @@
     "id": 93,
     "taskName": "Get {amount} Corporal Beast kc",
     "amounts": [
-      5,
-      10,
-      1
+      50,
+      25,
+      25
     ],
     "instruction": 2
   },
   {
     "id": 94,
     "taskName": "Obtain a pet",
+    "instruction": 1
+  },
+  {
+    "id": 95,
+    "taskName": "Smith {amount} swords at Giant's Foundry",
+    "amounts": [
+      50,
+      25,
+      30
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 96,
+    "taskName": "Get {amount} spoils of war from Soul Wars",
+    "amounts": [
+      10,
+      15,
+      10
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 97,
+    "taskName": "Get {amount} points at Tithe Farm",
+    "amounts": [
+      150,
+      200,
+      150
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 98,
+    "taskName": "Get {amount}K points at Volcanic Mine",
+    "amounts": [
+      25,
+      30,
+      15
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 99,
+    "taskName": "Get {amount} clue scroll uniques from any tier",
+    "amounts": [
+      5,
+      7,
+      10
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 100,
+    "taskName": "Get {amount} anima bark from Forestry events",
+    "amounts": [
+      3000,
+      5000,
+      1500
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 101,
+    "taskName": "Kill {amount} Nex",
+    "amounts": [
+      50,
+      100,
+      50
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 101,
+    "taskName": "Stack {amount} clue caskets of any tier",
+    "amounts": [
+      150,
+      100,
+      75
+    ],
     "instruction": 1
   }
 ]

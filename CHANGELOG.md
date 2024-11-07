@@ -43,3 +43,15 @@ Initial release
 ## Movie Module
 - Fixed bug that caused bot to crash when using !endmovie
 - Updated several bot message sends to message replies
+
+# v1.2.1
+## Task Module
+- Add random keyword functionality for task submissions
+- Fixed bug where BustinBot's task module would claim user had no permissions when using a movie command
+- Fixed bug where task submission timeout error posts when the task submission is deleted
+- Split the !completions command into separate commands for completions for the month and all-time
+
+## Movie Module
+- Fixed user movie count logic to return quota when movie is removed by admin
+- Fixed crash event when a poll is closed and the poll message has been deleted
+

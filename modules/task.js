@@ -10,14 +10,16 @@ const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
 const pathPollVotes = './data/task/pollVotes.json';
 const activeTaskPath = './data/task/activeTask.json';
+const keywordsPath = './data/task/keywords.json';
+const recentKeywordsPath = './data/task/recentKeywords.json';
 
 let pollSchedule = null;
 let activePoll = null;
 
 const instructionMap = {
-    1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
-    2: "Provide a screenshot of your current amount/kc and a second screenshot of the amount/kc after completing the task. Screenshots should be taken using RuneLite's built-in screenshot feature that includes the date in the photo.",
-    3: "Provide evidence of the XP being obtained within the week, such as via an XP tracker or a before and after screenshot."
+    1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
+    2: "Provide a before and after screenshot of the amount/KC showing this has been obtained within the 7 day task period. Both screenshots must have the **keyword** displayed in the in-game chat.",
+    3: "Provide evidence of the XP being obtained within the 7 day task period. The preferred submission method is a before and after screenshot with the XP totals displayed, both screenshots must have the **keyword** displayed in the in-game chat."
 };
 
 function getChannelByName(client, channelName) {
@@ -45,7 +47,12 @@ function reportError(client, message, errorMsg) {
 function readJSON(filePath) {
     if (fs.existsSync(filePath)) {
         const data = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(data);
+        try {
+            return JSON.parse(data);
+        } catch (error) {
+            console.error(`Error parsing JSON from ${filePath}:`, error);
+            return null;
+        }
     }
     return null;
 }
@@ -104,6 +111,41 @@ function saveActiveTask(task) {
     writeJSON(activeTaskPath, task);
 }
 
+function loadRecentKeywords() {
+    if (!fs.existsSync(recentKeywordsPath)) {
+        fs.writeFileSync(recentKeywordsPath, JSON.stringify([], null, 4), 'utf8');
+        return []; 
+    }
+    const data = readJSON(recentKeywordsPath);
+    return data ? data : [];
+}
+
+function saveRecentKeywords(keywords) {
+    writeJSON(recentKeywordsPath, keywords);
+}
+
+function getUniqueKeyword() {
+    const keywords = readJSON(keywordsPath);
+    const recentKeywords = loadRecentKeywords();
+
+    const availableKeywords = keywords.filter(keyword => !recentKeywords.includes(keyword));
+
+    if (availableKeywords.length === 0) {
+        console.error('No available keywords found.');
+        return null;
+    }
+
+    const selectedKeyword = availableKeywords[Math.floor(Math.random() * availableKeywords.length)];
+
+    recentKeywords.push(selectedKeyword);
+    if (recentKeywords.length > 20) {
+        recentKeywords.shift();
+    }
+    saveRecentKeywords(recentKeywords);
+
+    return selectedKeyword;
+}
+
 // Load tasks from tasks.json
 function loadTasks() {
     let data = readJSON(pathTasks);
@@ -125,8 +167,29 @@ function updateSubmissionCount(users, userId) {
 // Handle task submissions
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
-        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.find(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
+        const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.some(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
         const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
+
+        const messageDeleteListener = (deletedMessage) => {
+            if (deletedMessage.id === message.id) {
+                console.log('Message deleted before approval.');
+                client.off('messageDelete', messageDeleteListener);
+                collector.stop();
+            }
+        };
+
+        client.on('messageDelete', messageDeleteListener);
+
+        collector.on('end', (collected, reason) => {
+            if (reason === 'messageDelete') {
+                return;
+            }
+
+            client.off('messageDelete', messageDeleteListener);
+            if (collected.size === 0) {
+                reportError(client, message, 'No approval within the allotted time for ' + message.author.id + '\'s task submission.');
+            }
+        });
 
         collector.on('collect', async (reaction, user) => {
             const userId = message.author.id;
@@ -150,12 +213,6 @@ async function handleTaskSubmissions(message, client) {
             }
 
             console.log('Task submission confirmed for user ' + userId);
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                reportError(client, message, 'No approval within the alotted time for ' + message.author.id + '\'s task submission.');
-            }
         });
     }
 }
@@ -332,12 +389,13 @@ async function closeTaskPoll(client) {
     return winningTask;
 }
 
-function createTaskAnnouncementEmbed(task, submissionChannel, instructionText) {
+function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, uniqueKeyword) {
     return new EmbedBuilder()
         .setTitle("This Week's Task")
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
+        \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>.`)
         .setColor("#FF0000");
@@ -375,6 +433,12 @@ async function postTaskAnnouncement(client) {
         return;
     }
 
+    const uniqueKeyword = getUniqueKeyword();
+    if (!uniqueKeyword) {
+        reportError(client, null, 'No unique keyword found.');
+        return;
+    }
+
     const instructionText = instructionMap[selectedTask.instruction];
     const submissionChannel = getChannelByName(client, '📥task-submissions');
 
@@ -382,7 +446,7 @@ async function postTaskAnnouncement(client) {
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
 
-    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, instructionText);
+    const taskAnnouncementEmbed = createTaskAnnouncementEmbed(selectedTask, submissionChannel, instructionText, uniqueKeyword);
 
     const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
@@ -521,31 +585,30 @@ async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Limit commands to BustinBot admins
-    if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
-        message.reply('You do not have permission to use this command.');
-        return;
-    } else {
-        if (command === 'taskhelp') {
-            let helpMessage = `
-        📥 **BustinBot's Task Commands** 📥
-        
-**These commands require admin privileges.**
+    if (command === 'taskhelp') {
+        let helpMessage = `
+    📥 **BustinBot's Task Commands** 📥
+    
+**These commands require the BustinBot Admin role.**
 - **!taskpoll**: Create a new task poll for the community to vote on.
 - **!announcetask**: Close the active poll and announce the active task for the current week.
 - **!rollwinner**: Randomly select a winner from the task submissions.
 - **!listtasks**: Display a list of all available tasks and their details.
 - **!activetask**: Show the details of the currently active task.
-- **!completions**: List all users and the number of tasks they have completed.
+- **!monthlycompletions**: List all users and the number of tasks they have completed for the month.
+- **!allcompletions**: List all users and the number of tasks they have completed.
 - **!activepoll**: Display the active task poll and the current voting status.
 - **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
-       
-**Note**: Ensure that you have the required permissions before using these commands.
-        `;
+   
+**Note**: Ensure that you have the required permissions before using these commands. The Task Admin role only has the ability to approve task submissions in the task-submissions channel.
+    `;
 
-            message.reply(helpMessage);
-        }
+        message.reply(helpMessage);
+        return;
+    }
 
+    // Limit commands to BustinBot admins
+    if (message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
@@ -606,7 +669,30 @@ async function handleTaskCommands(message, client) {
             await message.channel.send({ embeds: [taskEmbed] });
         }
 
-        if (command === 'completions') {
+        if (command === 'monthlycompletions') {
+            const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+            let userList = '';
+
+            monthlyUsers.forEach(async user => {
+                try {
+                    const discordUser = await client.users.fetch(user.id);
+                    const username = discordUser.username;
+                    userList += `${username}: ${user.submissions} task completions\n`;
+                } catch (fetchError) {
+                    reportError(client, message, fetchError);
+                }
+            });
+
+            setTimeout(() => {
+                if (userList) {
+                    message.channel.send(userList);
+                } else {
+                    message.channel.send('No task completions found.');
+                }
+            }, 1000);
+        }
+
+        if (command === 'allcompletions') {
             const allUsers = loadUsers(pathTaskAllUsers);
             let userList = '';
 
@@ -693,6 +779,18 @@ async function handleTaskCommands(message, client) {
             saveActiveTask(task);
             message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
         }
+    } else if (
+        command === 'taskpoll' ||
+        command === 'announcetask' ||
+        command === 'rollwinner' ||
+        command === 'listtasks' ||
+        command === 'activetask' ||
+        command === 'completions' ||
+        command === 'activepoll' ||
+        command === 'settask'
+    ) {
+        message.reply('You do not have permission to use this command.');
+        return;
     }
 }
 
