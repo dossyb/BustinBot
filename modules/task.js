@@ -421,9 +421,8 @@ async function closeTaskPoll(client) {
 
     activePoll = null;
     savePollData();
-    if (fs.existsSync(pathPollVotes)) {
-        fs.unlinkSync(pathPollVotes);
-    }
+    voteCounts.fill(0);
+    savePollVotes(voteCounts);
     return winningTask;
 }
 
@@ -818,14 +817,25 @@ async function handleTaskCommands(message, client) {
             saveActiveTask(task);
             message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
         }
+
+        if (command === 'closetaskpoll') {
+            const task = await closeTaskPoll(client);
+            if (task) {
+                message.channel.send(`Task poll closed. The winning task is: ${task.taskName}`);
+            } else {
+                message.channel.send('No winning task found.');
+            }
+        }
     } else if (
         command === 'taskpoll' ||
         command === 'announcetask' ||
         command === 'rollwinner' ||
         command === 'listtasks' ||
         command === 'activetask' ||
-        command === 'completions' ||
+        command === 'allcompletions' ||
+        command === 'monthlycompletions' ||
         command === 'activepoll' ||
+        command === 'closetaskpoll' ||
         command === 'settask'
     ) {
         message.reply('You do not have permission to use this command.');
