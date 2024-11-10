@@ -83,15 +83,26 @@ function saveUsers(filePath, users) {
 function loadPollData() {
     const pollData = readJSON('./data/task/pollData.json');
     if (pollData && pollData.activePoll) {
-        activePoll = pollData.activePoll;
+        // Check if poll has expired
+        const pollCreationTime = pollData.activePoll.creationTime;
+        const now = Date.now();
+
+        if (now - pollCreationTime > 24 * 60 * 60 * 1000) {
+            console.log('Active poll has expired.');
+            activePoll = null;
+        } else {
+            activePoll = pollData.activePoll;
+            console.log('Resuming active poll: ' + activePoll.messageId);
+        }
     }
 }
 
 function savePollData() {
-    const pollData = {
-        activePoll,
-    };
-    writeJSON('./data/task/pollData.json', pollData);
+    if (activePoll) {
+        writeJSON('./data/task/pollData.json', { activePoll });
+    } else {
+        writeJSON('./data/task/pollData.json', {});
+    }
 }
 
 function loadPollVotes() {
@@ -264,6 +275,7 @@ function createPollEmbed(tasks) {
 
 // Schedule poll every Sunday at 12AM UTC
 function schedulePoll(client) {
+
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextSunday = nextSunday.getTime() - Date.now();
 
@@ -324,7 +336,8 @@ async function postTaskPoll(client) {
     activePoll = {
         messageId: message.id,
         tasks: tasks,
-        channelId: channel.id
+        channelId: channel.id,
+        creationTime: Date.now()
     }
 
     let voteCounts = loadPollVotes();
@@ -577,9 +590,6 @@ async function postWinnerAnnouncement(client) {
 
 initialiseTaskUserFiles();
 loadPollData();
-if (activePoll) {
-    console.log('Resuming active poll: ', activePoll.messageId);
-}
 
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
