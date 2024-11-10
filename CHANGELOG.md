@@ -55,3 +55,9 @@ Initial release
 - Fixed user movie count logic to return quota when movie is removed by admin
 - Fixed crash event when a poll is closed and the poll message has been deleted
 
+# v1.2.2
+## Task Module
+- Fixed bug where poll would not expire properly and cause two polls to schedule
+- Updated task list
+- Added new testing features
+- Improved poll recovery functionality in the event of a crash

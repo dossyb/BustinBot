@@ -1,10 +1,8 @@
-const { time } = require('console');
-const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { parse } = require('path');
-const { report } = require('process');
+
+// File paths
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
@@ -13,7 +11,16 @@ const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
 
-let pollSchedule = null;
+// Durations
+const POLL_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const TASK_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Testing durations
+// const POLL_DURATION = 60 * 1000; // 1 minute
+// const TASK_DURATION = 5 * 60 * 1000; // 2 minutes
+// const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 let activePoll = null;
 
 const instructionMap = {
@@ -21,6 +28,16 @@ const instructionMap = {
     2: "Provide a before and after screenshot of the amount/KC showing this has been obtained within the 7 day task period. Both screenshots must have the **keyword** displayed in the in-game chat.",
     3: "Provide evidence of the XP being obtained within the 7 day task period. The preferred submission method is a before and after screenshot with the XP totals displayed, both screenshots must have the **keyword** displayed in the in-game chat."
 };
+
+function testPollLaunch(client) {
+    postTaskPoll(client);
+    schedulePoll(client);
+
+    setTimeout(() => {
+        postTaskAnnouncement(client);
+        scheduleTaskAnnouncement(client);
+    }, POLL_DURATION);
+}
 
 function getChannelByName(client, channelName) {
     return client.channels.cache.find(channel => channel.name === channelName);
@@ -80,18 +97,55 @@ function saveUsers(filePath, users) {
     writeJSON(filePath, { users });
 }
 
-function loadPollData() {
+async function loadPollData(client) {
     const pollData = readJSON('./data/task/pollData.json');
     if (pollData && pollData.activePoll) {
-        activePoll = pollData.activePoll;
+        // Check if poll has expired
+        const pollCreationTime = pollData.activePoll.creationTime;
+        const now = Date.now();
+
+        if (now - pollCreationTime > POLL_DURATION) {
+            console.log('Active poll has expired.');
+            activePoll = null;
+        } else {
+            activePoll = pollData.activePoll;
+            console.log('Resuming active poll: ' + activePoll.messageId);
+
+            try {
+                const channel = client.channels.cache.get(activePoll.channelId);
+                const message = await channel.messages.fetch(activePoll.messageId);
+
+                // Update votes from existing reactions
+                let voteCounts = loadPollVotes();
+                await updateVotesFromReacts(message, voteCounts);
+                savePollVotes(voteCounts);
+
+                // Set up new reaction collector
+                const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
+                const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
+
+                collector.on('collect', (reaction) => {
+                    updateVoteCounts(reaction, voteCounts);
+                    savePollVotes(voteCounts);
+                });
+
+                collector.on('end', () => {
+                    closeTaskPoll(client);
+                });
+            } catch (error) {
+                console.error('Error fetching message or updating votes:', error);
+                reportError(client, null, 'Error fetching message or updating votes.');
+            }
+        }
     }
 }
 
 function savePollData() {
-    const pollData = {
-        activePoll,
-    };
-    writeJSON('./data/task/pollData.json', pollData);
+    if (activePoll) {
+        writeJSON('./data/task/pollData.json', { activePoll });
+    } else {
+        writeJSON('./data/task/pollData.json', {});
+    }
 }
 
 function loadPollVotes() {
@@ -168,7 +222,7 @@ function updateSubmissionCount(users, userId) {
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
         const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.some(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
-        const collector = message.createReactionCollector({ filter, max: 1, time: 168 * 60 * 60 * 1000 });
+        const collector = message.createReactionCollector({ filter, max: 1, time: TASK_DURATION });
 
         const messageDeleteListener = (deletedMessage) => {
             if (deletedMessage.id === message.id) {
@@ -258,21 +312,25 @@ function getNextDayOfWeek(dayOfWeek, hour = 0, minute = 0) {
 function createPollEmbed(tasks) {
     return new EmbedBuilder()
         .setTitle("Vote for next task")
-        .setDescription(`Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
+        .setDescription(`Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n1️⃣ ${tasks[0].taskName}\n2️⃣ ${tasks[1].taskName}\n3️⃣ ${tasks[2].taskName}`)
         .setColor("#00FF00");
 }
 
 // Schedule poll every Sunday at 12AM UTC
 function schedulePoll(client) {
-    const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
-    const timeUntilNextSunday = nextSunday.getTime() - Date.now();
+    // Testing code
+    // const timeUntilNextPoll = POLL_INTERVAL;
 
-    console.log(`Next poll scheduled in ${(timeUntilNextSunday / 1000 / 60 / 60).toFixed(2)} hours.`);
+    // Production code
+    const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
+    const timeUntilNextPoll = nextSunday.getTime() - Date.now();
+
+    console.log(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
 
     pollSchedule = setTimeout(() => {
         postTaskPoll(client);
         schedulePoll(client);
-    }, timeUntilNextSunday);
+    }, timeUntilNextPoll);
 }
 
 function updateVoteCounts(reaction, voteCounts) {
@@ -324,13 +382,14 @@ async function postTaskPoll(client) {
     activePoll = {
         messageId: message.id,
         tasks: tasks,
-        channelId: channel.id
+        channelId: channel.id,
+        creationTime: Date.now()
     }
 
     let voteCounts = loadPollVotes();
 
     const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
-    const collector = message.createReactionCollector({ filter, time: 24 * 60 * 60 * 1000 });
+    const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
 
     collector.on('collect', (reaction) => {
         updateVoteCounts(reaction, voteCounts);
@@ -364,7 +423,6 @@ async function postTaskPoll(client) {
 
 async function closeTaskPoll(client) {
     if (!activePoll) {
-        reportError(client, null, 'No active poll to close.');
         return;
     }
 
@@ -383,9 +441,9 @@ async function closeTaskPoll(client) {
     }
 
     activePoll = null;
-    if (fs.existsSync(pathPollVotes)) {
-        fs.unlinkSync(pathPollVotes);
-    }
+    savePollData();
+    voteCounts.fill(0);
+    savePollVotes(voteCounts);
     return winningTask;
 }
 
@@ -397,20 +455,24 @@ function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, u
         ${instructionText}
         \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
-        \nTask ends <t:${Math.floor((Date.now() + 168 * 60 * 60 * 1000) / 1000)}:R>.`)
+        \nTask ends <t:${Math.floor((Date.now() + TASK_DURATION) / 1000)}:R>.`)
         .setColor("#FF0000");
 }
 
 function scheduleTaskAnnouncement(client) {
-    const nextMonday = getNextDayOfWeek(1); // 1 = Monday
-    const timeUntilNextMonday = nextMonday.getTime() - Date.now();
+    // Testing code
+    // const timeUntilNextTask = TASK_DURATION;
 
-    console.log(`Next task announcement scheduled in ${(timeUntilNextMonday / 1000 / 60 / 60).toFixed(2)} hours.`);
+    // Production code
+    const nextMonday = getNextDayOfWeek(1); // 1 = Monday
+    const timeUntilNextTask = nextMonday.getTime() - Date.now();
+
+    console.log(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
 
     setTimeout(() => {
         postTaskAnnouncement(client);
         scheduleTaskAnnouncement(client);
-    }, timeUntilNextMonday);
+    }, timeUntilNextTask);
 }
 
 async function postTaskAnnouncement(client) {
@@ -575,12 +637,6 @@ async function postWinnerAnnouncement(client) {
     console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
 }
 
-initialiseTaskUserFiles();
-loadPollData();
-if (activePoll) {
-    console.log('Resuming active poll: ', activePoll.messageId);
-}
-
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -735,7 +791,7 @@ async function handleTaskCommands(message, client) {
                 return;
             }
 
-            const description = `Voting ends <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>. \n\n` +
+            const description = `Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n` +
                 `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
                 `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
                 `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
@@ -779,14 +835,25 @@ async function handleTaskCommands(message, client) {
             saveActiveTask(task);
             message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
         }
+
+        if (command === 'closetaskpoll') {
+            const task = await closeTaskPoll(client);
+            if (task) {
+                message.channel.send(`Task poll closed. The winning task is: ${task.taskName}`);
+            } else {
+                message.channel.send('No winning task found.');
+            }
+        }
     } else if (
         command === 'taskpoll' ||
         command === 'announcetask' ||
         command === 'rollwinner' ||
         command === 'listtasks' ||
         command === 'activetask' ||
-        command === 'completions' ||
+        command === 'allcompletions' ||
+        command === 'monthlycompletions' ||
         command === 'activepoll' ||
+        command === 'closetaskpoll' ||
         command === 'settask'
     ) {
         message.reply('You do not have permission to use this command.');
@@ -796,11 +863,14 @@ async function handleTaskCommands(message, client) {
 
 module.exports = {
     handleTaskCommands,
+    initialiseTaskUserFiles,
+    loadPollData,
     schedulePoll,
     postTaskPoll,
     closeTaskPoll,
     scheduleTaskAnnouncement,
     postTaskAnnouncement,
     handleTaskSubmissions,
-    scheduleWinnerAnnouncement
+    scheduleWinnerAnnouncement,
+    testPollLaunch
 };
