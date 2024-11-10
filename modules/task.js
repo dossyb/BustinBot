@@ -102,7 +102,7 @@ function saveUsers(filePath, users) {
     writeJSON(filePath, { users });
 }
 
-function loadPollData() {
+async function loadPollData(client) {
     const pollData = readJSON('./data/task/pollData.json');
     if (pollData && pollData.activePoll) {
         // Check if poll has expired
@@ -115,6 +115,32 @@ function loadPollData() {
         } else {
             activePoll = pollData.activePoll;
             console.log('Resuming active poll: ' + activePoll.messageId);
+
+            try {
+                const channel = client.channels.cache.get(activePoll.channelId);
+                const message = await channel.messages.fetch(activePoll.messageId);
+
+                // Update votes from existing reactions
+                let voteCounts = loadPollVotes();
+                await updateVotesFromReacts(message, voteCounts);
+                savePollVotes(voteCounts);
+
+                // Set up new reaction collector
+                const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
+                const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
+
+                collector.on('collect', (reaction) => {
+                    updateVoteCounts(reaction, voteCounts);
+                    savePollVotes(voteCounts);
+                });
+
+                collector.on('end', () => {
+                    closeTaskPoll(client);
+                });
+            } catch (error) {
+                console.error('Error fetching message or updating votes:', error);
+                reportError(client, null, 'Error fetching message or updating votes.');
+            }
         }
     }
 }
@@ -616,9 +642,6 @@ async function postWinnerAnnouncement(client) {
     console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
 }
 
-initialiseTaskUserFiles();
-loadPollData();
-
 async function handleTaskCommands(message, client) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -845,6 +868,8 @@ async function handleTaskCommands(message, client) {
 
 module.exports = {
     handleTaskCommands,
+    initialiseTaskUserFiles,
+    loadPollData,
     schedulePoll,
     postTaskPoll,
     closeTaskPoll,
