@@ -1,10 +1,6 @@
-const { time } = require('console');
-const { channel } = require('diagnostics_channel');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { parse } = require('path');
-const { report } = require('process');
 
 // File paths
 const pathTasks = './data/task/tasks.json';
@@ -25,7 +21,6 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 // const TASK_DURATION = 5 * 60 * 1000; // 2 minutes
 // const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-let pollSchedule = null;
 let activePoll = null;
 
 const instructionMap = {
