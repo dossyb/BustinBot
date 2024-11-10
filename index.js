@@ -33,6 +33,11 @@ client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
+    
+    // Testing task module
+    // taskModule.testPollLaunch(client);
+
+    // Task module production
     taskModule.schedulePoll(client);
     taskModule.scheduleTaskAnnouncement(client);
     taskModule.scheduleWinnerAnnouncement(client);
