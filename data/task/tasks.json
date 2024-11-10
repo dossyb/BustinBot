@@ -54,7 +54,7 @@
     "amounts": [
       750,
       1000,
-      150
+      500
     ],
     "instruction": 3
   },
@@ -662,5 +662,65 @@
       75
     ],
     "instruction": 1
+  },
+  {
+    "id": 102,
+    "taskName": "Stack {amount} Wintertodt points",
+    "amounts": [
+      50,
+      100,
+      75
+    ],
+    "instruction": 2
+  },
+  {
+    "id": 103,
+    "taskName": "Get {amount} Hallowed marks",
+    "amounts": [
+      50,
+      100,
+      75
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 104,
+    "taskName": "Get 1 Trouble brewing unique",
+    "instruction": 1
+  },
+  {
+    "id": 105,
+    "taskName": "Get 1 Mage Training Arena unique",
+    "instruction": 1
+  },
+  {
+    "id": 106,
+    "taskName": "Hunt {amount} of any type of chinchompa",
+    "amounts": [
+      500,
+      300,
+      400
+    ],
+    "instruction": 1
+  },
+  {
+    "id": 107,
+    "taskName": "Get {amount}k of Cooking xp",
+    "amounts": [
+      500,
+      250,
+      400
+    ],
+    "instruction": 3
+  },
+  {
+    "id": 108,
+    "taskName": "Get {amount}k of Crafting xp",
+    "amounts": [
+      300,
+      250,
+      350
+    ],
+    "instruction": 3
   }
 ]
