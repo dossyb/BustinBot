@@ -22,6 +22,8 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 // const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 let activePoll = null;
+let pollSchedule = null;
+let taskAnnouncementSchedule = null;
 
 const instructionMap = {
     1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
@@ -130,6 +132,7 @@ async function loadPollData(client) {
                 });
 
                 collector.on('end', () => {
+                    clearInterval(interval);
                     closeTaskPoll(client);
                 });
             } catch (error) {
@@ -322,6 +325,10 @@ function schedulePoll(client) {
     // const timeUntilNextPoll = POLL_INTERVAL;
 
     // Production code
+    if (pollSchedule) {
+        clearTimeout(pollSchedule);
+    }
+
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
 
@@ -467,9 +474,13 @@ function scheduleTaskAnnouncement(client) {
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
+    if (taskAnnouncementSchedule) {
+        clearTimeout(taskAnnouncementSchedule);
+    }
+
     console.log(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
 
-    setTimeout(() => {
+    taskAnnouncementSchedule = setTimeout(() => {
         postTaskAnnouncement(client);
         scheduleTaskAnnouncement(client);
     }, timeUntilNextTask);
