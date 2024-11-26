@@ -132,7 +132,7 @@ async function loadPollData(client) {
                 });
 
                 collector.on('end', () => {
-                    clearInterval(interval);
+                    // clearInterval(interval);
                     closeTaskPoll(client);
                 });
             } catch (error) {
@@ -279,21 +279,24 @@ function getRandomTasks(amount) {
     const allTasks = loadTasks();
     const shuffled = allTasks.sort(() => 0.5 - Math.random());
 
-    let taskName = '';
     // Select random tasks
     const selectedTasks = shuffled.slice(0, amount).map(task => {
-        if (!task.amounts || task.amounts.length === 0) {
-            taskName = task.taskName;
-            amount = null;
-        } else {
-            const amount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+        let taskName = task.taskName;
+        let selectedAmount = null;
 
-            taskName = task.taskName.replace('{amount}', amount);
+        if (task.amounts && Array.isArray(task.amounts) && task.amounts.length > 0) {
+            selectedAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+
+            if (Array.isArray(selectedAmount)) {
+                taskName = task.taskName.replace('{amount}', `${selectedAmount[0]}/${selectedAmount[1]}`);
+            } else {
+                taskName = task.taskName.replace('{amount}', selectedAmount);
+            }
         }
 
         return {
             ...task,
-            selectedAmount: amount,
+            selectedAmount: selectedAmount,
             taskName: taskName
         };
     });
@@ -325,12 +328,13 @@ function schedulePoll(client) {
     // const timeUntilNextPoll = POLL_INTERVAL;
 
     // Production code
-    if (pollSchedule) {
-        clearTimeout(pollSchedule);
-    }
 
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
+
+    if (pollSchedule) {
+        clearTimeout(pollSchedule);
+    }
 
     console.log(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
 
@@ -460,6 +464,7 @@ function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, u
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
+        \nFor tasks with two amounts, the left number is the amount required for main game players and the right number is the amount required for Leagues players. Leagues submissions must have the relic overlay turned on.
         \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + TASK_DURATION) / 1000)}:R>.`)
