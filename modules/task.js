@@ -122,19 +122,16 @@ async function loadPollData(client) {
                 await updateVotesFromReacts(message, voteCounts);
                 savePollVotes(voteCounts);
 
-                // Set up new reaction collector
-                const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
-                const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
+                const interval = setInterval(async () => {
+                    if (!activePoll) {
+                        clearInterval(interval);
+                        return;
+                    }
 
-                collector.on('collect', (reaction) => {
-                    updateVoteCounts(reaction, voteCounts);
+                    const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
+                    await updateVotesFromReacts(fetchedMessage, voteCounts);
                     savePollVotes(voteCounts);
-                });
-
-                collector.on('end', () => {
-                    // clearInterval(interval);
-                    closeTaskPoll(client);
-                });
+                }, 30000);
             } catch (error) {
                 console.error('Error fetching message or updating votes:', error);
                 reportError(client, null, 'Error fetching message or updating votes.');
@@ -344,17 +341,31 @@ function schedulePoll(client) {
     }, timeUntilNextPoll);
 }
 
-function updateVoteCounts(reaction, voteCounts) {
-    if (reaction.emoji.name === '1️⃣') voteCounts[0]++;
-    if (reaction.emoji.name === '2️⃣') voteCounts[1]++;
-    if (reaction.emoji.name === '3️⃣') voteCounts[2]++;
-}
-
 async function updateVotesFromReacts(message, voteCounts) {
-    const reactions = message.reactions.cache;
-    voteCounts[0] = reactions.get('1️⃣').count - 1 || 0;
-    voteCounts[1] = reactions.get('2️⃣').count - 1 || 0;
-    voteCounts[2] = reactions.get('3️⃣').count - 1 || 0;
+    try {
+        const reactions = message.reactions.cache;
+
+        // Reset vote counts before recalculating
+        voteCounts[0] = 0;
+        voteCounts[1] = 0;
+        voteCounts[2] = 0;
+
+        // Iterate over the reactions and count valid votes
+        if (reactions.get('1️⃣')) {
+            const reaction1 = await reactions.get('1️⃣').users.fetch();
+            voteCounts[0] = reaction1.filter(user => !user.bot).size;
+        }
+        if (reactions.get('2️⃣')) {
+            const reaction2 = await reactions.get('2️⃣').users.fetch();
+            voteCounts[1] = reaction2.filter(user => !user.bot).size;
+        }
+        if (reactions.get('3️⃣')) {
+            const reaction3 = await reactions.get('3️⃣').users.fetch();
+            voteCounts[2] = reaction3.filter(user => !user.bot).size;
+        }
+    } catch (error) {
+        console.error('Error updating votes from reactions:', error);
+    }
 }
 
 // Post task poll
@@ -397,15 +408,8 @@ async function postTaskPoll(client) {
         creationTime: Date.now()
     }
 
-    let voteCounts = loadPollVotes();
-
-    const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
-    const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
-
-    collector.on('collect', (reaction) => {
-        updateVoteCounts(reaction, voteCounts);
-        savePollVotes(voteCounts);
-    });
+    let voteCounts = [0, 0, 0];
+    savePollVotes(voteCounts);
 
     const interval = setInterval(async () => {
         try {
@@ -423,6 +427,9 @@ async function postTaskPoll(client) {
             reportError(client, null, 'Error updating votes from reactions.');
         }
     }, 30000);
+
+    const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
+    const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
 
     collector.on('end', () => {
         clearInterval(interval);
