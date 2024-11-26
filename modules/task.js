@@ -450,7 +450,22 @@ async function closeTaskPoll(client) {
     const voteCounts = loadPollVotes();
 
     const maxVotes = Math.max(...voteCounts);
-    const winningIndex = voteCounts.indexOf(maxVotes);
+
+    const tiedIndices = voteCounts.reduce((acc, count, index) => {
+        if (count === maxVotes) {
+            acc.push(index);
+        }
+        return acc;
+    }, []);
+
+    let winningIndex;
+    if (tiedIndices.length > 1) {
+        winningIndex = tiedIndices[Math.floor(Math.random() * tiedIndices.length)];
+        console.log('Tied votes, randomly selecting winner from tied options.');
+    } else {
+        winningIndex = voteCounts.indexOf(maxVotes);
+    }
+
     const winningTask = tasks[winningIndex];
 
     if (!winningTask) {
