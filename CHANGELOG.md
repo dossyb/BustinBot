@@ -61,3 +61,13 @@ Initial release
 - Updated task list
 - Added new testing features
 - Improved poll recovery functionality in the event of a crash
+
+# v1.2.3
+## Task Module
+- Added Leagues task support.
+- Fixed bug with poll schedule not working
+- Reworked vote handling to maintain accuracy in the event of a restart
+
+## Movie Module
+- Updated movie list command to delete message after react listener times out
+- Extended movie list react listener from one hour to 24 hours
