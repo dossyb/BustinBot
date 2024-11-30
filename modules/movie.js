@@ -425,7 +425,9 @@ For the **number-based commands**, you can reference a movie by its position in 
             });
 
             collector.on('end', () => {
-                embedMessage.reactions.removeAll();
+                embedMessage.reactions.removeAll()
+                .then(() => embedMessage.delete())
+                .catch(console.error); 
             });
         }
 
