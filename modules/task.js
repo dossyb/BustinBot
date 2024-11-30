@@ -22,6 +22,8 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 // const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 let activePoll = null;
+let pollSchedule = null;
+let taskAnnouncementSchedule = null;
 
 const instructionMap = {
     1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
@@ -120,18 +122,16 @@ async function loadPollData(client) {
                 await updateVotesFromReacts(message, voteCounts);
                 savePollVotes(voteCounts);
 
-                // Set up new reaction collector
-                const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
-                const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
+                const interval = setInterval(async () => {
+                    if (!activePoll) {
+                        clearInterval(interval);
+                        return;
+                    }
 
-                collector.on('collect', (reaction) => {
-                    updateVoteCounts(reaction, voteCounts);
+                    const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
+                    await updateVotesFromReacts(fetchedMessage, voteCounts);
                     savePollVotes(voteCounts);
-                });
-
-                collector.on('end', () => {
-                    closeTaskPoll(client);
-                });
+                }, 30000);
             } catch (error) {
                 console.error('Error fetching message or updating votes:', error);
                 reportError(client, null, 'Error fetching message or updating votes.');
@@ -276,21 +276,24 @@ function getRandomTasks(amount) {
     const allTasks = loadTasks();
     const shuffled = allTasks.sort(() => 0.5 - Math.random());
 
-    let taskName = '';
     // Select random tasks
     const selectedTasks = shuffled.slice(0, amount).map(task => {
-        if (!task.amounts || task.amounts.length === 0) {
-            taskName = task.taskName;
-            amount = null;
-        } else {
-            const amount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+        let taskName = task.taskName;
+        let selectedAmount = null;
 
-            taskName = task.taskName.replace('{amount}', amount);
+        if (task.amounts && Array.isArray(task.amounts) && task.amounts.length > 0) {
+            selectedAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+
+            if (Array.isArray(selectedAmount)) {
+                taskName = task.taskName.replace('{amount}', `${selectedAmount[0]}/${selectedAmount[1]}`);
+            } else {
+                taskName = task.taskName.replace('{amount}', selectedAmount);
+            }
         }
 
         return {
             ...task,
-            selectedAmount: amount,
+            selectedAmount: selectedAmount,
             taskName: taskName
         };
     });
@@ -322,8 +325,13 @@ function schedulePoll(client) {
     // const timeUntilNextPoll = POLL_INTERVAL;
 
     // Production code
+
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
+
+    if (pollSchedule) {
+        clearTimeout(pollSchedule);
+    }
 
     console.log(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
 
@@ -333,17 +341,31 @@ function schedulePoll(client) {
     }, timeUntilNextPoll);
 }
 
-function updateVoteCounts(reaction, voteCounts) {
-    if (reaction.emoji.name === '1️⃣') voteCounts[0]++;
-    if (reaction.emoji.name === '2️⃣') voteCounts[1]++;
-    if (reaction.emoji.name === '3️⃣') voteCounts[2]++;
-}
-
 async function updateVotesFromReacts(message, voteCounts) {
-    const reactions = message.reactions.cache;
-    voteCounts[0] = reactions.get('1️⃣').count - 1 || 0;
-    voteCounts[1] = reactions.get('2️⃣').count - 1 || 0;
-    voteCounts[2] = reactions.get('3️⃣').count - 1 || 0;
+    try {
+        const reactions = message.reactions.cache;
+
+        // Reset vote counts before recalculating
+        voteCounts[0] = 0;
+        voteCounts[1] = 0;
+        voteCounts[2] = 0;
+
+        // Iterate over the reactions and count valid votes
+        if (reactions.get('1️⃣')) {
+            const reaction1 = await reactions.get('1️⃣').users.fetch();
+            voteCounts[0] = reaction1.filter(user => !user.bot).size;
+        }
+        if (reactions.get('2️⃣')) {
+            const reaction2 = await reactions.get('2️⃣').users.fetch();
+            voteCounts[1] = reaction2.filter(user => !user.bot).size;
+        }
+        if (reactions.get('3️⃣')) {
+            const reaction3 = await reactions.get('3️⃣').users.fetch();
+            voteCounts[2] = reaction3.filter(user => !user.bot).size;
+        }
+    } catch (error) {
+        console.error('Error updating votes from reactions:', error);
+    }
 }
 
 // Post task poll
@@ -386,15 +408,8 @@ async function postTaskPoll(client) {
         creationTime: Date.now()
     }
 
-    let voteCounts = loadPollVotes();
-
-    const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
-    const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
-
-    collector.on('collect', (reaction) => {
-        updateVoteCounts(reaction, voteCounts);
-        savePollVotes(voteCounts);
-    });
+    let voteCounts = [0, 0, 0];
+    savePollVotes(voteCounts);
 
     const interval = setInterval(async () => {
         try {
@@ -412,6 +427,9 @@ async function postTaskPoll(client) {
             reportError(client, null, 'Error updating votes from reactions.');
         }
     }, 30000);
+
+    const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
+    const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
 
     collector.on('end', () => {
         clearInterval(interval);
@@ -432,7 +450,22 @@ async function closeTaskPoll(client) {
     const voteCounts = loadPollVotes();
 
     const maxVotes = Math.max(...voteCounts);
-    const winningIndex = voteCounts.indexOf(maxVotes);
+
+    const tiedIndices = voteCounts.reduce((acc, count, index) => {
+        if (count === maxVotes) {
+            acc.push(index);
+        }
+        return acc;
+    }, []);
+
+    let winningIndex;
+    if (tiedIndices.length > 1) {
+        winningIndex = tiedIndices[Math.floor(Math.random() * tiedIndices.length)];
+        console.log('Tied votes, randomly selecting winner from tied options.');
+    } else {
+        winningIndex = voteCounts.indexOf(maxVotes);
+    }
+
     const winningTask = tasks[winningIndex];
 
     if (!winningTask) {
@@ -453,6 +486,7 @@ function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, u
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
+        \nFor tasks with two amounts, the left number is the amount required for main game players and the right number is the amount required for Leagues players. Leagues submissions must have the relic overlay turned on.
         \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + TASK_DURATION) / 1000)}:R>.`)
@@ -467,9 +501,13 @@ function scheduleTaskAnnouncement(client) {
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
+    if (taskAnnouncementSchedule) {
+        clearTimeout(taskAnnouncementSchedule);
+    }
+
     console.log(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
 
-    setTimeout(() => {
+    taskAnnouncementSchedule = setTimeout(() => {
         postTaskAnnouncement(client);
         scheduleTaskAnnouncement(client);
     }, timeUntilNextTask);

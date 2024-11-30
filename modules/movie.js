@@ -406,7 +406,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             // Create a reaction collector
             const filter = (reaction, user) => { return ['⏪', '⏩'].includes(reaction.emoji.name) && user.id === message.author.id && !user.bot; };
-            const collector = embedMessage.createReactionCollector({ filter, time: 3600000 });
+            const collector = embedMessage.createReactionCollector({ filter, time: 24 * 60 * 60 * 1000 });
 
             collector.on('collect', (reaction, user) => {
                 reaction.users.remove(user);
@@ -425,7 +425,9 @@ For the **number-based commands**, you can reference a movie by its position in 
             });
 
             collector.on('end', () => {
-                embedMessage.reactions.removeAll();
+                embedMessage.reactions.removeAll()
+                .then(() => embedMessage.delete())
+                .catch(console.error); 
             });
         }
 
