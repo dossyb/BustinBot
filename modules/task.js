@@ -32,6 +32,10 @@ const instructionMap = {
     3: "Provide evidence of the XP being obtained within the 7 day task period. The preferred submission method is a before and after screenshot with the XP totals displayed, both screenshots must have the **keyword** displayed in the in-game chat."
 };
 
+function taskLog(...args) {
+    console.log('[TASK]', ...args);
+}
+
 function testPollLaunch(client) {
     postTaskPoll(client);
     schedulePoll(client);
@@ -108,11 +112,11 @@ async function loadPollData(client) {
         const now = Date.now();
 
         if (now - pollCreationTime > POLL_DURATION) {
-            console.log('Active poll has expired.');
+            taskLog('Active poll has expired.');
             activePoll = null;
         } else {
             activePoll = pollData.activePoll;
-            console.log('Resuming active poll: ' + activePoll.messageId);
+            taskLog('Resuming active poll: ' + activePoll.messageId);
 
             try {
                 const channel = client.channels.cache.get(activePoll.channelId);
@@ -223,7 +227,7 @@ async function handleTaskSubmissions(message, client) {
                 };
 
                 reaction.users.remove(user.id);
-                console.log(`Task approval attempt by ${user.username} denied due to pending winner confirmation.`);
+                taskLog(`Task approval attempt by ${user.username} denied due to pending winner confirmation.`);
                 return;
             }
 
@@ -244,10 +248,10 @@ async function handleTaskSubmissions(message, client) {
             if (bustinEmote) {
                 await message.react(bustinEmote);
             } else {
-                console.log('Bustin emote not found, BustinBot is very concerned.');
+                taskLog('Bustin emote not found, BustinBot is very concerned.');
             }
 
-            console.log('Task submission approved for user ' + userId);
+            taskLog('Task submission approved for user ' + userId);
 
             collector.stop('approved');
         };
@@ -265,13 +269,13 @@ async function handleTaskSubmissions(message, client) {
 
         collector.on('remove', async (reaction, user) => {
             if (reaction.emoji.name === '✅' && !reaction.users.cache.has(client.user.id)) {
-                console.log(`Approval on submission ${message.id} removed for ${user.username}`);
+                taskLog(`Approval on submission ${message.id} removed for ${user.username}`);
             }
         });
 
         collector.on('end', (collected, reason) => {
             if (reason !== 'approved') {
-                console.log(`Listener on submission ${message.id} ended without approval.`);
+                taskLog(`Listener on submission ${message.id} ended without approval.`);
             }
         });
     }
@@ -339,7 +343,7 @@ function schedulePoll(client) {
         clearTimeout(pollSchedule);
     }
 
-    console.log(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
 
     pollSchedule = setTimeout(() => {
         postTaskPoll(client);
@@ -470,7 +474,7 @@ async function closeTaskPoll(client) {
     let winningIndex;
     if (tiedIndices.length > 1) {
         winningIndex = tiedIndices[Math.floor(Math.random() * tiedIndices.length)];
-        console.log('Tied votes, randomly selecting winner from tied options.');
+        taskLog('Tied votes, randomly selecting winner from tied options.');
     } else {
         winningIndex = voteCounts.indexOf(maxVotes);
     }
@@ -519,7 +523,7 @@ function scheduleTaskAnnouncement(client) {
         clearTimeout(taskAnnouncementSchedule);
     }
 
-    console.log(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
 
     taskAnnouncementSchedule = setTimeout(() => {
         postTaskAnnouncement(client);
@@ -572,7 +576,7 @@ async function postTaskAnnouncement(client) {
 
     saveActiveTask(selectedTask);
 
-    console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
+    taskLog('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
 
 // Get weighted user list for monthly roll
@@ -591,7 +595,7 @@ function pickMonthlyWinner() {
     let weightedList = getWeightedUserList(monthlyUsers);
 
     if (weightedList.length === 0) {
-        console.log('No submissions to pick from.');
+        taskLog('No submissions to pick from.');
         return null;
     }
 
@@ -606,14 +610,14 @@ function scheduleWinnerAnnouncement(client) {
     const timeUntilFourthTuesday = fourthTuesday.getTime() - now.getTime();
 
     if (timeUntilFourthTuesday > 2147483647) {
-        console.log('Time until fourth Tuesday is too long to schedule right now, will try again 18 days from now.');
+        taskLog('Time until fourth Tuesday is too long to schedule right now, will try again on the 18th day of the month.');
 
         // Schedule for 18 days from now and check again
         setTimeout(() => {
             scheduleWinnerAnnouncement(client);
         }, 18 * 24 * 60 * 60 * 1000);
     } else {
-        console.log(`Next winner announcement scheduled in ${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours.`);
+        taskLog(`Next winner announcement scheduled in ${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours.`);
 
         setTimeout(() => {
             postWinnerAnnouncement(client);
@@ -857,7 +861,7 @@ async function handleTaskCommands(message, client) {
             winnerPending = false;
 
             message.reply("This month's winner has been confirmed and the monthly participants list has been reset.");
-            console.log('Monthly winner confirmed and taskMonthlyUsers.json reset.');
+            taskLog('Monthly winner confirmed and taskMonthlyUsers.json reset.');
         }
 
         if (command === 'listtasks') {
