@@ -6,7 +6,7 @@ const path = require('path');
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
-const pathPollVotes = './data/task/pollVotes.json';
+const pathPollData = './data/task/pollData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
@@ -101,7 +101,7 @@ function saveUsers(filePath, users) {
 }
 
 async function loadPollData(client) {
-    const pollData = readJSON('./data/task/pollData.json');
+    const pollData = readJSON(pathPollData);
     if (pollData && pollData.activePoll) {
         // Check if poll has expired
         const pollCreationTime = pollData.activePoll.creationTime;
@@ -119,9 +119,7 @@ async function loadPollData(client) {
                 const message = await channel.messages.fetch(activePoll.messageId);
 
                 // Update votes from existing reactions
-                let voteCounts = loadPollVotes();
-                await updateVotesFromReacts(message, voteCounts);
-                savePollVotes(voteCounts);
+                await updateVotesFromReacts(message, activePoll.votes);
 
                 const interval = setInterval(async () => {
                     if (!activePoll) {
@@ -130,9 +128,9 @@ async function loadPollData(client) {
                     }
 
                     const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
-                    await updateVotesFromReacts(fetchedMessage, voteCounts);
-                    savePollVotes(voteCounts);
-                }, 30000);
+                    await updateVotesFromReacts(fetchedMessage, activePoll.votes);
+                    savePollData();
+                }, 10000);
             } catch (error) {
                 console.error('Error fetching message or updating votes:', error);
                 reportError(client, null, 'Error fetching message or updating votes.');
@@ -143,19 +141,10 @@ async function loadPollData(client) {
 
 function savePollData() {
     if (activePoll) {
-        writeJSON('./data/task/pollData.json', { activePoll });
+        writeJSON(pathPollData, { activePoll });
     } else {
-        writeJSON('./data/task/pollData.json', {});
+        writeJSON(pathPollData, {});
     }
-}
-
-function loadPollVotes() {
-    const pollVotes = readJSON(pathPollVotes);
-    return pollVotes ? pollVotes.votes : [0, 0, 0];
-}
-
-function savePollVotes(voteCounts) {
-    writeJSON(pathPollVotes, { votes: voteCounts });
 }
 
 function loadActiveTask() {
@@ -358,27 +347,27 @@ function schedulePoll(client) {
     }, timeUntilNextPoll);
 }
 
-async function updateVotesFromReacts(message, voteCounts) {
+async function updateVotesFromReacts(message, votes) {
     try {
         const reactions = message.reactions.cache;
 
         // Reset vote counts before recalculating
-        voteCounts[0] = 0;
-        voteCounts[1] = 0;
-        voteCounts[2] = 0;
+        votes[0] = 0;
+        votes[1] = 0;
+        votes[2] = 0;
 
         // Iterate over the reactions and count valid votes
         if (reactions.get('1️⃣')) {
             const reaction1 = await reactions.get('1️⃣').users.fetch();
-            voteCounts[0] = reaction1.filter(user => !user.bot).size;
+            votes[0] = reaction1.filter(user => !user.bot).size;
         }
         if (reactions.get('2️⃣')) {
             const reaction2 = await reactions.get('2️⃣').users.fetch();
-            voteCounts[1] = reaction2.filter(user => !user.bot).size;
+            votes[1] = reaction2.filter(user => !user.bot).size;
         }
         if (reactions.get('3️⃣')) {
             const reaction3 = await reactions.get('3️⃣').users.fetch();
-            voteCounts[2] = reaction3.filter(user => !user.bot).size;
+            votes[2] = reaction3.filter(user => !user.bot).size;
         }
     } catch (error) {
         console.error('Error updating votes from reactions:', error);
@@ -422,11 +411,16 @@ async function postTaskPoll(client) {
         messageId: message.id,
         tasks: tasks,
         channelId: channel.id,
-        creationTime: Date.now()
+        creationTime: Date.now(),
+        votes: [0, 0, 0]
     }
 
-    let voteCounts = [0, 0, 0];
-    savePollVotes(voteCounts);
+    try {
+        savePollData();
+    } catch (error) {
+        console.error('Error saving poll data:', error);
+        reportError(client, null, 'Error saving poll data.');
+    }
 
     const interval = setInterval(async () => {
         try {
@@ -437,13 +431,13 @@ async function postTaskPoll(client) {
             }
 
             const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
-            await updateVotesFromReacts(fetchedMessage, voteCounts);
-            savePollVotes(voteCounts);
+            await updateVotesFromReacts(fetchedMessage, activePoll.votes);
+            savePollData();
         } catch (error) {
             console.error('Error fetching message or updating votes:', error);
             reportError(client, null, 'Error updating votes from reactions.');
         }
-    }, 30000);
+    }, 10000);
 
     const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
     const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
@@ -452,8 +446,6 @@ async function postTaskPoll(client) {
         clearInterval(interval);
         closeTaskPoll(client, message, tasks);
     });
-
-    savePollData();
 }
 
 async function closeTaskPoll(client) {
@@ -464,7 +456,7 @@ async function closeTaskPoll(client) {
     const channel = getChannelByName(client, '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
     const tasks = activePoll.tasks;
-    const voteCounts = loadPollVotes();
+    const voteCounts = activePoll.votes;
 
     const maxVotes = Math.max(...voteCounts);
 
@@ -491,9 +483,14 @@ async function closeTaskPoll(client) {
     }
 
     activePoll = null;
-    savePollData();
-    voteCounts.fill(0);
-    savePollVotes(voteCounts);
+
+    try {
+        savePollData();
+    } catch (error) {  
+        console.error('Error saving poll data:', error);
+        reportError(client, null, 'Error saving poll data.');
+    }
+
     return winningTask;
 }
 
