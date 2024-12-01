@@ -1,3 +1,4 @@
+const { log } = require('console');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -24,6 +25,9 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 let activePoll = null;
 let pollSchedule = null;
 let taskAnnouncementSchedule = null;
+let nextPollTime = null;
+let nextTaskTime = null;
+let nextWinnerTime = null;
 let winnerPending = false;
 
 const instructionMap = {
@@ -33,7 +37,7 @@ const instructionMap = {
 };
 
 function taskLog(...args) {
-    console.log('[TASK]', ...args);
+    console.log(`[TASK] ${new Date().toISOString()}`, ...args);
 }
 
 function testPollLaunch(client) {
@@ -83,6 +87,21 @@ function readJSON(filePath) {
 
 function writeJSON(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 4), 'utf8');
+}
+
+function startPeriodicStatusUpdates() {
+    const logNextSchedules = () => {
+        const now = Date.now();
+
+        const pollTimeMessage = nextPollTime ? `Next poll in ${((nextPollTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextPollTime).toISOString()}).` : 'No poll scheduled.';
+        const taskTimeMessage = nextTaskTime ? `Next task announcement in ${((nextTaskTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextTaskTime).toISOString()}).` : 'No task scheduled.';
+        const winnerTimeMessage = nextWinnerTime ? `Next winner announcement in ${((nextWinnerTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextWinnerTime).toISOString()}).` : 'No winner scheduled.';
+
+        taskLog(`Status update: \n${pollTimeMessage}\n${taskTimeMessage}\n${winnerTimeMessage}`);
+    };
+
+    logNextSchedules();
+    setInterval(logNextSchedules, 24 * 60 * 60 * 1000);
 }
 
 // Ensure task user files exist
@@ -339,11 +358,13 @@ function schedulePoll(client) {
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
 
+    nextPollTime = nextSunday.getTime();
+
     if (pollSchedule) {
         clearTimeout(pollSchedule);
     }
 
-    taskLog(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next poll scheduled for ${new Date(nextPollTime).toISOString()} (${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
     pollSchedule = setTimeout(() => {
         postTaskPoll(client);
@@ -519,11 +540,13 @@ function scheduleTaskAnnouncement(client) {
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
+    nextTaskTime = nextMonday.getTime();
+
     if (taskAnnouncementSchedule) {
         clearTimeout(taskAnnouncementSchedule);
     }
 
-    taskLog(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next task announcement scheduled for ${new Date(nextTaskTime).toISOString()} (${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
     taskAnnouncementSchedule = setTimeout(() => {
         postTaskAnnouncement(client);
@@ -608,6 +631,8 @@ function scheduleWinnerAnnouncement(client) {
     const fourthTuesday = getNextFourthTuesday(now);
 
     const timeUntilFourthTuesday = fourthTuesday.getTime() - now.getTime();
+
+    nextWinnerTime = fourthTuesday.getTime();
 
     if (timeUntilFourthTuesday > 2147483647) {
         taskLog('Time until fourth Tuesday is too long to schedule right now, will try again on the 18th day of the month.');
@@ -979,5 +1004,6 @@ module.exports = {
     postTaskAnnouncement,
     handleTaskSubmissions,
     scheduleWinnerAnnouncement,
-    testPollLaunch
+    testPollLaunch,
+    startPeriodicStatusUpdates
 };

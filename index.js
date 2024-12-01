@@ -32,6 +32,8 @@ function saveCounter() {
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     console.log('Active');
+
+    // Movie module
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
     
@@ -44,6 +46,7 @@ client.once('ready', () => {
     taskModule.schedulePoll(client);
     taskModule.scheduleTaskAnnouncement(client);
     taskModule.scheduleWinnerAnnouncement(client);
+    taskModule.startPeriodicStatusUpdates(client);
 });
 
 let bustinCount = loadCounter();
