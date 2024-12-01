@@ -24,6 +24,7 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 let activePoll = null;
 let pollSchedule = null;
 let taskAnnouncementSchedule = null;
+let winnerConfirmed = false;
 
 const instructionMap = {
     1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
@@ -669,8 +670,8 @@ async function postWinnerAnnouncement(client) {
         embeds: [announcementEmbed]
     });
 
-    // Reset monthly user submissions
-    saveUsers(pathTaskMonthlyUsers, []);
+    // Set flag to await winner confirmation
+    winnerConfirmed = false;
 
     console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
 }
@@ -713,6 +714,18 @@ async function handleTaskCommands(message, client) {
 
         if (command === 'rollwinner') {
             await postWinnerAnnouncement(client);
+        }
+
+        if (command === 'confirmwinner') {
+            if (winnerConfirmed) {
+                message.reply("This month's winner has already been confirmed.");
+                return;
+            }
+
+            saveUsers(pathTaskMonthlyUsers, []);
+            winnerConfirmed = true;
+
+            message.reply("This month's winner has been confirmed and the monthly participants list has been reset.");
         }
 
         if (command === 'listtasks') {
