@@ -11,8 +11,51 @@ if (!token) {
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 const fs = require('fs');
+const path = require('path');
 const pathCounter = './data/counters.json';
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+
+const logDir = path.join(__dirname, 'logs');
+const logFileName = `bustinbot-${new Date().toISOString().replace(/:/g, '-')}.log`;
+const logFilePath = path.join(logDir, logFileName);
+
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+let logBuffer = [];
+
+// Override console methods
+['log', 'warn', 'error', 'info'].forEach((method) => {
+    const originalMethod = console[method];
+    console[method] = (...args) => {
+        const message = `[${new Date().toISOString()}] [${method.toUpperCase()}] ${args.join(' ')}`;
+        logBuffer.push(message);
+
+        // Write to log stream and call original method
+        originalMethod.apply(console, args);
+    };
+});
+
+// Periodically write log buffer to file
+setInterval(() => {
+    if (logBuffer.length > 0) {
+        logStream.write(logBuffer.join('\n') + '\n');
+        logBuffer = [];
+    }
+}, 5000);
+
+// Ensure logs are flushed before exiting
+function flushLogsOnExit() {
+    if (logBuffer.length > 0) {
+        logStream.write(logBuffer.join('\n') + '\n');
+        logBuffer = [];
+    }
+
+    logStream.end();
+}
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
 
@@ -105,3 +148,10 @@ client.on('messageCreate', async (message) => {
 });
 
 client.login(token);
+
+process.on('exist', flushLogsOnExit);
+process.on('SIGINT', () => {
+    console.log('Exiting...');
+    flushLogsOnExit();
+    process.exit(0);
+});

@@ -37,7 +37,7 @@ const instructionMap = {
 };
 
 function taskLog(...args) {
-    console.log(`[TASK] ${new Date().toISOString()}`, ...args);
+    console.log(`[TASK]`, ...args);
 }
 
 function testPollLaunch(client) {
@@ -642,7 +642,7 @@ function scheduleWinnerAnnouncement(client) {
             scheduleWinnerAnnouncement(client);
         }, 18 * 24 * 60 * 60 * 1000);
     } else {
-        taskLog(`Next winner announcement scheduled in ${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours.`);
+        taskLog(`Next winner announcement scheduled for ${new Date(nextWinnerTime).toISOString()} (${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
         setTimeout(() => {
             postWinnerAnnouncement(client);
