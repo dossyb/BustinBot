@@ -892,49 +892,67 @@ async function handleTaskCommands(message, client) {
         }
 
         if (command === 'monthlycompletions') {
+            message.channel.send('Pulling user data, hold your <a:Bustin:1290456273522921606> s...');
             const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
-            let userList = '';
 
-            monthlyUsers.forEach(async user => {
+            if (!monthlyUsers || monthlyUsers.length === 0) {
+                message.channel.send('No task completions found.');
+                return;
+            }
+
+            const userPromises = monthlyUsers.map(async user => {
                 try {
                     const discordUser = await client.users.fetch(user.id);
-                    const username = discordUser.username;
-                    userList += `${username}: ${user.submissions} task completions\n`;
+                    return `${discordUser.username}: ${user.submissions} task completions\n`;
                 } catch (fetchError) {
                     reportError(client, message, fetchError);
+                    return null;
                 }
             });
 
-            setTimeout(() => {
+            try {
+                const userList = (await Promise.all(userPromises)).filter(entry => entry !== null).join('');
                 if (userList) {
                     message.channel.send(userList);
                 } else {
                     message.channel.send('No task completions found.');
                 }
-            }, 1000);
+            } catch (error) {
+                console.error('Error fetching user completions:', error);
+                reportError(client, message, 'An error occurred while fetching task completions.');
+            }
         }
 
         if (command === 'allcompletions') {
+            message.channel.send('Pulling user data, hold your <a:Bustin:1290456273522921606> s...');
             const allUsers = loadUsers(pathTaskAllUsers);
-            let userList = '';
 
-            allUsers.forEach(async user => {
+            if (!allUsers || allUsers.length === 0) {
+                message.channel.send('No task completions found.');
+                return;
+            }
+
+            const userPromises = allUsers.map(async user => {
                 try {
                     const discordUser = await client.users.fetch(user.id);
-                    const username = discordUser.username;
-                    userList += `${username}: ${user.submissions} task completions\n`;
+                    return `${discordUser.username}: ${user.submissions} task completions\n`;
                 } catch (fetchError) {
                     reportError(client, message, fetchError);
+                    return null;
                 }
             });
 
-            setTimeout(() => {
+            try {
+                const userList = (await Promise.all(userPromises)).filter(entry => entry !== null).join('');
                 if (userList) {
                     message.channel.send(userList);
                 } else {
                     message.channel.send('No task completions found.');
                 }
-            }, 1000);
+            } catch (error) {
+                console.error('Error fetching user completions:', error);
+                reportError(client, message, 'An error occurred while fetching task completions.');
+            }
         }
 
     } else if (
