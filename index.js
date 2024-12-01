@@ -98,7 +98,26 @@ let bustinCount = loadCounter().bustinCount;
 let goodbotCount = loadCounter().goodbotCount;
 let badbotCount = loadCounter().badbotCount;
 
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', async (message) => {   
+    if (message.author.bot) return;
+
+    if (/\b(sleep)\b/i.test(message.content)) {
+        const chance = Math.random();
+        if (chance < 0.05) {
+            message.channel.send('I ain\'t afraid of no sleep! <:Bedge:912482990695796776>');
+            return;
+        }
+        if (chance > 0.05 && chance < 0.1) {
+            message.channel.send('I ain\'t afraid of no bed! <:Bedge:912482990695796776>');
+            return;
+        }
+        if (chance > 0.1 && chance < 0.15) {
+            message.channel.send('Sleepin\' makes me feel good! <:Bedge:912482990695796776>');
+            return;
+        }
+        return;
+    }
+
     if (!message.content.startsWith('!')) {
         taskModule.handleTaskSubmissions(message, client);
         return;
