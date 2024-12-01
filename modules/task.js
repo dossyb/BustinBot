@@ -24,7 +24,7 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 let activePoll = null;
 let pollSchedule = null;
 let taskAnnouncementSchedule = null;
-let winnerConfirmed = false;
+let winnerPending = false;
 
 const instructionMap = {
     1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
@@ -169,7 +169,7 @@ function saveActiveTask(task) {
 function loadRecentKeywords() {
     if (!fs.existsSync(recentKeywordsPath)) {
         fs.writeFileSync(recentKeywordsPath, JSON.stringify([], null, 4), 'utf8');
-        return []; 
+        return [];
     }
     const data = readJSON(recentKeywordsPath);
     return data ? data : [];
@@ -223,33 +223,24 @@ function updateSubmissionCount(users, userId) {
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
         const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.some(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
-        const collector = message.createReactionCollector({ filter, max: 1, time: TASK_DURATION });
 
-        const messageDeleteListener = (deletedMessage) => {
-            if (deletedMessage.id === message.id) {
-                console.log('Message deleted before approval.');
-                client.off('messageDelete', messageDeleteListener);
-                collector.stop();
-            }
-        };
+        const processApproval = async (reaction, user) => {
+            if (winnerPending) {
+                const botAdminChannel = getChannelByName(client, 'botadmin');
+                const taskAdmin = `<@${user.id}>`;
 
-        client.on('messageDelete', messageDeleteListener);
+                if (botAdminChannel) {
+                    await botAdminChannel.send(`${taskAdmin}, a winner is currently pending confirmation. Please wait for the winner to be confirmed before approving any task submissions.`);
+                };
 
-        collector.on('end', (collected, reason) => {
-            if (reason === 'messageDelete') {
+                reaction.users.remove(user.id);
+                console.log(`Task approval attempt by ${user.username} denied due to pending winner confirmation.`);
                 return;
             }
 
-            client.off('messageDelete', messageDeleteListener);
-            if (collected.size === 0) {
-                reportError(client, message, 'No approval within the allotted time for ' + message.author.id + '\'s task submission.');
-            }
-        });
-
-        collector.on('collect', async (reaction, user) => {
             const userId = message.author.id;
 
-            // Add user to both user lists
+            // Add user to user lists
             let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
 
@@ -259,7 +250,7 @@ async function handleTaskSubmissions(message, client) {
             saveUsers(pathTaskMonthlyUsers, monthlyUsers);
             saveUsers(pathTaskAllUsers, allUsers);
 
-            // React to the message to confirm submission
+            // React to message to confirm submission
             const bustinEmote = client.emojis.cache.find(emoji => emoji.name === 'Bustin');
             if (bustinEmote) {
                 await message.react(bustinEmote);
@@ -267,7 +258,32 @@ async function handleTaskSubmissions(message, client) {
                 console.log('Bustin emote not found, BustinBot is very concerned.');
             }
 
-            console.log('Task submission confirmed for user ' + userId);
+            console.log('Task submission approved for user ' + userId);
+           
+            collector.stop('approved');
+        };
+
+        const collector = message.createReactionCollector({ filter, dispose: true });
+
+        collector.on('collect', async (reaction, user) => {
+            try {
+                await processApproval(reaction, user);
+            } catch (error) {
+                console.error(`Error processing approval for submission ${message.id}:`, error);
+                reportError(client, message, `Error processing approval for submission ${message.id}: ${error}`);
+            }
+        });
+
+        collector.on('remove', async (reaction, user) => {
+            if (reaction.emoji.name === '✅' && !reaction.users.cache.has(client.user.id)) {
+                console.log(`Approval on submission ${message.id} removed for ${user.username}`);
+            }
+        });
+
+        collector.on('end', (collected, reason) => {
+            if (reason !== 'approved') {
+                console.log(`Listener on submission ${message.id} ended without approval.`);
+            }
         });
     }
 }
@@ -416,10 +432,10 @@ async function postTaskPoll(client) {
         try {
             // Only update votes if there is an active poll.
             if (!activePoll) {
-                clearInterval(interval); 
+                clearInterval(interval);
                 return;
             }
-    
+
             const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
             await updateVotesFromReacts(fetchedMessage, voteCounts);
             savePollVotes(voteCounts);
@@ -658,22 +674,28 @@ async function postWinnerAnnouncement(client) {
         return;
     }
 
+    // Set flag to await confirmation and block further task submission approvals
+    winnerPending = true;
+
     // Announce the winner
     const announcementEmbed = new EmbedBuilder()
         .setTitle('And the winner is...')
         .setDescription('In the last month, there were...\n\n **' + totalSubmissions + '** submissions from **' + totalParticipants + '** participants!\n\n**The winner is <@' + winnerId + '>!**\n\n Congratulations! Please message an admin to claim your prize.')
         .setColor("#0000FF");
 
+    // Send message to botadmin channel prompting to confirm winner
+    const botAdminChannel = getChannelByName(client, 'botadmin');
+    if (botAdminChannel) {
+        await botAdminChannel.send({
+            content: 'Monthly winner has been selected. If the winner has chosen to claim the prize, please confirm using **!confirmwinner**.'
+        });
+    }
+
     const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
         content: `<@&${role.id}>`,
         embeds: [announcementEmbed]
     });
-
-    // Set flag to await winner confirmation
-    winnerConfirmed = false;
-
-    console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
 }
 
 async function handleTaskCommands(message, client) {
@@ -717,15 +739,16 @@ async function handleTaskCommands(message, client) {
         }
 
         if (command === 'confirmwinner') {
-            if (winnerConfirmed) {
-                message.reply("This month's winner has already been confirmed.");
+            if (!winnerPending) {
+                message.reply("There is no winner pending confirmation.");
                 return;
             }
 
             saveUsers(pathTaskMonthlyUsers, []);
-            winnerConfirmed = true;
+            winnerPending = false;
 
             message.reply("This month's winner has been confirmed and the monthly participants list has been reset.");
+            console.log('Monthly winner confirmed and taskMonthlyUsers.json reset.');
         }
 
         if (command === 'listtasks') {
