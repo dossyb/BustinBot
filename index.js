@@ -61,15 +61,17 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 function loadCounter() {
     if (!fs.existsSync(pathCounter)) {
-        const initialData = { bustinCount: 0 };
+        const initialData = { bustinCount: 0, goodbotCount: 0, badbotCount: 0 };
         fs.writeFileSync(pathCounter, JSON.stringify(initialData, null, 4), 'utf8');
     }
     const data = fs.readFileSync(pathCounter, 'utf8');
-    return JSON.parse(data).bustinCount;
+    return JSON.parse(data);
 }
 
-function saveCounter() {
-    fs.writeFileSync(pathCounter, JSON.stringify({ bustinCount }, null, 4), 'utf8');
+// Save the counter data independent of the command used
+function saveCounter(count) {
+    const data = { bustinCount: bustinCount, goodbotCount: goodbotCount, badbotCount: badbotCount };
+    fs.writeFileSync(pathCounter, JSON.stringify(data, null, 4), 'utf8');
 }
 
 client.once('ready', () => {
@@ -92,7 +94,9 @@ client.once('ready', () => {
     taskModule.startPeriodicStatusUpdates(client);
 });
 
-let bustinCount = loadCounter();
+let bustinCount = loadCounter().bustinCount;
+let goodbotCount = loadCounter().goodbotCount;
+let badbotCount = loadCounter().badbotCount;
 
 client.on('messageCreate', async (message) => {
     if (!message.content.startsWith('!')) {
@@ -105,9 +109,10 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'bustin') {
         bustinCount++;
-        saveCounter();
+        saveCounter(bustinCount);
 
         message.channel.send('Bustin\' makes me feel good! <a:Bustin:1290456273522921606>');
+        console.log(`${message.author.username} busted!`);
         return;
     }
 
@@ -115,6 +120,22 @@ client.on('messageCreate', async (message) => {
         loadCounter();
         message.channel.send('`!bustin` has been used ' + `${bustinCount}` + ' time(s)! <a:Bustin:1290456273522921606>');
         return;
+    }
+
+    if (command === 'goodbot') {
+        goodbotCount++;
+        saveCounter(goodbotCount);
+        message.reply('<a:Bustin:1290456273522921606>');
+        
+        console.log(`${message.author.username} made BustinBot feel good!`);
+    }
+
+    if (command === 'badbot') {
+        badbotCount++;
+        saveCounter(badbotCount);
+        message.reply('<:peepoSad:1019152061088137317>');
+
+        console.log(`${message.author.username} thinks something weird sleeping in their bed!`);
     }
 
     if (command === 'bustinhelp') {
