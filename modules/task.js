@@ -259,7 +259,7 @@ async function handleTaskSubmissions(message, client) {
             }
 
             console.log('Task submission approved for user ' + userId);
-           
+
             collector.stop('approved');
         };
 
@@ -706,26 +706,31 @@ async function handleTaskCommands(message, client) {
         let helpMessage = `
     📥 **BustinBot's Task Commands** 📥
     
-**These commands require the BustinBot Admin role.**
+**Commands for BustinBot Admins:**
 - **!taskpoll**: Create a new task poll for the community to vote on.
 - **!announcetask**: Close the active poll and announce the active task for the current week.
+- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount.
+
+**Commands for Task Admins and BustinBot Admins:**
 - **!rollwinner**: Randomly select a winner from the task submissions.
+- **!confirmwinner**: Confirm the selected winner and reset the monthly participants list.
 - **!listtasks**: Display a list of all available tasks and their details.
-- **!activetask**: Show the details of the currently active task.
 - **!monthlycompletions**: List all users and the number of tasks they have completed for the month.
 - **!allcompletions**: List all users and the number of tasks they have completed.
-- **!activepoll**: Display the active task poll and the current voting status.
-- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
-   
-**Note**: Ensure that you have the required permissions before using these commands. The Task Admin role only has the ability to approve task submissions in the task-submissions channel.
+
+**Note**: The Task Admin role can also approve task submissions in the task-submissions channel.    
     `;
 
         message.reply(helpMessage);
         return;
     }
 
-    // Limit commands to BustinBot admins
-    if (message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+    // Check roles for permissions
+    const isAdmin = message.member.roles.cache.some(role => role.name === 'BustinBot Admin');
+    const isTaskAdmin = message.member.roles.cache.some(role => role.name === 'Task Admin');
+
+    // Commands restricted to BustinBot Admins
+    if (isAdmin) {
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
@@ -734,6 +739,113 @@ async function handleTaskCommands(message, client) {
             await postTaskAnnouncement(client);
         }
 
+        if (command === 'settask') {
+            const taskId = args[0];
+            const specifiedAmount = args[1] ? parseInt(args[1], 10) : null;
+
+            if (!taskId) {
+                message.channel.send('Please provide a task ID.');
+                return;
+            }
+            const task = loadTasks().find(task => task.id === parseInt(taskId), 10);
+
+            if (!task) {
+                message.channel.send(`Task with ID ${taskId} not found.`);
+                return;
+            }
+
+            let selectedAmount = null;
+            if (task.amounts && task.amounts.length > 0) {
+                if (specifiedAmount) {
+                    if (!task.amounts.includes(specifiedAmount)) {
+                        message.channel.send(`Amount ${specifiedAmount} is not valid for this task.`);
+                        return;
+                    }
+                    selectedAmount = specifiedAmount;
+                } else {
+                    selectedAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
+                }
+            }
+
+            saveActiveTask(task);
+            message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
+        }
+
+        if (command === 'closetaskpoll') {
+            const task = await closeTaskPoll(client);
+            if (task) {
+                message.channel.send(`Task poll closed. The winning task is: ${task.taskName}`);
+            } else {
+                message.channel.send('No winning task found.');
+            }
+        }
+
+        if (command === 'activepoll') {
+            if (!activePoll) {
+                message.channel.send('No active poll found.');
+                return;
+            }
+
+            const tasks = activePoll.tasks;
+            if (tasks.length < 3) {
+                message.channel.send('Not enough tasks for a poll.');
+                return;
+            }
+
+            const pollVotes = loadPollVotes();
+
+            const votes = pollVotes || [0, 0, 0];
+            if (votes.length < 3) {
+                message.channel.send('Vote data is incomplete.');
+                return;
+            }
+
+            const description = `Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n` +
+                `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
+                `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
+                `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
+
+            const taskEmbed = new EmbedBuilder()
+                .setTitle("Vote for next task")
+                .setDescription(description)
+                .setColor("#00FF00");
+
+            await message.channel.send({ embeds: [taskEmbed] });
+        }
+
+        if (command === 'activetask') {
+            const activeTask = loadActiveTask();
+
+            if (!activeTask) {
+                message.channel.send('No active task found.');
+                return;
+            }
+
+            const instructionText = instructionMap[activeTask.instruction];
+            const submissionChannel = getChannelByName(client, '📥task-submissions');
+
+            const now = new Date();
+            const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
+            nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
+
+            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, instructionText);
+
+            await message.channel.send({ embeds: [taskEmbed] });
+        }
+    } else if (
+        command === 'taskpoll' ||
+        command === 'announcetask' ||
+        command === 'settask' ||
+        command === 'activetask' ||
+        command === 'activepoll' ||
+        command === 'closetaskpoll'
+    ) {
+        message.reply('You do not have permission to use this command.');
+        return;
+    }
+
+    // Commands restricted to Task Admins and BustinBot Admins
+    if (isTaskAdmin || isAdmin) {
         if (command === 'rollwinner') {
             await postWinnerAnnouncement(client);
         }
@@ -777,26 +889,6 @@ async function handleTaskCommands(message, client) {
             if (taskList) {
                 message.channel.send(taskList);
             }
-        }
-
-        if (command === 'activetask') {
-            const activeTask = loadActiveTask();
-
-            if (!activeTask) {
-                message.channel.send('No active task found.');
-                return;
-            }
-
-            const instructionText = instructionMap[activeTask.instruction];
-            const submissionChannel = getChannelByName(client, '📥task-submissions');
-
-            const now = new Date();
-            const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
-            nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
-
-            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, instructionText);
-
-            await message.channel.send({ embeds: [taskEmbed] });
         }
 
         if (command === 'monthlycompletions') {
@@ -845,90 +937,12 @@ async function handleTaskCommands(message, client) {
             }, 1000);
         }
 
-        if (command === 'activepoll') {
-            if (!activePoll) {
-                message.channel.send('No active poll found.');
-                return;
-            }
-
-            const tasks = activePoll.tasks;
-            if (tasks.length < 3) {
-                message.channel.send('Not enough tasks for a poll.');
-                return;
-            }
-
-            const pollVotes = loadPollVotes();
-
-            const votes = pollVotes || [0, 0, 0];
-            if (votes.length < 3) {
-                message.channel.send('Vote data is incomplete.');
-                return;
-            }
-
-            const description = `Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n` +
-                `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
-                `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
-                `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
-
-            const taskEmbed = new EmbedBuilder()
-                .setTitle("Vote for next task")
-                .setDescription(description)
-                .setColor("#00FF00");
-
-            await message.channel.send({ embeds: [taskEmbed] });
-        }
-
-        if (command === 'settask') {
-            const taskId = args[0];
-            const specifiedAmount = args[1] ? parseInt(args[1], 10) : null;
-
-            if (!taskId) {
-                message.channel.send('Please provide a task ID.');
-                return;
-            }
-            const task = loadTasks().find(task => task.id === parseInt(taskId), 10);
-
-            if (!task) {
-                message.channel.send(`Task with ID ${taskId} not found.`);
-                return;
-            }
-
-            let selectedAmount = null;
-            if (task.amounts && task.amounts.length > 0) {
-                if (specifiedAmount) {
-                    if (!task.amounts.includes(specifiedAmount)) {
-                        message.channel.send(`Amount ${specifiedAmount} is not valid for this task.`);
-                        return;
-                    }
-                    selectedAmount = specifiedAmount;
-                } else {
-                    selectedAmount = task.amounts[Math.floor(Math.random() * task.amounts.length)];
-                }
-            }
-
-            saveActiveTask(task);
-            message.channel.send(`Active task set to ${task.taskName.replace('{amount}', selectedAmount)}`);
-        }
-
-        if (command === 'closetaskpoll') {
-            const task = await closeTaskPoll(client);
-            if (task) {
-                message.channel.send(`Task poll closed. The winning task is: ${task.taskName}`);
-            } else {
-                message.channel.send('No winning task found.');
-            }
-        }
     } else if (
-        command === 'taskpoll' ||
-        command === 'announcetask' ||
         command === 'rollwinner' ||
         command === 'listtasks' ||
-        command === 'activetask' ||
+        command === 'confirmwinner' ||
         command === 'allcompletions' ||
-        command === 'monthlycompletions' ||
-        command === 'activepoll' ||
-        command === 'closetaskpoll' ||
-        command === 'settask'
+        command === 'monthlycompletions'
     ) {
         message.reply('You do not have permission to use this command.');
         return;
