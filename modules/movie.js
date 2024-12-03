@@ -21,6 +21,10 @@ let activePoll = null;
 // Emoji reactions for the poll
 const pollEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
 
+function movieLog(...args) {
+    console.log(`[MOVIE]`, ...args);
+}
+
 // Load movies from JSON file
 function loadMovies() {
     if (!fs.existsSync(pathMovies)) {
@@ -78,7 +82,15 @@ function scheduleReminder(guild, role, messageText, delay, reminderKey) {
 
     const reminderTimeout = setTimeout(() => {
         const currentMovie = selectedMovie ? `We will be watching **${selectedMovie.name}**.` : 'No movie has been selected yet.';
-        reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie}`);
+
+        let pollStatus = '';
+        if (activePoll) {
+            const pollChannel = guild.channels.cache.get(activePoll.channelId);
+            if (pollChannel) {
+                pollStatus = `A poll is currently running in ${pollChannel.toString()} to decide the next movie.`;
+            }
+        }
+        reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie} ${pollStatus}`);
         delete scheduledReminders[reminderKey];
     }, delay);
 
@@ -222,6 +234,8 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const moviePosition = movieList.length;
 
+            movieLog(`User ${message.author.tag} added movie "${movieName}" (${moviePosition}) to the list.`);
+
             if (!hasAdminRole) {
                 userMovieCount[userId]++;
                 saveUserMovieCount();
@@ -288,6 +302,8 @@ For the **number-based commands**, you can reference a movie by its position in 
             movieToEdit.name = newMovieName;
             saveMovies();
 
+            movieLog(`User ${message.author.tag} edited movie: "${oldMovieName}" to "${newMovieName}" (${movieIndex + 1}).`);
+
             message.reply(`Updated movie **${oldMovieName}** to **${newMovieName}**.`);
         }
 
@@ -352,6 +368,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             saveMovies();
+            movieLog(`User ${message.author.tag} removed movie: "${removedMovie.name}" (${movieIndex + 1}).`);
             message.reply(`Removed **${removedMovie.name}** from the movie list.`);
 
             if (userMovieCount[movieOwnerId] > 0) {
@@ -426,8 +443,8 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             collector.on('end', () => {
                 embedMessage.reactions.removeAll()
-                .then(() => embedMessage.delete())
-                .catch(console.error); 
+                    .then(() => embedMessage.delete())
+                    .catch(console.error);
             });
         }
 
@@ -555,6 +572,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 ? `We will be watching **${selectedMovie.name}**.`
                 : 'No movie has been selected yet.';
 
+            movieLog(`Movie night scheduled for ${movieTime} by ${message.author.tag}.`);
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
 
             if (twoHoursBefore > 0) {
@@ -591,6 +609,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 return;
             } else {
                 selectedMovie = movieName;
+                movieLog(`"${selectedMovie.name}" selected for movie night by ${message.author.tag}.`);
                 message.channel.send(`Next movie: **${selectedMovie.name}**`);
             }
         }
@@ -610,6 +629,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
             selectedMovie = null;
             scheduledMovieTime = null;
+            movieLog(`Movie night cancelled by ${message.author.tag}.`);
             message.channel.send('Movie night and all scheduled reminders have been cancelled.');
         }
 
@@ -637,13 +657,8 @@ For the **number-based commands**, you can reference a movie by its position in 
             selectedMovie = null;
             scheduledMovieTime = null;
 
+            movieLog(`Movie night ended by ${message.author.tag}.`);
             message.channel.send(`Thanks for watching! I hope you all enjoyed **${removedMovie.name}**, it has now been removed from the list.`);
-        }
-
-        if (command === 'clearlist') {
-            movieList = [];
-            saveMovies();
-            message.channel.send('Cleared the movie list.');
         }
 
         if (command === 'rollmovie' || command === 'randommovie') {
@@ -803,6 +818,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             // Set movie as selected for movie night
             selectedMovie = winningMovie;
 
+            movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
             message.channel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
 
             // Clear active poll

@@ -1,15 +1,18 @@
+const { log } = require('console');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const emoteUtils = require('./utils/emote');
 
 // File paths
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
-const pathPollVotes = './data/task/pollVotes.json';
+const pathPollData = './data/task/pollData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
+const pollLogPath = './logs/polls.log';
 
 // Durations
 const POLL_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -24,12 +27,38 @@ const POLL_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
 let activePoll = null;
 let pollSchedule = null;
 let taskAnnouncementSchedule = null;
+let nextPollTime = null;
+let nextTaskTime = null;
+let nextWinnerTime = null;
+let winnerPending = false;
 
 const instructionMap = {
     1: "Provide a screenshot of the obtained items in your inventory (with loot tracker open if applicable). Screenshots must have the **keyword** displayed in the in-game chat.",
     2: "Provide a before and after screenshot of the amount/KC showing this has been obtained within the 7 day task period. Both screenshots must have the **keyword** displayed in the in-game chat.",
     3: "Provide evidence of the XP being obtained within the 7 day task period. The preferred submission method is a before and after screenshot with the XP totals displayed, both screenshots must have the **keyword** displayed in the in-game chat."
 };
+
+function taskLog(...args) {
+    console.log(`[TASK]`, ...args);
+}
+
+function logPollResults(tasks, voteCounts, winningTask) {
+    const pollLogEntry = {
+        timestamp: new Date().toISOString(),
+        tasks: tasks.map((task, index) => ({ taskName: task.taskName, votes: voteCounts[index] })),
+        winningTask: { taskName: winningTask.taskName, selectedAmount: winningTask.selectedAmount }
+    };
+
+    const logEntryString = JSON.stringify(pollLogEntry, null, 4) + ',\n';
+
+    // Append to polls.log, create file if it doesn't exist
+    try {
+        fs.appendFileSync(pollLogPath, logEntryString, 'utf8');
+        taskLog('Poll results logged successfully.');
+    } catch (error) {
+        console.error('Error logging poll results:', error);
+    }
+}
 
 function testPollLaunch(client) {
     postTaskPoll(client);
@@ -80,6 +109,21 @@ function writeJSON(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 4), 'utf8');
 }
 
+function startPeriodicStatusUpdates() {
+    const logNextSchedules = () => {
+        const now = Date.now();
+
+        const pollTimeMessage = nextPollTime ? `Next poll in ${((nextPollTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextPollTime).toISOString()}).` : 'No poll scheduled.';
+        const taskTimeMessage = nextTaskTime ? `Next task announcement in ${((nextTaskTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextTaskTime).toISOString()}).` : 'No task scheduled.';
+        const winnerTimeMessage = nextWinnerTime ? `Next winner announcement in ${((nextWinnerTime - now) / 3600000).toFixed(2)} hours (at ${new Date(nextWinnerTime).toISOString()}).` : 'No winner scheduled.';
+
+        taskLog(`Status update: \n${pollTimeMessage}\n${taskTimeMessage}\n${winnerTimeMessage}`);
+    };
+
+    logNextSchedules();
+    setInterval(logNextSchedules, 24 * 60 * 60 * 1000);
+}
+
 // Ensure task user files exist
 function initialiseTaskUserFiles() {
     if (!fs.existsSync(pathTaskMonthlyUsers)) {
@@ -100,27 +144,25 @@ function saveUsers(filePath, users) {
 }
 
 async function loadPollData(client) {
-    const pollData = readJSON('./data/task/pollData.json');
+    const pollData = readJSON(pathPollData);
     if (pollData && pollData.activePoll) {
         // Check if poll has expired
         const pollCreationTime = pollData.activePoll.creationTime;
         const now = Date.now();
 
         if (now - pollCreationTime > POLL_DURATION) {
-            console.log('Active poll has expired.');
+            taskLog('Active poll has expired.');
             activePoll = null;
         } else {
             activePoll = pollData.activePoll;
-            console.log('Resuming active poll: ' + activePoll.messageId);
+            taskLog('Resuming active poll: ' + activePoll.messageId);
 
             try {
                 const channel = client.channels.cache.get(activePoll.channelId);
                 const message = await channel.messages.fetch(activePoll.messageId);
 
                 // Update votes from existing reactions
-                let voteCounts = loadPollVotes();
-                await updateVotesFromReacts(message, voteCounts);
-                savePollVotes(voteCounts);
+                await updateVotesFromReacts(message, activePoll.votes);
 
                 const interval = setInterval(async () => {
                     if (!activePoll) {
@@ -129,9 +171,9 @@ async function loadPollData(client) {
                     }
 
                     const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
-                    await updateVotesFromReacts(fetchedMessage, voteCounts);
-                    savePollVotes(voteCounts);
-                }, 30000);
+                    await updateVotesFromReacts(fetchedMessage, activePoll.votes);
+                    savePollData();
+                }, 10000);
             } catch (error) {
                 console.error('Error fetching message or updating votes:', error);
                 reportError(client, null, 'Error fetching message or updating votes.');
@@ -141,20 +183,14 @@ async function loadPollData(client) {
 }
 
 function savePollData() {
+    const pollData = readJSON(pathPollData) || {};
     if (activePoll) {
-        writeJSON('./data/task/pollData.json', { activePoll });
+        pollData.activePoll = activePoll;
     } else {
-        writeJSON('./data/task/pollData.json', {});
+        delete pollData.activePoll;
     }
-}
 
-function loadPollVotes() {
-    const pollVotes = readJSON(pathPollVotes);
-    return pollVotes ? pollVotes.votes : [0, 0, 0];
-}
-
-function savePollVotes(voteCounts) {
-    writeJSON(pathPollVotes, { votes: voteCounts });
+    writeJSON(pathPollData, pollData);
 }
 
 function loadActiveTask() {
@@ -168,7 +204,7 @@ function saveActiveTask(task) {
 function loadRecentKeywords() {
     if (!fs.existsSync(recentKeywordsPath)) {
         fs.writeFileSync(recentKeywordsPath, JSON.stringify([], null, 4), 'utf8');
-        return []; 
+        return [];
     }
     const data = readJSON(recentKeywordsPath);
     return data ? data : [];
@@ -222,33 +258,24 @@ function updateSubmissionCount(users, userId) {
 async function handleTaskSubmissions(message, client) {
     if (message.channel.name === '📥task-submissions') {
         const filter = (reaction, user) => reaction.emoji.name === '✅' && message.guild.members.cache.get(user.id).roles.cache.some(role => role.name === 'BustinBot Admin' || role.name === 'Task Admin');
-        const collector = message.createReactionCollector({ filter, max: 1, time: TASK_DURATION });
 
-        const messageDeleteListener = (deletedMessage) => {
-            if (deletedMessage.id === message.id) {
-                console.log('Message deleted before approval.');
-                client.off('messageDelete', messageDeleteListener);
-                collector.stop();
-            }
-        };
+        const processApproval = async (reaction, user) => {
+            if (winnerPending) {
+                const botAdminChannel = getChannelByName(client, 'botadmin');
+                const taskAdmin = `<@${user.id}>`;
 
-        client.on('messageDelete', messageDeleteListener);
+                if (botAdminChannel) {
+                    await botAdminChannel.send(`${taskAdmin}, a winner is currently pending confirmation. Please wait for the winner to be confirmed before approving any task submissions.`);
+                };
 
-        collector.on('end', (collected, reason) => {
-            if (reason === 'messageDelete') {
+                reaction.users.remove(user.id);
+                taskLog(`Task approval attempt by ${user.username} denied due to pending winner confirmation.`);
                 return;
             }
 
-            client.off('messageDelete', messageDeleteListener);
-            if (collected.size === 0) {
-                reportError(client, message, 'No approval within the allotted time for ' + message.author.id + '\'s task submission.');
-            }
-        });
-
-        collector.on('collect', async (reaction, user) => {
             const userId = message.author.id;
 
-            // Add user to both user lists
+            // Add user to user lists
             let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
 
@@ -258,15 +285,40 @@ async function handleTaskSubmissions(message, client) {
             saveUsers(pathTaskMonthlyUsers, monthlyUsers);
             saveUsers(pathTaskAllUsers, allUsers);
 
-            // React to the message to confirm submission
+            // React to message to confirm submission
             const bustinEmote = client.emojis.cache.find(emoji => emoji.name === 'Bustin');
             if (bustinEmote) {
                 await message.react(bustinEmote);
             } else {
-                console.log('Bustin emote not found, BustinBot is very concerned.');
+                taskLog('Bustin emote not found, BustinBot is very concerned.');
             }
 
-            console.log('Task submission confirmed for user ' + userId);
+            taskLog('Task submission approved for user ' + userId);
+
+            collector.stop('approved');
+        };
+
+        const collector = message.createReactionCollector({ filter, dispose: true });
+
+        collector.on('collect', async (reaction, user) => {
+            try {
+                await processApproval(reaction, user);
+            } catch (error) {
+                console.error(`Error processing approval for submission ${message.id}:`, error);
+                reportError(client, message, `Error processing approval for submission ${message.id}: ${error}`);
+            }
+        });
+
+        collector.on('remove', async (reaction, user) => {
+            if (reaction.emoji.name === '✅' && !reaction.users.cache.has(client.user.id)) {
+                taskLog(`Approval on submission ${message.id} removed for ${user.username}`);
+            }
+        });
+
+        collector.on('end', (collected, reason) => {
+            if (reason !== 'approved') {
+                taskLog(`Listener on submission ${message.id} ended without approval.`);
+            }
         });
     }
 }
@@ -329,11 +381,13 @@ function schedulePoll(client) {
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
 
+    nextPollTime = nextSunday.getTime();
+
     if (pollSchedule) {
         clearTimeout(pollSchedule);
     }
 
-    console.log(`Next poll scheduled in ${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next poll scheduled for ${new Date(nextPollTime).toISOString()} (${(timeUntilNextPoll / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
     pollSchedule = setTimeout(() => {
         postTaskPoll(client);
@@ -341,28 +395,30 @@ function schedulePoll(client) {
     }, timeUntilNextPoll);
 }
 
-async function updateVotesFromReacts(message, voteCounts) {
+async function updateVotesFromReacts(message, votes) {
     try {
         const reactions = message.reactions.cache;
 
         // Reset vote counts before recalculating
-        voteCounts[0] = 0;
-        voteCounts[1] = 0;
-        voteCounts[2] = 0;
+        votes[0] = 0;
+        votes[1] = 0;
+        votes[2] = 0;
 
         // Iterate over the reactions and count valid votes
         if (reactions.get('1️⃣')) {
             const reaction1 = await reactions.get('1️⃣').users.fetch();
-            voteCounts[0] = reaction1.filter(user => !user.bot).size;
+            votes[0] = reaction1.filter(user => !user.bot).size;
         }
         if (reactions.get('2️⃣')) {
             const reaction2 = await reactions.get('2️⃣').users.fetch();
-            voteCounts[1] = reaction2.filter(user => !user.bot).size;
+            votes[1] = reaction2.filter(user => !user.bot).size;
         }
         if (reactions.get('3️⃣')) {
             const reaction3 = await reactions.get('3️⃣').users.fetch();
-            voteCounts[2] = reaction3.filter(user => !user.bot).size;
+            votes[2] = reaction3.filter(user => !user.bot).size;
         }
+
+        savePollData();
     } catch (error) {
         console.error('Error updating votes from reactions:', error);
     }
@@ -389,6 +445,17 @@ async function postTaskPoll(client) {
         return;
     }
 
+    const pollData = readJSON(pathPollData) || {};
+    if (pollData.lastPollId) {
+        try {
+            const lastPollMessage = await channel.messages.fetch(pollData.lastPollId);
+            await lastPollMessage.delete();
+            taskLog(`Deleted previous poll message: ${pollData.lastPollId}`);
+        } catch (error) {
+            console.error(`Error deleting previous poll message: ${pollData.lastPollId}`, error);
+        }
+    }
+
     const taskPollEmbed = createPollEmbed(tasks);
 
     const message = await channel.send({
@@ -405,28 +472,33 @@ async function postTaskPoll(client) {
         messageId: message.id,
         tasks: tasks,
         channelId: channel.id,
-        creationTime: Date.now()
+        creationTime: Date.now(),
+        votes: [0, 0, 0]
     }
 
-    let voteCounts = [0, 0, 0];
-    savePollVotes(voteCounts);
+    try {
+        const updatedPollData = { activePoll, lastPollId: message.id };
+        writeJSON(pathPollData, updatedPollData);
+    } catch (error) {
+        console.error('Error saving poll data:', error);
+        reportError(client, null, 'Error saving poll data.');
+    }
 
     const interval = setInterval(async () => {
         try {
             // Only update votes if there is an active poll.
             if (!activePoll) {
-                clearInterval(interval); 
+                clearInterval(interval);
                 return;
             }
-    
+
             const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
-            await updateVotesFromReacts(fetchedMessage, voteCounts);
-            savePollVotes(voteCounts);
+            await updateVotesFromReacts(fetchedMessage, activePoll.votes);
         } catch (error) {
             console.error('Error fetching message or updating votes:', error);
             reportError(client, null, 'Error updating votes from reactions.');
         }
-    }, 30000);
+    }, 10000);
 
     const filter = (reaction, user) => ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name);
     const collector = message.createReactionCollector({ filter, time: POLL_DURATION });
@@ -435,19 +507,20 @@ async function postTaskPoll(client) {
         clearInterval(interval);
         closeTaskPoll(client, message, tasks);
     });
-
-    savePollData();
 }
 
 async function closeTaskPoll(client) {
-    if (!activePoll) {
-        return;
+    const pollData = readJSON(pathPollData);
+    if (!pollData || !pollData.activePoll) {
+        taskLog('No active poll to close.');
+        return null;
     }
+    activePoll = pollData.activePoll;
 
     const channel = getChannelByName(client, '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
     const tasks = activePoll.tasks;
-    const voteCounts = loadPollVotes();
+    const voteCounts = activePoll.votes;
 
     const maxVotes = Math.max(...voteCounts);
 
@@ -461,7 +534,7 @@ async function closeTaskPoll(client) {
     let winningIndex;
     if (tiedIndices.length > 1) {
         winningIndex = tiedIndices[Math.floor(Math.random() * tiedIndices.length)];
-        console.log('Tied votes, randomly selecting winner from tied options.');
+        taskLog('Tied votes, randomly selecting winner from tied options.');
     } else {
         winningIndex = voteCounts.indexOf(maxVotes);
     }
@@ -473,10 +546,17 @@ async function closeTaskPoll(client) {
         return null;
     }
 
+    logPollResults(tasks, voteCounts, winningTask);
+
     activePoll = null;
-    savePollData();
-    voteCounts.fill(0);
-    savePollVotes(voteCounts);
+
+    try {
+        savePollData();
+    } catch (error) {
+        console.error('Error saving poll data:', error);
+        reportError(client, null, 'Error saving poll data.');
+    }
+
     return winningTask;
 }
 
@@ -501,11 +581,13 @@ function scheduleTaskAnnouncement(client) {
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
+    nextTaskTime = nextMonday.getTime();
+
     if (taskAnnouncementSchedule) {
         clearTimeout(taskAnnouncementSchedule);
     }
 
-    console.log(`Next task announcement scheduled in ${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours.`);
+    taskLog(`Next task announcement scheduled for ${new Date(nextTaskTime).toISOString()} (${(timeUntilNextTask / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
     taskAnnouncementSchedule = setTimeout(() => {
         postTaskAnnouncement(client);
@@ -558,7 +640,7 @@ async function postTaskAnnouncement(client) {
 
     saveActiveTask(selectedTask);
 
-    console.log('Task of the week: ' + selectedTask.taskName + ' announced.');
+    taskLog('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
 
 // Get weighted user list for monthly roll
@@ -577,7 +659,7 @@ function pickMonthlyWinner() {
     let weightedList = getWeightedUserList(monthlyUsers);
 
     if (weightedList.length === 0) {
-        console.log('No submissions to pick from.');
+        taskLog('No submissions to pick from.');
         return null;
     }
 
@@ -591,15 +673,17 @@ function scheduleWinnerAnnouncement(client) {
 
     const timeUntilFourthTuesday = fourthTuesday.getTime() - now.getTime();
 
+    nextWinnerTime = fourthTuesday.getTime();
+
     if (timeUntilFourthTuesday > 2147483647) {
-        console.log('Time until fourth Tuesday is too long to schedule right now, will try again 18 days from now.');
+        taskLog('Time until fourth Tuesday is too long to schedule right now, will try again on the 18th day of the month.');
 
         // Schedule for 18 days from now and check again
         setTimeout(() => {
             scheduleWinnerAnnouncement(client);
         }, 18 * 24 * 60 * 60 * 1000);
     } else {
-        console.log(`Next winner announcement scheduled in ${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours.`);
+        taskLog(`Next winner announcement scheduled for ${new Date(nextWinnerTime).toISOString()} (${(timeUntilFourthTuesday / 1000 / 60 / 60).toFixed(2)} hours from now).`);
 
         setTimeout(() => {
             postWinnerAnnouncement(client);
@@ -657,22 +741,28 @@ async function postWinnerAnnouncement(client) {
         return;
     }
 
+    // Set flag to await confirmation and block further task submission approvals
+    winnerPending = true;
+
     // Announce the winner
     const announcementEmbed = new EmbedBuilder()
         .setTitle('And the winner is...')
         .setDescription('In the last month, there were...\n\n **' + totalSubmissions + '** submissions from **' + totalParticipants + '** participants!\n\n**The winner is <@' + winnerId + '>!**\n\n Congratulations! Please message an admin to claim your prize.')
         .setColor("#0000FF");
 
+    // Send message to botadmin channel prompting to confirm winner
+    const botAdminChannel = getChannelByName(client, 'botadmin');
+    if (botAdminChannel) {
+        await botAdminChannel.send({
+            content: 'Monthly winner has been selected. If the winner has chosen to claim the prize, please confirm using **!confirmwinner**.'
+        });
+    }
+
     const role = getRoleByName(channel.guild, 'Community event/competition');
     await channel.send({
         content: `<@&${role.id}>`,
         embeds: [announcementEmbed]
     });
-
-    // Reset monthly user submissions
-    saveUsers(pathTaskMonthlyUsers, []);
-
-    console.log('Monthly winner announced and taskMonthlyUsers.json reset.');
 }
 
 async function handleTaskCommands(message, client) {
@@ -683,163 +773,37 @@ async function handleTaskCommands(message, client) {
         let helpMessage = `
     📥 **BustinBot's Task Commands** 📥
     
-**These commands require the BustinBot Admin role.**
+**Commands for BustinBot Admins:**
 - **!taskpoll**: Create a new task poll for the community to vote on.
 - **!announcetask**: Close the active poll and announce the active task for the current week.
+- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount.
+
+**Commands for Task Admins and BustinBot Admins:**
 - **!rollwinner**: Randomly select a winner from the task submissions.
+- **!confirmwinner**: Confirm the selected winner and reset the monthly participants list.
 - **!listtasks**: Display a list of all available tasks and their details.
-- **!activetask**: Show the details of the currently active task.
 - **!monthlycompletions**: List all users and the number of tasks they have completed for the month.
 - **!allcompletions**: List all users and the number of tasks they have completed.
-- **!activepoll**: Display the active task poll and the current voting status.
-- **!settask <task ID> [amount]**: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
-   
-**Note**: Ensure that you have the required permissions before using these commands. The Task Admin role only has the ability to approve task submissions in the task-submissions channel.
+
+**Note**: The Task Admin role can also approve task submissions in the task-submissions channel.    
     `;
 
         message.reply(helpMessage);
         return;
     }
 
-    // Limit commands to BustinBot admins
-    if (message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+    // Check roles for permissions
+    const isAdmin = message.member.roles.cache.some(role => role.name === 'BustinBot Admin');
+    const isTaskAdmin = message.member.roles.cache.some(role => role.name === 'Task Admin');
+
+    // Commands restricted to BustinBot Admins
+    if (isAdmin) {
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
 
         if (command === 'announcetask') {
             await postTaskAnnouncement(client);
-        }
-
-        if (command === 'rollwinner') {
-            await postWinnerAnnouncement(client);
-        }
-
-        if (command === 'listtasks') {
-            const allTasks = loadTasks();
-            let taskList = '';
-            let taskCount = 0;
-
-            allTasks.forEach(task => {
-                if (!task.amounts || task.amounts.length === 0) {
-                    taskList += `${task.id}: ${task.taskName}\n`;
-                    taskCount++;
-                    return;
-                }
-                const amountsString = task.amounts.join(', ');
-
-                const taskWithAmounts = task.taskName.replace('{amount}', '{' + amountsString + '}');
-
-                taskList += `${task.id}: ${taskWithAmounts}\n`;
-                taskCount++;
-                if (taskCount % 20 === 0) {
-                    message.channel.send(taskList);
-                    taskList = '';
-                }
-            });
-
-            if (taskList) {
-                message.channel.send(taskList);
-            }
-        }
-
-        if (command === 'activetask') {
-            const activeTask = loadActiveTask();
-
-            if (!activeTask) {
-                message.channel.send('No active task found.');
-                return;
-            }
-
-            const instructionText = instructionMap[activeTask.instruction];
-            const submissionChannel = getChannelByName(client, '📥task-submissions');
-
-            const now = new Date();
-            const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
-            nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
-
-            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, instructionText);
-
-            await message.channel.send({ embeds: [taskEmbed] });
-        }
-
-        if (command === 'monthlycompletions') {
-            const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
-            let userList = '';
-
-            monthlyUsers.forEach(async user => {
-                try {
-                    const discordUser = await client.users.fetch(user.id);
-                    const username = discordUser.username;
-                    userList += `${username}: ${user.submissions} task completions\n`;
-                } catch (fetchError) {
-                    reportError(client, message, fetchError);
-                }
-            });
-
-            setTimeout(() => {
-                if (userList) {
-                    message.channel.send(userList);
-                } else {
-                    message.channel.send('No task completions found.');
-                }
-            }, 1000);
-        }
-
-        if (command === 'allcompletions') {
-            const allUsers = loadUsers(pathTaskAllUsers);
-            let userList = '';
-
-            allUsers.forEach(async user => {
-                try {
-                    const discordUser = await client.users.fetch(user.id);
-                    const username = discordUser.username;
-                    userList += `${username}: ${user.submissions} task completions\n`;
-                } catch (fetchError) {
-                    reportError(client, message, fetchError);
-                }
-            });
-
-            setTimeout(() => {
-                if (userList) {
-                    message.channel.send(userList);
-                } else {
-                    message.channel.send('No task completions found.');
-                }
-            }, 1000);
-        }
-
-        if (command === 'activepoll') {
-            if (!activePoll) {
-                message.channel.send('No active poll found.');
-                return;
-            }
-
-            const tasks = activePoll.tasks;
-            if (tasks.length < 3) {
-                message.channel.send('Not enough tasks for a poll.');
-                return;
-            }
-
-            const pollVotes = loadPollVotes();
-
-            const votes = pollVotes || [0, 0, 0];
-            if (votes.length < 3) {
-                message.channel.send('Vote data is incomplete.');
-                return;
-            }
-
-            const description = `Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n` +
-                `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
-                `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
-                `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
-
-            const taskEmbed = new EmbedBuilder()
-                .setTitle("Vote for next task")
-                .setDescription(description)
-                .setColor("#00FF00");
-
-            await message.channel.send({ embeds: [taskEmbed] });
         }
 
         if (command === 'settask') {
@@ -882,17 +846,190 @@ async function handleTaskCommands(message, client) {
                 message.channel.send('No winning task found.');
             }
         }
+
+        if (command === 'activepoll') {
+            if (!activePoll) {
+                message.channel.send('No active poll found.');
+                return;
+            }
+
+            const tasks = activePoll.tasks;
+            if (tasks.length < 3) {
+                message.channel.send('Not enough tasks for a poll.');
+                return;
+            }
+
+            const pollVotes = loadPollVotes();
+
+            const votes = pollVotes || [0, 0, 0];
+            if (votes.length < 3) {
+                message.channel.send('Vote data is incomplete.');
+                return;
+            }
+
+            const description = `Voting ends <t:${Math.floor((Date.now() + POLL_DURATION) / 1000)}:R>. \n\n` +
+                `1️⃣ ${tasks[0].taskName} - ${votes[0]} vote(s)\n` +
+                `2️⃣ ${tasks[1].taskName} - ${votes[1]} vote(s)\n` +
+                `3️⃣ ${tasks[2].taskName} - ${votes[2]} vote(s)`;
+
+            const taskEmbed = new EmbedBuilder()
+                .setTitle("Vote for next task")
+                .setDescription(description)
+                .setColor("#00FF00");
+
+            await message.channel.send({ embeds: [taskEmbed] });
+        }
+
+        if (command === 'activetask') {
+            const activeTask = loadActiveTask();
+
+            if (!activeTask) {
+                message.channel.send('No active task found.');
+                return;
+            }
+
+            const instructionText = instructionMap[activeTask.instruction];
+            const submissionChannel = getChannelByName(client, '📥task-submissions');
+
+            const now = new Date();
+            const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
+            nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
+
+            const taskEmbed = createTaskAnnouncementEmbed(activeTask, submissionChannel, instructionText);
+
+            await message.channel.send({ embeds: [taskEmbed] });
+        }
     } else if (
         command === 'taskpoll' ||
         command === 'announcetask' ||
+        command === 'settask' ||
+        command === 'activetask' ||
+        command === 'activepoll' ||
+        command === 'closetaskpoll'
+    ) {
+        message.reply('You do not have permission to use this command.');
+        return;
+    }
+
+    // Commands restricted to Task Admins and BustinBot Admins
+    if (isTaskAdmin || isAdmin) {
+        if (command === 'rollwinner') {
+            await postWinnerAnnouncement(client);
+        }
+
+        if (command === 'confirmwinner') {
+            if (!winnerPending) {
+                message.reply("There is no winner pending confirmation.");
+                return;
+            }
+
+            saveUsers(pathTaskMonthlyUsers, []);
+            winnerPending = false;
+
+            message.reply("This month's winner has been confirmed and the monthly participants list has been reset.");
+            taskLog('Monthly winner confirmed and taskMonthlyUsers.json reset.');
+        }
+
+        if (command === 'listtasks') {
+            const allTasks = loadTasks();
+            let taskList = '';
+            let taskCount = 0;
+
+            allTasks.forEach(task => {
+                if (!task.amounts || task.amounts.length === 0) {
+                    taskList += `${task.id}: ${task.taskName}\n`;
+                    taskCount++;
+                    return;
+                }
+                const amountsString = task.amounts.join(', ');
+
+                const taskWithAmounts = task.taskName.replace('{amount}', '{' + amountsString + '}');
+
+                taskList += `${task.id}: ${taskWithAmounts}\n`;
+                taskCount++;
+                if (taskCount % 20 === 0) {
+                    message.channel.send(taskList);
+                    taskList = '';
+                }
+            });
+
+            if (taskList) {
+                message.channel.send(taskList);
+            }
+        }
+
+        if (command === 'monthlycompletions') {
+            const bustinEmote = emoteUtils.getBustinEmote();
+            message.channel.send(`Pulling user data, hold your ${bustinEmote}s...`);
+            const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+
+            if (!monthlyUsers || monthlyUsers.length === 0) {
+                message.channel.send('No task completions found.');
+                return;
+            }
+
+            const userPromises = monthlyUsers.map(async user => {
+                try {
+                    const discordUser = await client.users.fetch(user.id);
+                    return `${discordUser.username}: ${user.submissions} task completions\n`;
+                } catch (fetchError) {
+                    reportError(client, message, fetchError);
+                    return null;
+                }
+            });
+
+            try {
+                const userList = (await Promise.all(userPromises)).filter(entry => entry !== null).join('');
+                if (userList) {
+                    message.channel.send(userList);
+                } else {
+                    message.channel.send('No task completions found.');
+                }
+            } catch (error) {
+                console.error('Error fetching user completions:', error);
+                reportError(client, message, 'An error occurred while fetching task completions.');
+            }
+        }
+
+        if (command === 'allcompletions') {
+            const bustinEmote = emoteUtils.getBustinEmote();
+            message.channel.send(`Pulling user data, hold your ${bustinEmote}s...`);
+            const allUsers = loadUsers(pathTaskAllUsers);
+
+            if (!allUsers || allUsers.length === 0) {
+                message.channel.send('No task completions found.');
+                return;
+            }
+
+            const userPromises = allUsers.map(async user => {
+                try {
+                    const discordUser = await client.users.fetch(user.id);
+                    return `${discordUser.username}: ${user.submissions} task completions\n`;
+                } catch (fetchError) {
+                    reportError(client, message, fetchError);
+                    return null;
+                }
+            });
+
+            try {
+                const userList = (await Promise.all(userPromises)).filter(entry => entry !== null).join('');
+                if (userList) {
+                    message.channel.send(userList);
+                } else {
+                    message.channel.send('No task completions found.');
+                }
+            } catch (error) {
+                console.error('Error fetching user completions:', error);
+                reportError(client, message, 'An error occurred while fetching task completions.');
+            }
+        }
+
+    } else if (
         command === 'rollwinner' ||
         command === 'listtasks' ||
-        command === 'activetask' ||
+        command === 'confirmwinner' ||
         command === 'allcompletions' ||
-        command === 'monthlycompletions' ||
-        command === 'activepoll' ||
-        command === 'closetaskpoll' ||
-        command === 'settask'
+        command === 'monthlycompletions'
     ) {
         message.reply('You do not have permission to use this command.');
         return;
@@ -910,5 +1047,6 @@ module.exports = {
     postTaskAnnouncement,
     handleTaskSubmissions,
     scheduleWinnerAnnouncement,
-    testPollLaunch
+    testPollLaunch,
+    startPeriodicStatusUpdates
 };

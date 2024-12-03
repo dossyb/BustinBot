@@ -71,3 +71,17 @@ Initial release
 ## Movie Module
 - Updated movie list command to delete message after react listener times out
 - Extended movie list react listener from one hour to 24 hours
+
+# v1.2.4
+- Major overhaul of console logging functionality
+- Added !goodbot and !badbot commands
+- Updated emote use to dynamically fetch from server's emote ID
+
+## Task Module
+- Allowed Task Admins use of some commands
+- Merged vote data file into poll date file
+- Added reroll functionality which prevents approving new submissions until winner is confirmed
+- Implemented automated deletion of old polls and keeping record of these in a log file
+
+## Movie Module
+- Updated reminders to include info about active movie polls
