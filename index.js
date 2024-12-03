@@ -8,12 +8,13 @@ if (!token) {
     process.exit(1); // Exit if the token is missing
 }
 
+const emoteUtils = require('./modules/utils/emote');
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 const fs = require('fs');
 const path = require('path');
 const pathCounter = './data/counters.json';
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const logDir = path.join(__dirname, 'logs');
 const logFileName = `bustinbot-${new Date().toISOString().replace(/:/g, '-')}.log`;
@@ -78,10 +79,12 @@ client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     console.log('Active');
 
+    emoteUtils.initialise(client);
+
     // Movie module
     movieModule.loadMovies();
     movieModule.loadUserMovieCount();
-    
+
     // Testing task module
     // taskModule.testPollLaunch(client);
 
@@ -98,21 +101,25 @@ let bustinCount = loadCounter().bustinCount;
 let goodbotCount = loadCounter().goodbotCount;
 let badbotCount = loadCounter().badbotCount;
 
-client.on('messageCreate', async (message) => {   
+client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+
+    const bustinEmote = emoteUtils.getBustinEmote();
+    const sadEmote = emoteUtils.getSadEmote();
+    const bedgeEmote = emoteUtils.getBedgeEmote();
 
     if (/\b(sleep)\b/i.test(message.content)) {
         const chance = Math.random();
         if (chance < 0.05) {
-            message.channel.send('I ain\'t afraid of no sleep! <:Bedge:912482990695796776>');
+            message.channel.send(`I ain\'t afraid of no sleep! ${bedgeEmote}`);
             return;
         }
         if (chance > 0.05 && chance < 0.1) {
-            message.channel.send('I ain\'t afraid of no bed! <:Bedge:912482990695796776>');
+            message.channel.send(`I ain\'t afraid of no bed! ${bedgeEmote}`);
             return;
         }
         if (chance > 0.1 && chance < 0.15) {
-            message.channel.send('Sleepin\' makes me feel good! <:Bedge:912482990695796776>');
+            message.channel.send(`Sleepin\' makes me feel good! ${bedgeEmote}`);
             return;
         }
         return;
@@ -130,35 +137,35 @@ client.on('messageCreate', async (message) => {
         bustinCount++;
         saveCounter(bustinCount);
 
-        message.channel.send('Bustin\' makes me feel good! <a:Bustin:1290456273522921606>');
+        message.channel.send(`Bustin\' makes me feel good! ${bustinEmote}`);
         console.log(`${message.author.username} busted!`);
         return;
     }
 
     if (command === 'bustincount') {
         loadCounter();
-        message.channel.send('`!bustin` has been used ' + `${bustinCount}` + ' time(s)! <a:Bustin:1290456273522921606>');
+        message.channel.send('`!bustin` has been used ' + `${bustinCount}` + ` time(s)! ${bustinEmote}`);
         return;
     }
 
     if (command === 'goodbot') {
         goodbotCount++;
         saveCounter(goodbotCount);
-        message.reply('<a:Bustin:1290456273522921606>');
-        
+        message.reply(`${bustinEmote}`);
+
         console.log(`${message.author.username} made BustinBot feel good!`);
     }
 
     if (command === 'badbot') {
         badbotCount++;
         saveCounter(badbotCount);
-        message.reply('<:peepoSad:1019152061088137317>');
+        message.reply(`${sadEmote}`);
 
         console.log(`${message.author.username} thinks something weird sleeping in their bed!`);
     }
 
     if (command === 'bustinhelp') {
-        message.channel.send('Check out the movie commands with `!moviehelp` <a:Bustin:1290456273522921606>\nCheck out the task commands with `!taskhelp` (admins only) <a:Bustin:1290456273522921606> ');
+        message.channel.send(`Check out the movie commands with \`!moviehelp\` ${bustinEmote}\nCheck out the task commands with \`!taskhelp\` (admins only) ${bustinEmote}`);
     }
 
     if (command === 'sendas') {

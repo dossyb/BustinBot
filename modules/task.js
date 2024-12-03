@@ -2,6 +2,7 @@ const { log } = require('console');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const emoteUtils = require('./utils/emote');
 
 // File paths
 const pathTasks = './data/task/tasks.json';
@@ -511,7 +512,7 @@ async function closeTaskPoll(client) {
 
     try {
         savePollData();
-    } catch (error) {  
+    } catch (error) {
         console.error('Error saving poll data:', error);
         reportError(client, null, 'Error saving poll data.');
     }
@@ -918,7 +919,8 @@ async function handleTaskCommands(message, client) {
         }
 
         if (command === 'monthlycompletions') {
-            message.channel.send('Pulling user data, hold your <a:Bustin:1290456273522921606> s...');
+            const bustinEmote = emoteUtils.getBustinEmote();
+            message.channel.send(`Pulling user data, hold your ${bustinEmote}s...`);
             const monthlyUsers = loadUsers(pathTaskMonthlyUsers);
 
             if (!monthlyUsers || monthlyUsers.length === 0) {
@@ -950,7 +952,8 @@ async function handleTaskCommands(message, client) {
         }
 
         if (command === 'allcompletions') {
-            message.channel.send('Pulling user data, hold your <a:Bustin:1290456273522921606> s...');
+            const bustinEmote = emoteUtils.getBustinEmote();
+            message.channel.send(`Pulling user data, hold your ${bustinEmote}s...`);
             const allUsers = loadUsers(pathTaskAllUsers);
 
             if (!allUsers || allUsers.length === 0) {
