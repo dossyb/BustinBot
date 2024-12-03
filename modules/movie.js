@@ -82,7 +82,15 @@ function scheduleReminder(guild, role, messageText, delay, reminderKey) {
 
     const reminderTimeout = setTimeout(() => {
         const currentMovie = selectedMovie ? `We will be watching **${selectedMovie.name}**.` : 'No movie has been selected yet.';
-        reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie}`);
+
+        let pollStatus = '';
+        if (activePoll) {
+            const pollChannel = guild.channels.cache.get(activePoll.channelId);
+            if (pollChannel) {
+                pollStatus = `A poll is currently running in ${pollChannel.toString()} to decide the next movie.`;
+            }
+        }
+        reminderChannel.send(`${role.toString()} ${messageText} ${currentMovie} ${pollStatus}`);
         delete scheduledReminders[reminderKey];
     }, delay);
 
