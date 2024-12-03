@@ -653,13 +653,6 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Thanks for watching! I hope you all enjoyed **${removedMovie.name}**, it has now been removed from the list.`);
         }
 
-        if (command === 'clearlist') {
-            movieList = [];
-            saveMovies();
-            movieLog(`Movie list cleared by ${message.author.tag}.`);
-            message.channel.send('Cleared the movie list.');
-        }
-
         if (command === 'rollmovie' || command === 'randommovie') {
             if (movieList.length === 0) {
                 message.channel.send('The movie list is empty.');
