@@ -12,6 +12,7 @@ const pathPollData = './data/task/pollData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
+const pollLogPath = './logs/polls.log';
 
 // Durations
 const POLL_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -39,6 +40,24 @@ const instructionMap = {
 
 function taskLog(...args) {
     console.log(`[TASK]`, ...args);
+}
+
+function logPollResults(tasks, voteCounts, winningTask) {
+    const pollLogEntry = {
+        timestamp: new Date().toISOString(),
+        tasks: tasks.map((task, index) => ({ taskName: task.taskName, votes: voteCounts[index] })),
+        winningTask: { taskName: winningTask.taskName, selectedAmount: winningTask.selectedAmount }
+    };
+
+    const logEntryString = JSON.stringify(pollLogEntry, null, 4) + ',\n';
+
+    // Append to polls.log, create file if it doesn't exist
+    try {
+        fs.appendFileSync(pollLogPath, logEntryString, 'utf8');
+        taskLog('Poll results logged successfully.');
+    } catch (error) {
+        console.error('Error logging poll results:', error);
+    }
 }
 
 function testPollLaunch(client) {
@@ -164,11 +183,14 @@ async function loadPollData(client) {
 }
 
 function savePollData() {
+    const pollData = readJSON(pathPollData) || {};
     if (activePoll) {
-        writeJSON(pathPollData, { activePoll });
+        pollData.activePoll = activePoll;
     } else {
-        writeJSON(pathPollData, {});
+        delete pollData.activePoll;
     }
+
+    writeJSON(pathPollData, pollData);
 }
 
 function loadActiveTask() {
@@ -395,6 +417,8 @@ async function updateVotesFromReacts(message, votes) {
             const reaction3 = await reactions.get('3️⃣').users.fetch();
             votes[2] = reaction3.filter(user => !user.bot).size;
         }
+
+        savePollData();
     } catch (error) {
         console.error('Error updating votes from reactions:', error);
     }
@@ -421,6 +445,17 @@ async function postTaskPoll(client) {
         return;
     }
 
+    const pollData = readJSON(pathPollData) || {};
+    if (pollData.lastPollId) {
+        try {
+            const lastPollMessage = await channel.messages.fetch(pollData.lastPollId);
+            await lastPollMessage.delete();
+            taskLog(`Deleted previous poll message: ${pollData.lastPollId}`);
+        } catch (error) {
+            console.error(`Error deleting previous poll message: ${pollData.lastPollId}`, error);
+        }
+    }
+
     const taskPollEmbed = createPollEmbed(tasks);
 
     const message = await channel.send({
@@ -442,7 +477,8 @@ async function postTaskPoll(client) {
     }
 
     try {
-        savePollData();
+        const updatedPollData = { activePoll, lastPollId: message.id };
+        writeJSON(pathPollData, updatedPollData);
     } catch (error) {
         console.error('Error saving poll data:', error);
         reportError(client, null, 'Error saving poll data.');
@@ -458,7 +494,6 @@ async function postTaskPoll(client) {
 
             const fetchedMessage = await channel.messages.fetch(activePoll.messageId);
             await updateVotesFromReacts(fetchedMessage, activePoll.votes);
-            savePollData();
         } catch (error) {
             console.error('Error fetching message or updating votes:', error);
             reportError(client, null, 'Error updating votes from reactions.');
@@ -475,9 +510,12 @@ async function postTaskPoll(client) {
 }
 
 async function closeTaskPoll(client) {
-    if (!activePoll) {
-        return;
+    const pollData = readJSON(pathPollData);
+    if (!pollData || !pollData.activePoll) {
+        taskLog('No active poll to close.');
+        return null;
     }
+    activePoll = pollData.activePoll;
 
     const channel = getChannelByName(client, '📆weekly-task');
     const message = await channel.messages.fetch(activePoll.messageId);
@@ -507,6 +545,8 @@ async function closeTaskPoll(client) {
         reportError(client, null, 'No winning task found.');
         return null;
     }
+
+    logPollResults(tasks, voteCounts, winningTask);
 
     activePoll = null;
 
