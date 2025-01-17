@@ -161,7 +161,7 @@ client.on('messageCreate', async (message) => {
         saveCounter(badbotCount);
         message.reply(`${sadEmote}`);
 
-        console.log(`${message.author.username} thinks something weird sleeping in their bed!`);
+        console.log(`${message.author.username} feels something weird sleeping in their bed!`);
     }
 
     if (command === 'bustinhelp') {

@@ -79,7 +79,7 @@ Initial release
 
 ## Task Module
 - Allowed Task Admins use of some commands
-- Merged vote data file into poll date file
+- Merged vote data file into poll data file
 - Added reroll functionality which prevents approving new submissions until winner is confirmed
 - Implemented automated deletion of old polls and keeping record of these in a log file
 

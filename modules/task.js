@@ -566,7 +566,6 @@ function createTaskAnnouncementEmbed(task, submissionChannel, instructionText, u
         .setDescription(`**${task.taskName}**
         \n**Submission instructions**: 
         ${instructionText}
-        \nFor tasks with two amounts, the left number is the amount required for main game players and the right number is the amount required for Leagues players. Leagues submissions must have the relic overlay turned on.
         \n🔑 This week's keyword: **${uniqueKeyword}** 🔑
         \nPost all screenshots as **one message** in ${submissionChannel}
         \nTask ends <t:${Math.floor((Date.now() + TASK_DURATION) / 1000)}:R>.`)
