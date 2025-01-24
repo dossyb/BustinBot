@@ -97,6 +97,107 @@ function scheduleReminder(guild, role, messageText, delay, reminderKey) {
     scheduledReminders[reminderKey] = reminderTimeout;
 }
 
+async function closePoll(guild, pollChannel) {
+    if (!activePoll) {
+        movieLog('No active poll to close.');
+        return;
+    }
+
+    try {
+        const pollMessage = await pollChannel.messages.fetch(activePoll.message);
+        if (!pollMessage) {
+            movieLog('Poll message not found.');
+            activePoll = null;
+            return;
+        }
+
+        const reactionCounts = [];
+        for (const [emoji, reaction] of pollMessage.reactions.cache) {
+            const emojiIndex = pollEmojis.indexOf(emoji);
+            if (emojiIndex !== -1) {
+                const usersReacted = await reaction.users.fetch();
+                const voteCount = usersReacted.filter(user => !user.bot).size;
+
+                reactionCounts.push({
+                    emoji: emoji,
+                    count: voteCount,
+                    movieIndex: emojiIndex
+                });
+            }
+        }
+
+        if (reactionCounts.length === 0) {
+            pollChannel.send('No votes were cast in the poll.');
+            activePoll = null;
+            return;
+        }
+
+        const maxVoteCount = Math.max(...reactionCounts.map(r => r.count));
+        const tiedMovies = reactionCounts.filter(r => r.count === maxVoteCount);
+
+        // Handle tied votes
+        if (tiedMovies.length > 1) {
+            let tiedMoviesList = 'There is a tie between the following movies:\n';
+            tiedMovies.forEach(tied => {
+                const tiedMovie = activePoll.movies[tied.movieIndex];
+                tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
+            });
+            tiedMoviesList += '\nAdmins, please pick a movie using the `!pickmovie` command.';
+            pollChannel.send(tiedMoviesList);
+        } else {
+            const winningReaction = tiedMovies[0];
+            const winningMovie = activePoll.movies[winningReaction.movieIndex];
+            selectedMovie = winningMovie;
+            pollChannel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+            movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
+        }
+
+        activePoll = null;
+    } catch (error) {
+        movieLog('Error closing poll:', error);
+        pollChannel.send('An error occurred while closing the poll, poll has been deleted to avoid bot breakage.');
+        activePoll = null;
+    }
+}
+
+function schedulePollClose(guild) {
+    if (!activePoll) {
+        movieLog('No active poll to schedule closure for.');
+        return;
+    }
+
+    const pollChannel = guild.channels.cache.get(activePoll.channelId);
+    if (!pollChannel) {
+        movieLog('Poll channel not found. Unable to schedule poll closure.');
+        return;
+    }
+
+    // Determine closure time - either 24 hours after poll start or 30 mins before movie night
+    const now = Date.now();
+    const pollStartTime = now;
+    const pollEndTime = pollStartTime + 24 * 60 * 60 * 1000;
+
+    // If scheduled movie night, calc 30 mins before
+    const movieNightCloseTime = scheduledMovieTime
+        ? scheduledMovieTime * 1000 - 30 * 60 * 1000
+        : null;
+
+    const closeTime = movieNightCloseTime
+        ? Math.min(pollEndTime, movieNightCloseTime)
+        : pollEndTime;
+
+    const delay = closeTime - now;
+
+    if (delay <= 0) {
+        closePoll(guild, pollChannel);
+        return;
+    }
+
+    movieLog(`Poll will automatically close in ${delay / 1000} seconds.`);
+    setTimeout(() => closePoll(guild, pollChannel), delay);
+}
+
+
 function removeMovieFromList(movieName, client) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
@@ -730,99 +831,114 @@ For the **number-based commands**, you can reference a movie by its position in 
                 await poll.react(pollEmojis[i]);
             }
 
-            message.channel.send('To end the poll and count the votes, use `!pollclose`.');
+            schedulePollClose(message.guild);
+            message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
         }
 
         if (command === 'pollclose' || command === 'closepoll') {
-            message.channel.send('Closing the movie poll and counting votes...');
-            // Check for active poll to close
             if (!activePoll) {
                 message.reply('There is no active movie poll to close.');
                 return;
             }
 
-            // Fetch poll message from stored message ID
             const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
-            let pollMessage;
-
-            try {
-                pollMessage = await pollChannel.messages.fetch(activePoll.message);
-            } catch (error) {
-                message.reply('Error fetching poll message.');
+            if (!pollChannel) {
+                message.reply('The poll channel could not be found.');
                 activePoll = null;
                 return;
             }
 
-            if (!pollMessage) {
-                message.reply('The poll message could not be found.');
-                return;
-            }
+            movieLog(`Manual poll closure requested by ${message.author.tag}.`);
+            closePoll(message.guild, pollChannel);
+            // message.channel.send('Closing the movie poll and counting votes...');
+            // // Check for active poll to close
+            // if (!activePoll) {
+            //     message.reply('There is no active movie poll to close.');
+            //     return;
+            // }
 
-            const reactionCounts = [];
+            // // Fetch poll message from stored message ID
+            // const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
+            // let pollMessage;
 
-            // Count reactions for each movie
-            for (const [emoji, reaction] of pollMessage.reactions.cache) {
-                const emojiIndex = pollEmojis.indexOf(emoji);
+            // try {
+            //     pollMessage = await pollChannel.messages.fetch(activePoll.message);
+            // } catch (error) {
+            //     message.reply('Error fetching poll message.');
+            //     activePoll = null;
+            //     return;
+            // }
 
-                // Only count valid poll emojis
-                if (emojiIndex !== -1) {
-                    const usersReacted = await reaction.users.fetch();
-                    const voteCount = usersReacted.filter(user => !user.bot).size;
+            // if (!pollMessage) {
+            //     message.reply('The poll message could not be found.');
+            //     return;
+            // }
 
-                    reactionCounts.push({
-                        emoji: emoji,
-                        count: voteCount,
-                        movieIndex: emojiIndex
-                    });
-                }
-            }
+            // const reactionCounts = [];
 
-            if (reactionCounts.length === 0) {
-                message.channel.send('No votes were cast in the poll.');
-                return;
-            }
+            // // Count reactions for each movie
+            // for (const [emoji, reaction] of pollMessage.reactions.cache) {
+            //     const emojiIndex = pollEmojis.indexOf(emoji);
 
-            // Find the highest vote count
-            const maxVoteCount = Math.max(...reactionCounts.map(r => r.count));
+            //     // Only count valid poll emojis
+            //     if (emojiIndex !== -1) {
+            //         const usersReacted = await reaction.users.fetch();
+            //         const voteCount = usersReacted.filter(user => !user.bot).size;
 
-            // Filter out movies that have the max vote count (tied movies)
-            const tiedMovies = reactionCounts.filter(r => r.count === maxVoteCount);
+            //         reactionCounts.push({
+            //             emoji: emoji,
+            //             count: voteCount,
+            //             movieIndex: emojiIndex
+            //         });
+            //     }
+            // }
 
-            // Handle tied votes
-            if (tiedMovies.length > 1) {
-                // Create a list of tied movies
-                let tiedMoviesList = 'There is a tie between the following movies:\n';
-                tiedMovies.forEach(tied => {
-                    const tiedMovie = activePoll.movies[tied.movieIndex];
-                    tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
-                });
+            // if (reactionCounts.length === 0) {
+            //     message.channel.send('No votes were cast in the poll.');
+            //     return;
+            // }
 
-                tiedMoviesList += '\nAdmins, please pick a movie using the `!pickmovie` command.';
+            // // Find the highest vote count
+            // const maxVoteCount = Math.max(...reactionCounts.map(r => r.count));
 
-                message.channel.send(tiedMoviesList);
+            // // Filter out movies that have the max vote count (tied movies)
+            // const tiedMovies = reactionCounts.filter(r => r.count === maxVoteCount);
 
-                // Clear active poll
-                activePoll = null;
-                return;
-            }
+            // // Handle tied votes
+            // if (tiedMovies.length > 1) {
+            //     // Create a list of tied movies
+            //     let tiedMoviesList = 'There is a tie between the following movies:\n';
+            //     tiedMovies.forEach(tied => {
+            //         const tiedMovie = activePoll.movies[tied.movieIndex];
+            //         tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
+            //     });
 
-            // If no tie, select the movie with the highest vote count
-            const winningReaction = tiedMovies[0];
-            const winningMovie = activePoll.movies[winningReaction.movieIndex];
+            //     tiedMoviesList += '\nAdmins, please pick a movie using the `!pickmovie` command.';
 
-            if (!winningMovie) {
-                message.channel.send('Could not find the selected movie in the list.');
-                return;
-            }
+            //     message.channel.send(tiedMoviesList);
 
-            // Set movie as selected for movie night
-            selectedMovie = winningMovie;
+            //     // Clear active poll
+            //     activePoll = null;
+            //     return;
+            // }
 
-            movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
-            message.channel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+            // // If no tie, select the movie with the highest vote count
+            // const winningReaction = tiedMovies[0];
+            // const winningMovie = activePoll.movies[winningReaction.movieIndex];
 
-            // Clear active poll
-            activePoll = null;
+            // if (!winningMovie) {
+            //     message.channel.send('Could not find the selected movie in the list.');
+            //     return;
+            // }
+
+            // // Set movie as selected for movie night
+            // selectedMovie = winningMovie;
+
+            // movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
+            // message.channel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+
+            // // Clear active poll
+            // activePoll = null;
         }
     } else if (
         command === 'rollmovie' ||
