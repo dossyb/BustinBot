@@ -689,7 +689,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             : 'No movie has been selected yet.';
 
             movieLog(`Movie night scheduled for ${movieTime} by ${message.author.tag}.`);
-            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
+            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at <t:${Math.floor((unixTimestamp - 2 * 60 * 60))}:T> and <t:${Math.floor((unixTimestamp - 15 * 60))}:T>.`);
 
             if (twoHoursBefore > 0) {
             scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
