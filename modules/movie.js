@@ -965,6 +965,8 @@ For the **number-based commands**, you can reference a movie by its position in 
         command === 'clearlist'
     ) {
         message.reply('You do not have permission to use this command.');
+    } else {
+        message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 }
 
