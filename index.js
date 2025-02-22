@@ -1,5 +1,9 @@
 require('dotenv').config();
-const currentVersion = '1.2.4';
+const instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
+
+const fs = require('fs');
+const path = require('path');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
@@ -12,10 +16,10 @@ if (!token) {
 const emoteUtils = require('./modules/utils/emote');
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
-const fs = require('fs');
-const path = require('path');
+
 const pathCounter = './data/counters.json';
-const { Client, GatewayIntentBits } = require('discord.js');
+const versionFilePath = path.join(__dirname, 'data/version.json');
+const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
 
 const logDir = path.join(__dirname, 'logs');
 const logFileName = `bustinbot-${new Date().toISOString().replace(/:/g, '-')}.log`;
@@ -76,8 +80,8 @@ function saveCounter(count) {
     fs.writeFileSync(pathCounter, JSON.stringify(data, null, 4), 'utf8');
 }
 
-const versionFilePath = path.join(__dirname, 'data/version.json');
-const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
+const versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
+const currentVersion = versionData.version;
 
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
@@ -100,14 +104,7 @@ client.once('ready', () => {
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
 
-    // Check for version updates
-    let previousVersion = null;
-    if (fs.existsSync(versionFilePath)) {
-        const versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
-        previousVersion = versionData.version;
-    }
-
-    if (previousVersion !== currentVersion) {
+    if (instanceVersion !== currentVersion) {
         // Read changelog
         const changelog = fs.readFileSync(changelogFilePath, 'utf8');
         const versionChanges = extractChangesForVersion(changelog, currentVersion);
@@ -124,7 +121,10 @@ client.once('ready', () => {
         console.log(announcement);
 
         // Update version file
-        fs.writeFileSync(versionFilePath, JSON.stringify({ version: currentVersion }, null, 4), 'utf8');
+        const envFilePath = path.join(__dirname, '.env');
+        let envContent = fs.readFileSync(envFilePath, 'utf8');
+        envContent = envContent.replace(/CURRENT_VERSION=.*/, `CURRENT_VERSION=${currentVersion}`);
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
     }
 });
 

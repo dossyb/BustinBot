@@ -712,8 +712,8 @@ For the **number-based commands**, you can reference a movie by its position in 
                     const delay = closeTime - pollStartTime;
 
                     if (delay <= 0) {
-                        movieLog('Scheduled movie night is less than 30 minutes away, closing poll.');
-                        message.channel.send('Scheduled movie night is less than 30 minutes away, closing poll.');
+                        movieLog('Scheduled movie night is less than 30 minutes away, closing poll...');
+                        message.channel.send('Scheduled movie night is less than 30 minutes away, closing poll...');
                         closePoll(message.guild, pollChannel);
                     } else {
                         const closeTimeFormatted = new Date(closeTime).toLocaleString();
