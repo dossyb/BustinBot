@@ -330,6 +330,7 @@ async function handleMovieCommands(message, client) {
 - **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
 - **!rollmovie**/**!randommovie**: Randomly select a movie from the list. 
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
+- **!pollmovie <m1>, <m2>, <m3> ...**: Create a poll with the specified movies as options.
 - **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
