@@ -136,22 +136,70 @@ async function closePoll(guild, pollChannel) {
 
         // Handle tied votes
         if (tiedMovies.length > 1) {
+            const adminRole = guild.roles.cache.find(r => r.name === 'BustinBot Admin');
             let tiedMoviesList = 'There is a tie between the following movies:\n';
             tiedMovies.forEach(tied => {
                 const tiedMovie = activePoll.movies[tied.movieIndex];
                 tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
             });
-            tiedMoviesList += '\nAdmins, please pick a movie using the `!pickmovie` command.';
-            pollChannel.send(tiedMoviesList);
+            tiedMoviesList += `\n${adminRole} Please pick a movie using the reactions below or let BustinBot choose.`;
+            // pollChannel.send(tiedMoviesList);
+            const tieMessage = await pollChannel.send(`${tiedMoviesList}`);
+
+            // Add reactions for tied movies and dice emoji for bot's choice
+            for (const tied of tiedMovies) {
+                await tieMessage.react(tied.emoji);
+            }
+            await tieMessage.react('🎲');
+
+            const filter = async (reaction, user) => {
+                const member = await reaction.message.guild.members.fetch(user.id);
+                return (
+                    tiedMovies.some(tied => tied.emoji === reaction.emoji.name) ||
+                    reaction.emoji.name === '🎲'
+                ) && member.roles.cache.has(adminRole.id);
+            };
+
+            const collector = tieMessage.createReactionCollector({ filter, max: 1, time: 24 * 60 * 60 * 1000 });
+
+            collector.on('collect', (reaction, user) => {
+                if (!activePoll) {
+                    movieLog('Poll has already been resolved.');
+                    return;
+                }
+
+                if (reaction.emoji.name === '🎲') {
+                    // Roll between tied movies
+                    const randomIndex = Math.floor(Math.random() * tiedMovies.length);
+                    const winningReaction = tiedMovies[randomIndex];
+                    const winningMovie = activePoll.movies[winningReaction.movieIndex];
+                    selectedMovie = winningMovie;
+                    pollChannel.send(`BustinBot has decided and the winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+                } else {
+                    // Admin selects a movie
+                    const winningReaction = tiedMovies.find(tied => tied.emoji === reaction.emoji.name);
+                    const winningMovie = activePoll.movies[winningReaction.movieIndex];
+                    selectedMovie = winningMovie;
+                    pollChannel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+                }
+                movieLog(`"${selectedMovie.name}" selected as the winning movie by ${reaction.emoji.name === '🎲' ? 'bot roll' : 'admin'}.`);
+                activePoll = null;
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    pollChannel.send('No movie was selected. Poll has been deleted.');
+                    activePoll = null;
+                }
+            });
         } else {
             const winningReaction = tiedMovies[0];
             const winningMovie = activePoll.movies[winningReaction.movieIndex];
             selectedMovie = winningMovie;
             pollChannel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
             movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
+            activePoll = null;
         }
-
-        activePoll = null;
     } catch (error) {
         movieLog('Error closing poll:', error);
         pollChannel.send('An error occurred while closing the poll, poll has been deleted to avoid bot breakage.');
@@ -933,6 +981,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         }
 
         if (command === 'pollclose' || command === 'closepoll' || command === 'endpoll' || command === 'pollend') {
+            message.channel.send('Closing the movie poll and counting votes...');
             if (!activePoll) {
                 message.reply('There is no active movie poll to close.');
                 return;
@@ -965,7 +1014,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         command === 'clearlist'
     ) {
         message.reply('You do not have permission to use this command.');
-    } else {
+    } else if (command != 'moviehelp') {
         message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 }
