@@ -878,6 +878,8 @@ For the **number-based commands**, you can reference a movie by its position in 
                 const selectedMovies = [];
                 const movieArgs = args.join(' ').split(',').map(arg => arg.trim());
 
+                const addedMovies = new Set();
+
                 for (const arg of movieArgs) {
                     let movie;
                     if (!isNaN(arg)) {
@@ -890,15 +892,20 @@ For the **number-based commands**, you can reference a movie by its position in 
                     }
 
                     if (movie) {
+                        if (addedMovies.has(movie.name.toLowerCase())) {
+                            message.reply(`Duplicate movie **${movie.name}** detected in the list. Please try again.`);
+                            return;
+                        }
                         selectedMovies.push(movie);
+                        addedMovies.add(movie.name.toLowerCase());
                     } else {
-                        message.reply(`Movie **${arg}** not found in the list.`);
+                        message.reply(`Movie **${arg}** not found in the list. There are only ${movieList.length} movies in the list. Please try again.`);
                         return;
                     }
                 }
 
                 if (selectedMovies.length > pollEmojis.length) {
-                    message.reply(`You requested ${selectedMovies.length} movies, but the maximum number of movies for a poll is ${pollEmojis.length}.`);
+                    message.reply(`The maximum number of movies for a poll is ${pollEmojis.length}. Please try again.`);
                     return;
                 }
 
