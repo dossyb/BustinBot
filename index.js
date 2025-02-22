@@ -152,6 +152,7 @@ client.on('messageCreate', async (message) => {
         goodbotCount++;
         saveCounter(goodbotCount);
         message.reply(`${bustinEmote}`);
+        message.channel.send(`*BustinBot has been called a good bot ${goodbotCount} time(s)!*`);
 
         console.log(`${message.author.username} made BustinBot feel good!`);
     }
@@ -160,6 +161,7 @@ client.on('messageCreate', async (message) => {
         badbotCount++;
         saveCounter(badbotCount);
         message.reply(`${sadEmote}`);
+        message.channel.send(`*BustinBot has been called a bad bot ${badbotCount} time(s)!*`);
 
         console.log(`${message.author.username} feels something weird sleeping in their bed!`);
     }
