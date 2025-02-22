@@ -85,3 +85,12 @@ Initial release
 
 ## Movie Module
 - Updated reminders to include info about active movie polls
+
+# v1.2.5
+- Test
+
+## Task Module
+- Test
+
+## Movie Module
+- Test

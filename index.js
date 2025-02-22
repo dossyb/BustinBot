@@ -75,6 +75,10 @@ function saveCounter(count) {
     fs.writeFileSync(pathCounter, JSON.stringify(data, null, 4), 'utf8');
 }
 
+const versionFilePath = path.join(__dirname, 'data/version.json');
+const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
+const currentVersion = '1.2.4';
+
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     console.log('Active');
@@ -95,7 +99,56 @@ client.once('ready', () => {
     taskModule.scheduleTaskAnnouncement(client);
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
+
+    // Check for version updates
+    let previousVersion = null;
+    if (fs.existsSync(versionFilePath)) {
+        const versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
+        previousVersion = versionData.version;
+    }
+
+    if (previousVersion !== currentVersion) {
+        // Read changelog
+        const changelog = fs.readFileSync(changelogFilePath, 'utf8');
+        const versionChanges = extractChangesForVersion(changelog, currentVersion);
+
+        // Announce update
+        const botsChannel = client.channels.cache.find(channel => channel.name === 'bots');
+        const announcement = `
+        BustinBot v${currentVersion} is now live! ${emoteUtils.getBustinEmote()}\n\n${versionChanges}`;
+
+        if (botsChannel) {
+            botsChannel.send(announcement);
+        }
+
+        console.log(announcement);
+
+        // Update version file
+        fs.writeFileSync(versionFilePath, JSON.stringify({ version: currentVersion }, null, 4), 'utf8');
+    }
 });
+
+function extractChangesForVersion(changelog, version) {
+    const versionHeader = `# v${version}`;
+    const startIndex = changelog.indexOf(versionHeader);
+    if (startIndex === -1) {
+        return 'No changelog found for this version.';
+    }
+
+    const endIndex = changelog.indexOf('# v', startIndex + versionHeader.length);
+    let versionChanges = changelog.substring(startIndex, endIndex === -1 ? changelog.length : endIndex).trim();
+    
+    // Remove version header
+    versionChanges = versionChanges.replace(versionHeader, '**Changelog:**').trim();
+
+    // Change markdown list formatting to bullet points
+    versionChanges = versionChanges.replace(/^- /gm, '- ');
+    
+    // Italicise each module subheading
+    versionChanges = versionChanges.replace(/^## (.+)$/gm, '*$1*');
+
+    return versionChanges;
+}
 
 let bustinCount = loadCounter().bustinCount;
 let goodbotCount = loadCounter().goodbotCount;
