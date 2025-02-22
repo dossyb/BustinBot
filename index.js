@@ -1,4 +1,5 @@
 require('dotenv').config();
+const currentVersion = '1.2.4';
 
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
@@ -77,7 +78,6 @@ function saveCounter(count) {
 
 const versionFilePath = path.join(__dirname, 'data/version.json');
 const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
-const currentVersion = '1.2.4';
 
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
@@ -220,7 +220,12 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'bustinhelp') {
-        message.channel.send(`Check out the movie commands with \`!moviehelp\` ${bustinEmote}\nCheck out the task commands with \`!taskhelp\` (admins only) ${bustinEmote}`);
+        message.reply(`Check out the movie commands with \`!moviehelp\` ${bustinEmote}\nCheck out the task commands with \`!taskhelp\` (admins only) ${bustinEmote}`);
+    }
+
+    if (command === 'bustinversion') {
+        message.reply(`BustinBot is currently running version ${currentVersion}. ${bustinEmote}`);
+        return;
     }
 
     if (command === 'sendas') {
