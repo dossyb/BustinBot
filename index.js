@@ -1,5 +1,4 @@
 require('dotenv').config();
-const instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
 
 const fs = require('fs');
 const path = require('path');
@@ -104,6 +103,17 @@ client.once('ready', () => {
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
 
+    const envFilePath = path.join(__dirname, '.env');
+    let envContent = fs.readFileSync(envFilePath, 'utf8');
+
+    let instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
+    if (!envContent.includes('CURRENT_VERSION')) {
+        // Add CURRENT_VERSION to .env file if it doesn't exist
+        envContent += `\nCURRENT_VERSION=1.0.0`;
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
+        console.log('Added CURRENT_VERSION to .env file.');
+    }
+
     if (instanceVersion !== currentVersion) {
         // Read changelog
         const changelog = fs.readFileSync(changelogFilePath, 'utf8');
@@ -121,8 +131,6 @@ client.once('ready', () => {
         console.log(announcement);
 
         // Update version file
-        const envFilePath = path.join(__dirname, '.env');
-        let envContent = fs.readFileSync(envFilePath, 'utf8');
         envContent = envContent.replace(/CURRENT_VERSION=.*/, `CURRENT_VERSION=${currentVersion}`);
         fs.writeFileSync(envFilePath, envContent, 'utf8');
     }
@@ -137,13 +145,13 @@ function extractChangesForVersion(changelog, version) {
 
     const endIndex = changelog.indexOf('# v', startIndex + versionHeader.length);
     let versionChanges = changelog.substring(startIndex, endIndex === -1 ? changelog.length : endIndex).trim();
-    
+
     // Remove version header
     versionChanges = versionChanges.replace(versionHeader, '**Changelog:**').trim();
 
     // Change markdown list formatting to bullet points
     versionChanges = versionChanges.replace(/^- /gm, '- ');
-    
+
     // Italicise each module subheading
     versionChanges = versionChanges.replace(/^## (.+)$/gm, '*$1*');
 

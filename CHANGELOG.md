@@ -87,10 +87,14 @@ Initial release
 - Updated reminders to include info about active movie polls
 
 # v1.2.5
-- Test
-
-## Task Module
-- Test
+- Added current count to reply of !goodbot/!badbot commands
+- Added ability to announce own new version and changelog when update has occurred
+- Added !bustinversion command to show current version
 
 ## Movie Module
-- Test
+- Fixed timezone bug that would schedule movie nights for wrong time
+- Added auto-close functionality to movie poll after 24 hours or 30 minutes prior to movie night start time
+- Adjusted wording of reminders to dynamically show reminder times
+- Updated !pollclose command to allow specific movies to be chosen to poll
+- Added reply to users using movie commands without Movie Night role
+- Updated poll tiebreak functionality to allow admins to choose or let bot decide
