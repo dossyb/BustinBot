@@ -813,7 +813,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1})`);
         }
 
-        if (command === 'pollmovie') {
+        if (command === 'pollmovie' || command === 'moviepoll') {
             const amount = parseInt(args[0], 10);
 
             if (isNaN(amount) || amount <= 0) {
@@ -873,7 +873,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
         }
 
-        if (command === 'pollclose' || command === 'closepoll') {
+        if (command === 'pollclose' || command === 'closepoll' || command === 'endpoll' || command === 'pollend') {
             if (!activePoll) {
                 message.reply('There is no active movie poll to close.');
                 return;
@@ -893,12 +893,15 @@ For the **number-based commands**, you can reference a movie by its position in 
         command === 'rollmovie' ||
         command === 'randommovie' ||
         command === 'pollmovie' ||
+        command === 'moviepoll' ||
         command === 'movienight' ||
         command === 'pickmovie' ||
         command === 'selectmovie' ||
         command === 'cancelmovie' ||
         command === 'pollclose' ||
         command === 'closepoll' ||
+        command === 'endpoll' ||
+        command === 'pollend' ||
         command === 'endmovie' ||
         command === 'clearlist'
     ) {
