@@ -1,5 +1,4 @@
 const fs = require('fs');
-const moment = require('moment');
 const { EmbedBuilder } = require('discord.js');
 
 const pathMovies = './data/movie/movies.json';
@@ -632,14 +631,15 @@ For the **number-based commands**, you can reference a movie by its position in 
             const timeInput = args.join(' ');
 
             if (!timeInput) {
-                message.reply('Please provide a valid time for the movie night (e.g., `!movienight 2024-09-30 18:00`).');
-                return;
+            message.reply('Please provide a valid time for the movie night (e.g., `!movienight 2024-09-30 18:00`).');
+            return;
             }
 
-            const movieTime = moment(timeInput, 'YYYY-MM-DD HH:mm').toDate();
+            const movieTime = new Date(timeInput);
+
             if (isNaN(movieTime.getTime())) {
-                message.reply('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
-                return;
+            message.reply('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
+            return;
             }
 
             const now = new Date();
@@ -648,16 +648,16 @@ For the **number-based commands**, you can reference a movie by its position in 
             const maxTimeAllowed = 21 * 24 * 60 * 60 * 1000; // 21 days
 
             if (timeUntilMovie > maxTimeAllowed) {
-                message.channel.send('Movie night cannot be scheduled more than 3 weeks in advance.');
-                return;
+            message.channel.send('Movie night cannot be scheduled more than 3 weeks in advance.');
+            return;
             }
 
             const unixTimestamp = Math.floor(movieTime.getTime() / 1000);
             scheduledMovieTime = unixTimestamp;
 
             if (timeUntilMovie <= 0) {
-                message.channel.send('The movie night time must be in the future.');
-                return;
+            message.channel.send('The movie night time must be in the future.');
+            return;
             }
 
             const twoHoursBefore = timeUntilMovie - 2 * 60 * 60 * 1000;
@@ -665,63 +665,63 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const role = message.guild.roles.cache.find(r => r.name === 'Movie Night');
             if (!role) {
-                message.channel.send('"Movie Night" role not found.');
-                return;
+            message.channel.send('"Movie Night" role not found.');
+            return;
             }
 
             // Clear existing reminders
             if (scheduledReminders.twoHoursBefore) {
-                clearTimeout(scheduledReminders.twoHoursBefore);
-                delete scheduledReminders.twoHoursBefore;
+            clearTimeout(scheduledReminders.twoHoursBefore);
+            delete scheduledReminders.twoHoursBefore;
             }
             if (scheduledReminders.fifteenMinutesBefore) {
-                clearTimeout(scheduledReminders.fifteenMinutesBefore);
-                delete scheduledReminders.fifteenMinutesBefore;
+            clearTimeout(scheduledReminders.fifteenMinutesBefore);
+            delete scheduledReminders.fifteenMinutesBefore;
             }
             if (scheduledReminders.movieTime) {
-                clearTimeout(scheduledReminders.movieTime);
-                delete scheduledReminders.movieTime;
+            clearTimeout(scheduledReminders.movieTime);
+            delete scheduledReminders.movieTime;
             }
 
             // Check if a movie is selected
             const movieMessage = selectedMovie
-                ? `We will be watching **${selectedMovie.name}**.`
-                : 'No movie has been selected yet.';
+            ? `We will be watching **${selectedMovie.name}**.`
+            : 'No movie has been selected yet.';
 
             movieLog(`Movie night scheduled for ${movieTime} by ${message.author.tag}.`);
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
 
             if (twoHoursBefore > 0) {
-                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
+            scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
             }
 
             if (fifteenMinutesBefore > 0) {
-                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
+            scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
             }
 
             scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel!`, timeUntilMovie, 'movieTime');
 
             // Check for active poll and update closure time if necessary
             if (activePoll) {
-                const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
-                if (pollChannel) {
-                    const pollStartTime = Date.now();
-                    const pollEndTime = pollStartTime + 24 * 60 * 60 * 1000;
-                    const movieNightCloseTime = scheduledMovieTime * 1000 - 30 * 60 * 1000;
-                    const closeTime = Math.min(pollEndTime, movieNightCloseTime);
-                    const delay = closeTime - pollStartTime;
+            const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
+            if (pollChannel) {
+                const pollStartTime = Date.now();
+                const pollEndTime = pollStartTime + 24 * 60 * 60 * 1000;
+                const movieNightCloseTime = scheduledMovieTime * 1000 - 30 * 60 * 1000;
+                const closeTime = Math.min(pollEndTime, movieNightCloseTime);
+                const delay = closeTime - pollStartTime;
 
-                    if (delay <= 0) {
-                        movieLog('Scheduled movie night is less than 30 minutes away. Closing poll immediately.');
-                        message.channel.send('Scheduled movie night is less than 30 minutes away. Closing poll immediately.');
-                        closePoll(message.guild, pollChannel);
-                    } else {
-                        const closeTimeFormatted = new Date(closeTime).toLocaleString();
-                        movieLog(`Poll closure time updated to ${closeTimeFormatted}.`);
-                        message.channel.send(`Poll closure time has been updated to <t:${Math.floor(closeTime / 1000)}:F>.`);
-                        setTimeout(() => closePoll(message.guild, pollChannel), delay);
-                    }
+                if (delay <= 0) {
+                movieLog('Scheduled movie night is less than 30 minutes away, closing poll.');
+                message.channel.send('Scheduled movie night is less than 30 minutes away, closing poll.');
+                closePoll(message.guild, pollChannel);
+                } else {
+                const closeTimeFormatted = new Date(closeTime).toLocaleString();
+                movieLog(`Poll closure time updated to ${closeTimeFormatted}.`);
+                message.channel.send(`Poll closure time has been updated to <t:${Math.floor(closeTime / 1000)}:F>.`);
+                setTimeout(() => closePoll(message.guild, pollChannel), delay);
                 }
+            }
             }
         }
 
