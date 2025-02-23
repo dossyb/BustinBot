@@ -863,6 +863,15 @@ For the **number-based commands**, you can reference a movie by its position in 
         }
 
         if (command === 'pollmovie' || command === 'moviepoll') {
+            // Check if movie starts within 30 minutes and prevent poll creation
+            const now = Date.now();
+            const halfHourInMillis = 30 * 60 * 1000;
+
+            if (scheduledMovieTime && scheduledMovieTime * 1000 - now <= halfHourInMillis) {
+                message.reply('You cannot start a poll within 30 minutes of the movie night start time.');
+                return;
+            }
+
             if (args.length === 1 && !isNaN(args[0])) {
                 // Option 1: !pollmovie <amount>
                 const amount = parseInt(args[0], 10);

@@ -92,9 +92,11 @@ Initial release
 - Added !bustinversion command to show current version
 
 ## Movie Module
+- Fixed bug where older movies in the list would not recognise the user who added them
 - Fixed timezone bug that would schedule movie nights for wrong time
 - Added auto-close functionality to movie poll after 24 hours or 30 minutes prior to movie night start time
 - Adjusted wording of reminders to dynamically show reminder times
-- Updated !pollclose command to allow specific movies to be chosen to poll
+- Updated !pollmovie command to allow specific movies to be chosen to poll
 - Added reply to users using movie commands without Movie Night role
 - Updated poll tiebreak functionality to allow admins to choose or let bot decide
+- Prevented movie poll from being created within 30 minutes of movie start time
