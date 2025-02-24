@@ -1,5 +1,9 @@
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
+const { Client, GatewayIntentBits } = require('discord.js');
+
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
 
@@ -11,10 +15,10 @@ if (!token) {
 const emoteUtils = require('./modules/utils/emote');
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
-const fs = require('fs');
-const path = require('path');
+
 const pathCounter = './data/counters.json';
-const { Client, GatewayIntentBits } = require('discord.js');
+const versionFilePath = path.join(__dirname, 'data/version.json');
+const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
 
 const logDir = path.join(__dirname, 'logs');
 const logFileName = `bustinbot-${new Date().toISOString().replace(/:/g, '-')}.log`;
@@ -75,6 +79,9 @@ function saveCounter(count) {
     fs.writeFileSync(pathCounter, JSON.stringify(data, null, 4), 'utf8');
 }
 
+const versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
+const currentVersion = versionData.version;
+
 client.once('ready', () => {
     console.log(`BustinBot is online in ${botMode} mode!`);
     console.log('Active');
@@ -95,7 +102,61 @@ client.once('ready', () => {
     taskModule.scheduleTaskAnnouncement(client);
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
+
+    const envFilePath = path.join(__dirname, '.env');
+    let envContent = fs.readFileSync(envFilePath, 'utf8');
+
+    let instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
+    if (!envContent.includes('CURRENT_VERSION')) {
+        // Add CURRENT_VERSION to .env file if it doesn't exist
+        envContent += `\nCURRENT_VERSION=1.0.0`;
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
+        console.log('Added CURRENT_VERSION to .env file.');
+    }
+
+    if (instanceVersion !== currentVersion) {
+        // Read changelog
+        const changelog = fs.readFileSync(changelogFilePath, 'utf8');
+        const versionChanges = extractChangesForVersion(changelog, currentVersion);
+
+        // Announce update
+        const botsChannel = client.channels.cache.find(channel => channel.name === 'bots');
+        const announcement = `
+        BustinBot v${currentVersion} is now live! ${emoteUtils.getBustinEmote()}\n\n${versionChanges}`;
+
+        if (botsChannel) {
+            botsChannel.send(announcement);
+        }
+
+        console.log(announcement);
+
+        // Update version file
+        envContent = envContent.replace(/CURRENT_VERSION=.*/, `CURRENT_VERSION=${currentVersion}`);
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
+    }
 });
+
+function extractChangesForVersion(changelog, version) {
+    const versionHeader = `# v${version}`;
+    const startIndex = changelog.indexOf(versionHeader);
+    if (startIndex === -1) {
+        return 'No changelog found for this version.';
+    }
+
+    const endIndex = changelog.indexOf('# v', startIndex + versionHeader.length);
+    let versionChanges = changelog.substring(startIndex, endIndex === -1 ? changelog.length : endIndex).trim();
+
+    // Remove version header
+    versionChanges = versionChanges.replace(versionHeader, '**Changelog:**').trim();
+
+    // Change markdown list formatting to bullet points
+    versionChanges = versionChanges.replace(/^- /gm, '- ');
+
+    // Italicise each module subheading
+    versionChanges = versionChanges.replace(/^## (.+)$/gm, '*$1*');
+
+    return versionChanges;
+}
 
 let bustinCount = loadCounter().bustinCount;
 let goodbotCount = loadCounter().goodbotCount;
@@ -152,6 +213,7 @@ client.on('messageCreate', async (message) => {
         goodbotCount++;
         saveCounter(goodbotCount);
         message.reply(`${bustinEmote}`);
+        message.channel.send(`*BustinBot has been called a good bot ${goodbotCount} time(s)!*`);
 
         console.log(`${message.author.username} made BustinBot feel good!`);
     }
@@ -160,12 +222,18 @@ client.on('messageCreate', async (message) => {
         badbotCount++;
         saveCounter(badbotCount);
         message.reply(`${sadEmote}`);
+        message.channel.send(`*BustinBot has been called a bad bot ${badbotCount} time(s)!*`);
 
         console.log(`${message.author.username} feels something weird sleeping in their bed!`);
     }
 
     if (command === 'bustinhelp') {
-        message.channel.send(`Check out the movie commands with \`!moviehelp\` ${bustinEmote}\nCheck out the task commands with \`!taskhelp\` (admins only) ${bustinEmote}`);
+        message.reply(`Check out the movie commands with \`!moviehelp\` ${bustinEmote}\nCheck out the task commands with \`!taskhelp\` (admins only) ${bustinEmote}`);
+    }
+
+    if (command === 'bustinversion') {
+        message.reply(`BustinBot is currently running version ${currentVersion}. ${bustinEmote}`);
+        return;
     }
 
     if (command === 'sendas') {

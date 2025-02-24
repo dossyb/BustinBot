@@ -1,5 +1,4 @@
 const fs = require('fs');
-const moment = require('moment');
 const { EmbedBuilder } = require('discord.js');
 
 const pathMovies = './data/movie/movies.json';
@@ -97,6 +96,156 @@ function scheduleReminder(guild, role, messageText, delay, reminderKey) {
     scheduledReminders[reminderKey] = reminderTimeout;
 }
 
+async function closePoll(guild, pollChannel) {
+    if (!activePoll) {
+        movieLog('No active poll to close.');
+        return;
+    }
+
+    try {
+        const pollMessage = await pollChannel.messages.fetch(activePoll.message);
+        if (!pollMessage) {
+            movieLog('Poll message not found.');
+            activePoll = null;
+            return;
+        }
+
+        const reactionCounts = [];
+        for (const [emoji, reaction] of pollMessage.reactions.cache) {
+            const emojiIndex = pollEmojis.indexOf(emoji);
+            if (emojiIndex !== -1) {
+                const usersReacted = await reaction.users.fetch();
+                const voteCount = usersReacted.filter(user => !user.bot).size;
+
+                reactionCounts.push({
+                    emoji: emoji,
+                    count: voteCount,
+                    movieIndex: emojiIndex
+                });
+            }
+        }
+
+        if (reactionCounts.length === 0) {
+            pollChannel.send('No votes were cast in the poll.');
+            activePoll = null;
+            return;
+        }
+
+        const maxVoteCount = Math.max(...reactionCounts.map(r => r.count));
+        const tiedMovies = reactionCounts.filter(r => r.count === maxVoteCount);
+
+        // Handle tied votes
+        if (tiedMovies.length > 1) {
+            const adminRole = guild.roles.cache.find(r => r.name === 'BustinBot Admin');
+            let tiedMoviesList = 'There is a tie between the following movies:\n';
+            tiedMovies.forEach(tied => {
+                const tiedMovie = activePoll.movies[tied.movieIndex];
+                tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
+            });
+            tiedMoviesList += `\n${adminRole} Please pick a movie using the reactions below or let BustinBot choose.`;
+            // pollChannel.send(tiedMoviesList);
+            const tieMessage = await pollChannel.send(`${tiedMoviesList}`);
+
+            // Add reactions for tied movies and dice emoji for bot's choice
+            for (const tied of tiedMovies) {
+                await tieMessage.react(tied.emoji);
+            }
+            await tieMessage.react('🎲');
+
+            const filter = async (reaction, user) => {
+                const member = await reaction.message.guild.members.fetch(user.id);
+                return (
+                    tiedMovies.some(tied => tied.emoji === reaction.emoji.name) ||
+                    reaction.emoji.name === '🎲'
+                ) && member.roles.cache.has(adminRole.id);
+            };
+
+            const collector = tieMessage.createReactionCollector({ filter, max: 1, time: 24 * 60 * 60 * 1000 });
+
+            collector.on('collect', (reaction, user) => {
+                if (!activePoll) {
+                    movieLog('Poll has already been resolved.');
+                    return;
+                }
+
+                if (reaction.emoji.name === '🎲') {
+                    // Roll between tied movies
+                    const randomIndex = Math.floor(Math.random() * tiedMovies.length);
+                    const winningReaction = tiedMovies[randomIndex];
+                    const winningMovie = activePoll.movies[winningReaction.movieIndex];
+                    selectedMovie = winningMovie;
+                    pollChannel.send(`BustinBot has decided and the winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+                } else {
+                    // Admin selects a movie
+                    const winningReaction = tiedMovies.find(tied => tied.emoji === reaction.emoji.name);
+                    const winningMovie = activePoll.movies[winningReaction.movieIndex];
+                    selectedMovie = winningMovie;
+                    pollChannel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+                }
+                movieLog(`"${selectedMovie.name}" selected as the winning movie by ${reaction.emoji.name === '🎲' ? 'bot roll' : 'admin'}.`);
+                activePoll = null;
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    pollChannel.send('No movie was selected. Poll has been deleted.');
+                    activePoll = null;
+                }
+            });
+        } else {
+            const winningReaction = tiedMovies[0];
+            const winningMovie = activePoll.movies[winningReaction.movieIndex];
+            selectedMovie = winningMovie;
+            pollChannel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
+            movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
+            activePoll = null;
+        }
+    } catch (error) {
+        movieLog('Error closing poll:', error);
+        pollChannel.send('An error occurred while closing the poll, poll has been deleted to avoid bot breakage.');
+        activePoll = null;
+    }
+}
+
+function schedulePollClose(guild) {
+    if (!activePoll) {
+        movieLog('No active poll to schedule closure for.');
+        return;
+    }
+
+    const pollChannel = guild.channels.cache.get(activePoll.channelId);
+    if (!pollChannel) {
+        movieLog('Poll channel not found. Unable to schedule poll closure.');
+        return;
+    }
+
+    // Determine closure time - either 24 hours after poll start or 30 mins before movie night
+    const now = Date.now();
+    const pollStartTime = now;
+    const pollEndTime = pollStartTime + 24 * 60 * 60 * 1000;
+
+    // If scheduled movie night, calc 30 mins before
+    const movieNightCloseTime = scheduledMovieTime
+        ? scheduledMovieTime * 1000 - 30 * 60 * 1000
+        : null;
+
+    const closeTime = movieNightCloseTime
+        ? Math.min(pollEndTime, movieNightCloseTime)
+        : pollEndTime;
+
+    const delay = closeTime - now;
+
+    if (delay <= 0) {
+        closePoll(guild, pollChannel);
+        return;
+    }
+
+    const closeTimeFormatted = new Date(closeTime).toLocaleString();
+    movieLog(`Poll will automatically close at ${closeTimeFormatted}.`);
+    setTimeout(() => closePoll(guild, pollChannel), delay);
+}
+
+
 function removeMovieFromList(movieName, client) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
@@ -181,6 +330,7 @@ async function handleMovieCommands(message, client) {
 - **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
 - **!rollmovie**/**!randommovie**: Randomly select a movie from the list. 
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
+- **!pollmovie <m1>, <m2>, <m3> ...**: Create a poll with the specified movies as options.
 - **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
@@ -534,7 +684,8 @@ For the **number-based commands**, you can reference a movie by its position in 
                 return;
             }
 
-            const movieTime = moment(timeInput, 'YYYY-MM-DD HH:mm').toDate();
+            const movieTime = new Date(timeInput);
+
             if (isNaN(movieTime.getTime())) {
                 message.reply('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
                 return;
@@ -567,13 +718,27 @@ For the **number-based commands**, you can reference a movie by its position in 
                 return;
             }
 
+            // Clear existing reminders
+            if (scheduledReminders.twoHoursBefore) {
+                clearTimeout(scheduledReminders.twoHoursBefore);
+                delete scheduledReminders.twoHoursBefore;
+            }
+            if (scheduledReminders.fifteenMinutesBefore) {
+                clearTimeout(scheduledReminders.fifteenMinutesBefore);
+                delete scheduledReminders.fifteenMinutesBefore;
+            }
+            if (scheduledReminders.movieTime) {
+                clearTimeout(scheduledReminders.movieTime);
+                delete scheduledReminders.movieTime;
+            }
+
             // Check if a movie is selected
             const movieMessage = selectedMovie
                 ? `We will be watching **${selectedMovie.name}**.`
                 : 'No movie has been selected yet.';
 
             movieLog(`Movie night scheduled for ${movieTime} by ${message.author.tag}.`);
-            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at two hours and at fifteen minutes beforehand.`);
+            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at <t:${Math.floor((unixTimestamp - 2 * 60 * 60))}:T> and <t:${Math.floor((unixTimestamp - 15 * 60))}:T>.`);
 
             if (twoHoursBefore > 0) {
                 scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
@@ -584,6 +749,29 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
 
             scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel!`, timeUntilMovie, 'movieTime');
+
+            // Check for active poll and update closure time if necessary
+            if (activePoll) {
+                const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
+                if (pollChannel) {
+                    const pollStartTime = Date.now();
+                    const pollEndTime = pollStartTime + 24 * 60 * 60 * 1000;
+                    const movieNightCloseTime = scheduledMovieTime * 1000 - 30 * 60 * 1000;
+                    const closeTime = Math.min(pollEndTime, movieNightCloseTime);
+                    const delay = closeTime - pollStartTime;
+
+                    if (delay <= 0) {
+                        movieLog('Scheduled movie night is less than 30 minutes away, closing poll...');
+                        message.channel.send('Scheduled movie night is less than 30 minutes away, closing poll...');
+                        closePoll(message.guild, pollChannel);
+                    } else {
+                        const closeTimeFormatted = new Date(closeTime).toLocaleString();
+                        movieLog(`Poll closure time updated to ${closeTimeFormatted}.`);
+                        message.channel.send(`Poll closure time has been updated to <t:${Math.floor(closeTime / 1000)}:F>.`);
+                        setTimeout(() => closePoll(message.guild, pollChannel), delay);
+                    }
+                }
+            }
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
@@ -674,170 +862,170 @@ For the **number-based commands**, you can reference a movie by its position in 
             message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1})`);
         }
 
-        if (command === 'pollmovie') {
-            const amount = parseInt(args[0], 10);
+        if (command === 'pollmovie' || command === 'moviepoll') {
+            // Check if movie starts within 30 minutes and prevent poll creation
+            const now = Date.now();
+            const halfHourInMillis = 30 * 60 * 1000;
 
-            if (isNaN(amount) || amount <= 0) {
-                message.reply('Please provide a valid number of movies to choose from.');
+            if (scheduledMovieTime && scheduledMovieTime * 1000 - now <= halfHourInMillis) {
+                message.reply('You cannot start a poll within 30 minutes of the movie night start time.');
                 return;
             }
 
-            const moviesByUser = movieList.reduce((acc, movie) => {
-                if (!acc[movie.suggestedby]) {
-                    acc[movie.suggestedby] = [];
+            if (args.length === 1 && !isNaN(args[0])) {
+                // Option 1: !pollmovie <amount>
+                const amount = parseInt(args[0], 10);
+
+                if (isNaN(amount) || amount <= 0) {
+                    message.reply('Please provide a valid number of movies to choose from.');
+                    return;
                 }
-                acc[movie.suggestedby].push(movie);
-                return acc;
-            }, {});
 
-            const uniqueUsers = Object.keys(moviesByUser);
+                const moviesByUser = movieList.reduce((acc, movie) => {
+                    if (!acc[movie.suggestedby]) {
+                        acc[movie.suggestedby] = [];
+                    }
+                    acc[movie.suggestedby].push(movie);
+                    return acc;
+                }, {});
 
-            // Check if the number of movies requested exceeds the number of users
-            if (amount > uniqueUsers.length) {
-                message.reply(`You requested ${amount} movies, but only ${uniqueUsers.length} unique users have added movies. Please choose a smaller number.`);
-                return;
+                const uniqueUsers = Object.keys(moviesByUser);
+
+                // Check if the number of movies requested exceeds the number of users
+                if (amount > uniqueUsers.length) {
+                    message.reply(`You requested ${amount} movies, but only ${uniqueUsers.length} unique users have added movies. Please choose a smaller number.`);
+                    return;
+                }
+
+                if (amount > pollEmojis.length) {
+                    message.reply(`You requested ${amount} movies, but the maximum number of movies for a poll is ${pollEmojis.length}.`);
+                    return;
+                }
+
+                // Randomly shuffle the list of users
+                const shuffledUsers = [...uniqueUsers].sort(() => 0.5 - Math.random());
+
+                // Select one movie from each user
+                const selectedMovies = shuffledUsers.slice(0, amount).map(user => {
+                    const userMovies = moviesByUser[user];
+                    return userMovies[Math.floor(Math.random() * userMovies.length)];
+                });
+
+                let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
+                selectedMovies.forEach((movie, index) => {
+                    pollMessage += `${pollEmojis[index]} **${movie.name}** - added by: *${movie.suggestedby}*\n`;
+                });
+
+                const poll = await message.channel.send(pollMessage);
+
+                // Store active poll info for !pollclose
+                activePoll = {
+                    message: poll.id,
+                    movies: selectedMovies,
+                    channelId: message.channel.id
+                };
+
+                for (let i = 0; i < selectedMovies.length; i++) {
+                    await poll.react(pollEmojis[i]);
+                }
+
+                schedulePollClose(message.guild);
+                message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
+            } else {
+                // Option 2: !pollmovie <m1>, <m2>, <m3>, ...
+                const selectedMovies = [];
+                const movieArgs = args.join(' ').split(',').map(arg => arg.trim());
+
+                const addedMovies = new Set();
+
+                for (const arg of movieArgs) {
+                    let movie;
+                    if (!isNaN(arg)) {
+                        const movieIndex = parseInt(arg) - 1;
+                        if (movieIndex >= 0 && movieIndex < movieList.length) {
+                            movie = movieList[movieIndex];
+                        }
+                    } else {
+                        movie = movieList.find(m => m.name.toLowerCase() === arg.toLowerCase());
+                    }
+
+                    if (movie) {
+                        if (addedMovies.has(movie.name.toLowerCase())) {
+                            message.reply(`Duplicate movie **${movie.name}** detected in the list. Please try again.`);
+                            return;
+                        }
+                        selectedMovies.push(movie);
+                        addedMovies.add(movie.name.toLowerCase());
+                    } else {
+                        message.reply(`Movie **${arg}** not found in the list. There are only ${movieList.length} movies in the list. Please try again.`);
+                        return;
+                    }
+                }
+
+                if (selectedMovies.length > pollEmojis.length) {
+                    message.reply(`The maximum number of movies for a poll is ${pollEmojis.length}. Please try again.`);
+                    return;
+                }
+
+                let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
+                selectedMovies.forEach((movie, index) => {
+                    pollMessage += `${pollEmojis[index]} **${movie.name}** - added by: *${movie.suggestedby}*\n`;
+                });
+
+                const poll = await message.channel.send(pollMessage);
+
+                // Store active poll info for !pollclose
+                activePoll = {
+                    message: poll.id,
+                    movies: selectedMovies,
+                    channelId: message.channel.id
+                };
+
+                for (let i = 0; i < selectedMovies.length; i++) {
+                    await poll.react(pollEmojis[i]);
+                }
+
+                schedulePollClose(message.guild);
+                message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
             }
-
-            if (amount > pollEmojis.length) {
-                message.reply(`You requested ${amount} movies, but the maximum number of movies for a poll is ${pollEmojis.length}.`);
-                return;
-            }
-
-            // Randomly shuffle the list of users
-            const shuffledUsers = [...uniqueUsers].sort(() => 0.5 - Math.random());
-
-            // Select one movie from each user
-            const selectedMovies = shuffledUsers.slice(0, amount).map(user => {
-                const userMovies = moviesByUser[user];
-                return userMovies[Math.floor(Math.random() * userMovies.length)];
-            });
-
-            let pollMessage = '🎥 **Movie Night Poll** 🎥\nPlease vote for a movie by reacting with the corresponding emoji:\n';
-            selectedMovies.forEach((movie, index) => {
-                pollMessage += `${pollEmojis[index]} **${movie.name}** - added by: *${movie.suggestedby}*\n`;
-            });
-
-            const poll = await message.channel.send(pollMessage);
-
-            // Store active poll info for !pollclose
-            activePoll = {
-                message: poll.id,
-                movies: selectedMovies,
-                channelId: message.channel.id
-            };
-
-            for (let i = 0; i < selectedMovies.length; i++) {
-                await poll.react(pollEmojis[i]);
-            }
-
-            message.channel.send('To end the poll and count the votes, use `!pollclose`.');
         }
 
-        if (command === 'pollclose' || command === 'closepoll') {
+        if (command === 'pollclose' || command === 'closepoll' || command === 'endpoll' || command === 'pollend') {
             message.channel.send('Closing the movie poll and counting votes...');
-            // Check for active poll to close
             if (!activePoll) {
                 message.reply('There is no active movie poll to close.');
                 return;
             }
 
-            // Fetch poll message from stored message ID
             const pollChannel = message.guild.channels.cache.get(activePoll.channelId);
-            let pollMessage;
-
-            try {
-                pollMessage = await pollChannel.messages.fetch(activePoll.message);
-            } catch (error) {
-                message.reply('Error fetching poll message.');
+            if (!pollChannel) {
+                message.reply('The poll channel could not be found.');
                 activePoll = null;
                 return;
             }
 
-            if (!pollMessage) {
-                message.reply('The poll message could not be found.');
-                return;
-            }
-
-            const reactionCounts = [];
-
-            // Count reactions for each movie
-            for (const [emoji, reaction] of pollMessage.reactions.cache) {
-                const emojiIndex = pollEmojis.indexOf(emoji);
-
-                // Only count valid poll emojis
-                if (emojiIndex !== -1) {
-                    const usersReacted = await reaction.users.fetch();
-                    const voteCount = usersReacted.filter(user => !user.bot).size;
-
-                    reactionCounts.push({
-                        emoji: emoji,
-                        count: voteCount,
-                        movieIndex: emojiIndex
-                    });
-                }
-            }
-
-            if (reactionCounts.length === 0) {
-                message.channel.send('No votes were cast in the poll.');
-                return;
-            }
-
-            // Find the highest vote count
-            const maxVoteCount = Math.max(...reactionCounts.map(r => r.count));
-
-            // Filter out movies that have the max vote count (tied movies)
-            const tiedMovies = reactionCounts.filter(r => r.count === maxVoteCount);
-
-            // Handle tied votes
-            if (tiedMovies.length > 1) {
-                // Create a list of tied movies
-                let tiedMoviesList = 'There is a tie between the following movies:\n';
-                tiedMovies.forEach(tied => {
-                    const tiedMovie = activePoll.movies[tied.movieIndex];
-                    tiedMoviesList += `${tied.emoji} **${tiedMovie.name}** - added by: *${tiedMovie.suggestedby}*\n`;
-                });
-
-                tiedMoviesList += '\nAdmins, please pick a movie using the `!pickmovie` command.';
-
-                message.channel.send(tiedMoviesList);
-
-                // Clear active poll
-                activePoll = null;
-                return;
-            }
-
-            // If no tie, select the movie with the highest vote count
-            const winningReaction = tiedMovies[0];
-            const winningMovie = activePoll.movies[winningReaction.movieIndex];
-
-            if (!winningMovie) {
-                message.channel.send('Could not find the selected movie in the list.');
-                return;
-            }
-
-            // Set movie as selected for movie night
-            selectedMovie = winningMovie;
-
-            movieLog(`"${selectedMovie.name}" selected as the winning movie by poll.`);
-            message.channel.send(`The winning movie is **${winningMovie.name}**, added by *${winningMovie.suggestedby}*!`);
-
-            // Clear active poll
-            activePoll = null;
+            movieLog(`Manual poll closure requested by ${message.author.tag}.`);
+            closePoll(message.guild, pollChannel);
         }
     } else if (
         command === 'rollmovie' ||
         command === 'randommovie' ||
         command === 'pollmovie' ||
+        command === 'moviepoll' ||
         command === 'movienight' ||
         command === 'pickmovie' ||
         command === 'selectmovie' ||
         command === 'cancelmovie' ||
         command === 'pollclose' ||
         command === 'closepoll' ||
+        command === 'endpoll' ||
+        command === 'pollend' ||
         command === 'endmovie' ||
         command === 'clearlist'
     ) {
         message.reply('You do not have permission to use this command.');
+    } else if (command != 'moviehelp') {
+        message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 }
 

@@ -11,8 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.16.2",
-    "dotenv": "^16.4.5",
-    "heroku": "^8.7.1",
-    "moment": "^2.30.1"
+    "dotenv": "^16.4.5"
   }
 }
