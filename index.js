@@ -3,6 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits } = require('discord.js');
+const envFilePath = path.join(__dirname, '.env');
 
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
@@ -103,7 +104,6 @@ client.once('ready', () => {
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
 
-    const envFilePath = path.join(__dirname, '.env');
     let envContent = fs.readFileSync(envFilePath, 'utf8');
 
     let instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
@@ -256,6 +256,35 @@ client.on('messageCreate', async (message) => {
         } else {
             message.reply(`Channel ${channelName} not found.`);
         }
+    }
+
+    if (command === 'settimezone') {
+        // Check for BustinBot Admin role
+        if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+            message.reply('You do not have permission to use this command.');
+            return;
+        }
+
+        const timezone = args[0];
+        if (!timezone) {
+            message.reply('Please provide a valid timezone.');
+            return;
+        }
+
+        let envContent = fs.readFileSync(envFilePath, 'utf8');
+        if (envContent.includes('TIMEZONE')) {
+            envContent = envContent.replace(/TIMEZONE=.*/, `TIMEZONE=${timezone}`);
+        } else {
+            envContent += `\nTIMEZONE='${timezone}'`;
+        }
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
+        message.reply(`BustinBot's timezone set to '${timezone}'. ${bustinEmote}`);
+    }
+
+    if (command === 'timezone') {
+        let envContent = fs.readFileSync(envFilePath, 'utf8');
+        const timezone = envContent.match(/TIMEZONE=(.*)/)[1];
+        message.reply(`BustinBot's timezone is currently '${timezone}'. ${bustinEmote}`);
     }
 
     movieModule.handleMovieCommands(message, client);
