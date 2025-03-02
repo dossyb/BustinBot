@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits } = require('discord.js');
 const envFilePath = path.join(__dirname, '.env');
+const moment = require('moment-timezone');
 
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
@@ -270,6 +271,13 @@ client.on('messageCreate', async (message) => {
             message.reply('Please provide a valid timezone.');
             return;
         }
+
+        if (!moment.tz.zone(timezone)) {
+            message.reply('Invalid timezone. Please provide a valid IANA timezone name (e.g., "America/New_York"). See a full list here: https://nodatime.org/TimeZones');
+            return;
+        }
+
+        process.env.TIMEZONE = timezone;
 
         let envContent = fs.readFileSync(envFilePath, 'utf8');
         if (envContent.includes('TIMEZONE')) {
