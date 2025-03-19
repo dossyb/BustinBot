@@ -101,7 +101,7 @@ Initial release
 - Updated poll tiebreak functionality to allow admins to choose or let bot decide
 - Prevented movie poll from being created within 30 minutes of movie start time
 
-# v1.2.6
+# v1.2.5a
 
 ## Movie Module
 - Fixed bug where bot would respond to task commands with movie role permissions error
