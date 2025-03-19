@@ -3,6 +3,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits } = require('discord.js');
+const envFilePath = path.join(__dirname, '.env');
+const moment = require('moment-timezone');
 
 const botMode = process.env.BOT_MODE || 'dev';
 const token = botMode === 'dev' ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN_LIVE;
@@ -103,7 +105,6 @@ client.once('ready', () => {
     taskModule.scheduleWinnerAnnouncement(client);
     taskModule.startPeriodicStatusUpdates(client);
 
-    const envFilePath = path.join(__dirname, '.env');
     let envContent = fs.readFileSync(envFilePath, 'utf8');
 
     let instanceVersion = process.env.CURRENT_VERSION || '1.0.0';
@@ -171,15 +172,15 @@ client.on('messageCreate', async (message) => {
 
     if (/\b(sleep)\b/i.test(message.content)) {
         const chance = Math.random();
-        if (chance < 0.05) {
+        if (chance < 0.02) {
             message.channel.send(`I ain\'t afraid of no sleep! ${bedgeEmote}`);
             return;
         }
-        if (chance > 0.05 && chance < 0.1) {
+        if (chance > 0.02 && chance < 0.04) {
             message.channel.send(`I ain\'t afraid of no bed! ${bedgeEmote}`);
             return;
         }
-        if (chance > 0.1 && chance < 0.15) {
+        if (chance > 0.04 && chance < 0.06) {
             message.channel.send(`Sleepin\' makes me feel good! ${bedgeEmote}`);
             return;
         }
@@ -256,6 +257,42 @@ client.on('messageCreate', async (message) => {
         } else {
             message.reply(`Channel ${channelName} not found.`);
         }
+    }
+
+    if (command === 'settimezone') {
+        // Check for BustinBot Admin role
+        if (!message.member.roles.cache.some(role => role.name === 'BustinBot Admin')) {
+            message.reply('You do not have permission to use this command.');
+            return;
+        }
+
+        const timezone = args[0];
+        if (!timezone) {
+            message.reply('Please provide a valid timezone.');
+            return;
+        }
+
+        if (!moment.tz.zone(timezone)) {
+            message.reply('Invalid timezone. Please provide a valid IANA timezone name (e.g., "America/New_York"). See a full list here: https://nodatime.org/TimeZones');
+            return;
+        }
+
+        process.env.TIMEZONE = timezone;
+
+        let envContent = fs.readFileSync(envFilePath, 'utf8');
+        if (envContent.includes('TIMEZONE')) {
+            envContent = envContent.replace(/TIMEZONE=.*/, `TIMEZONE=${timezone}`);
+        } else {
+            envContent += `\nTIMEZONE='${timezone}'`;
+        }
+        fs.writeFileSync(envFilePath, envContent, 'utf8');
+        message.reply(`BustinBot's timezone set to '${timezone}'. ${bustinEmote}`);
+    }
+
+    if (command === 'timezone') {
+        let envContent = fs.readFileSync(envFilePath, 'utf8');
+        const timezone = envContent.match(/TIMEZONE=(.*)/)[1];
+        message.reply(`BustinBot's timezone is currently '${timezone}'. ${bustinEmote}`);
     }
 
     movieModule.handleMovieCommands(message, client);

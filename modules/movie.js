@@ -1,5 +1,7 @@
+require('dotenv').config();
 const fs = require('fs');
 const { EmbedBuilder } = require('discord.js');
+const moment = require('moment-timezone');
 
 const pathMovies = './data/movie/movies.json';
 const pathUserMovieCount = './data/movie/userMovieCount.json';
@@ -310,6 +312,11 @@ async function handleMovieCommands(message, client) {
     );
     const hasAdminRole = message.member.roles.cache.some(role => role.id === adminRole.id);
 
+    const movieCommands = ['addmovie', 'removemovie', 'removie', 'editmovie', 'movielist', 'listmovie',
+        'movie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
+        'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie', 'moviehelp'
+    ];
+
     if (command === 'moviehelp') {
         let helpMessage = `
 🎥 **BustinBot's Movie Commands** 🎥
@@ -343,6 +350,14 @@ async function handleMovieCommands(message, client) {
 For the **number-based commands**, you can reference a movie by its position in the list shown in **!movielist**. Example: "!movie 2" to view the second movie in the list.
         `;
         message.reply(helpMessage);
+    }
+
+    if (movieCommands.includes(command) && !hasMovieNightOrAdminRole && command !== 'moviehelp') {
+        message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
+    }
+
+    else if (movieCommands.includes(command) && !hasAdminRole && ['selectmovie', 'pickmovie', 'rollmovie', 'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie'].includes(command)) {
+        message.reply('You do not have permission to use this command.');
     }
 
     if (hasMovieNightOrAdminRole) {
@@ -684,24 +699,25 @@ For the **number-based commands**, you can reference a movie by its position in 
                 return;
             }
 
-            const movieTime = new Date(timeInput);
+            const timezone = process.env.TIMEZONE || 'Europe/London';
+            const movieTime = moment.tz(timeInput, 'YYYY-MM-DD HH:mm', timezone);
 
-            if (isNaN(movieTime.getTime())) {
+            if (!movieTime.isValid()) {
                 message.reply('Invalid date and time format. Please use `YYYY-MM-DD HH:mm`.');
                 return;
             }
 
-            const now = new Date();
-            const timeUntilMovie = movieTime.getTime() - now.getTime();
+            const now = moment();
+            const timeUntilMovie = movieTime.diff(now);
 
-            const maxTimeAllowed = 21 * 24 * 60 * 60 * 1000; // 21 days
+            const maxTimeAllowed = moment.duration(21, 'days').asMilliseconds(); // 21 days
 
             if (timeUntilMovie > maxTimeAllowed) {
                 message.channel.send('Movie night cannot be scheduled more than 3 weeks in advance.');
                 return;
             }
 
-            const unixTimestamp = Math.floor(movieTime.getTime() / 1000);
+            const unixTimestamp = movieTime.unix();
             scheduledMovieTime = unixTimestamp;
 
             if (timeUntilMovie <= 0) {
@@ -709,8 +725,8 @@ For the **number-based commands**, you can reference a movie by its position in 
                 return;
             }
 
-            const twoHoursBefore = timeUntilMovie - 2 * 60 * 60 * 1000;
-            const fifteenMinutesBefore = timeUntilMovie - 15 * 60 * 1000;
+            const twoHoursBefore = timeUntilMovie - moment.duration(2, 'hours').asMilliseconds();
+            const fifteenMinutesBefore = timeUntilMovie - moment.duration(15, 'minutes').asMilliseconds();
 
             const role = message.guild.roles.cache.find(r => r.name === 'Movie Night');
             if (!role) {
@@ -737,7 +753,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 ? `We will be watching **${selectedMovie.name}**.`
                 : 'No movie has been selected yet.';
 
-            movieLog(`Movie night scheduled for ${movieTime} by ${message.author.tag}.`);
+            movieLog(`Movie night scheduled for ${movieTime.format('YYYY-MM-DD HH:mm:ss z')} by ${message.author.tag}.`);
             message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at <t:${Math.floor((unixTimestamp - 2 * 60 * 60))}:T> and <t:${Math.floor((unixTimestamp - 15 * 60))}:T>.`);
 
             if (twoHoursBefore > 0) {
@@ -1007,25 +1023,6 @@ For the **number-based commands**, you can reference a movie by its position in 
             movieLog(`Manual poll closure requested by ${message.author.tag}.`);
             closePoll(message.guild, pollChannel);
         }
-    } else if (
-        command === 'rollmovie' ||
-        command === 'randommovie' ||
-        command === 'pollmovie' ||
-        command === 'moviepoll' ||
-        command === 'movienight' ||
-        command === 'pickmovie' ||
-        command === 'selectmovie' ||
-        command === 'cancelmovie' ||
-        command === 'pollclose' ||
-        command === 'closepoll' ||
-        command === 'endpoll' ||
-        command === 'pollend' ||
-        command === 'endmovie' ||
-        command === 'clearlist'
-    ) {
-        message.reply('You do not have permission to use this command.');
-    } else if (command != 'moviehelp') {
-        message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 }
 

@@ -100,3 +100,9 @@ Initial release
 - Added reply to users using movie commands without Movie Night role
 - Updated poll tiebreak functionality to allow admins to choose or let bot decide
 - Prevented movie poll from being created within 30 minutes of movie start time
+
+# v1.2.5a
+
+## Movie Module
+- Fixed bug where bot would respond to task commands with movie role permissions error
+- Fixed timezone bug by allowing admins to explicitly set bot's timezone.
