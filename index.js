@@ -172,15 +172,15 @@ client.on('messageCreate', async (message) => {
 
     if (/\b(sleep)\b/i.test(message.content)) {
         const chance = Math.random();
-        if (chance < 0.05) {
+        if (chance < 0.02) {
             message.channel.send(`I ain\'t afraid of no sleep! ${bedgeEmote}`);
             return;
         }
-        if (chance > 0.05 && chance < 0.1) {
+        if (chance > 0.02 && chance < 0.04) {
             message.channel.send(`I ain\'t afraid of no bed! ${bedgeEmote}`);
             return;
         }
-        if (chance > 0.1 && chance < 0.15) {
+        if (chance > 0.04 && chance < 0.06) {
             message.channel.send(`Sleepin\' makes me feel good! ${bedgeEmote}`);
             return;
         }
