@@ -1,10 +1,12 @@
 require('dotenv').config();
 const fs = require('fs');
+const path = require('path');
 const { EmbedBuilder } = require('discord.js');
 const moment = require('moment-timezone');
 
 const pathMovies = './data/movie/movies.json';
 const pathUserMovieCount = './data/movie/userMovieCount.json';
+const dir = path.dirname(pathMovies);
 
 //Cooldowns
 const addMovieCooldown = new Map();
@@ -28,6 +30,9 @@ function movieLog(...args) {
 
 // Load movies from JSON file
 function loadMovies() {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
     if (!fs.existsSync(pathMovies)) {
         const initialData = [];
         fs.writeFileSync(pathMovies, JSON.stringify(initialData, null, 4), 'utf8');
