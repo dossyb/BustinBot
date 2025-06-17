@@ -795,6 +795,67 @@ For the **number-based commands**, you can reference a movie by its position in 
             }
         }
 
+        if (command === 'postponemovie' || command == 'ppmovie') {
+            if (!scheduledMovieTime) {
+                message.reply('There is no scheduled movie night to postpone.');
+                return;
+            }
+
+            const delayMinutes = parseInt(args[0], 10);
+            if (isNaN(delayMinutes) || delayMinutes <= 0) {
+                message.reply('Please provide a valid number of minutes to postpone the movie night.');
+                return;
+            }
+
+            if (delayMinutes > 1440) {
+                message.reply('You cannot postpone the movie night by more than 24 hours (1440 minutes). Please cancel the movie night and reschedule it instead.');
+                return;
+            }
+
+            const originalTime = scheduledMovieTime;
+            scheduledMovieTime += delayMinutes * 60; // Convert minutes to seconds
+
+            movieLog(`Movie night postponed by ${delayMinutes} minutes by ${message.author.tag}. Original time: ${moment.unix(originalTime).format('YYYY-MM-DD HH:mm:ss z')}, New time: ${moment.unix(scheduledMovieTime).format('YYYY-MM-DD HH:mm:ss z')}.`);
+            message.channel.send(`Movie night has been postponed by ${delayMinutes} minutes. New time: <t:${scheduledMovieTime}:F>.`);
+
+            // Reschedule reminders
+            const now = Math.floor(Date.now() / 1000);
+            const timeUntilMovie = (scheduledMovieTime - now) * 1000;
+            const twoHoursBefore = timeUntilMovie - (2 * 60 * 60 * 1000);
+            const fifteenMinutesBefore = timeUntilMovie - (15 * 60 * 1000);
+
+            const role = message.guild.roles.cache.find(r => r.name === 'Movie Night');
+            if (!role) {
+                message.channel.send('"Movie Night" role not found.');
+                return;
+            }
+
+            if (scheduledReminders.twoHoursBefore) {
+                clearTimeout(scheduledReminders.twoHoursBefore);
+                delete scheduledReminders.twoHoursBefore;
+            }
+
+            if (scheduledReminders.fifteenMinutesBefore) {
+                clearTimeout(scheduledReminders.fifteenMinutesBefore);
+                delete scheduledReminders.fifteenMinutesBefore;
+            }
+
+            if (scheduledReminders.movieTime) {
+                clearTimeout(scheduledReminders.movieTime);
+                delete scheduledReminders.movieTime;
+            }
+
+            if (twoHoursBefore > 0) {
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
+            }
+
+            if (fifteenMinutesBefore > 0) {
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
+            }
+
+            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel!`, timeUntilMovie, 'movieTime');
+        }
+
         if (command === 'pickmovie' || command === 'selectmovie') {
             const input = args.join(' ');
 
