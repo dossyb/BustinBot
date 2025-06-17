@@ -298,18 +298,19 @@ async function handleMovieCommands(message, client) {
     const command = args.shift().toLowerCase();
 
     const movieNightRole = message.guild.roles.cache.find(r => r.name === 'Movie Night');
+    const movieAdminRole = message.guild.roles.cache.find(r => r.name === 'Movie Admin');
     const adminRole = message.guild.roles.cache.find(r => r.name === 'BustinBot Admin');
 
-    if (!movieNightRole || !adminRole) {
-        console.error("Movie Night or BustinBot Admin role not found.");
+    if (!movieNightRole || !movieAdminRole || !adminRole) {
+        console.error("Required roles not found.");
         message.channel.send("An error occurred: Required roles not found on this server.");
         return;
     }
 
     const hasMovieNightOrAdminRole = message.member.roles.cache.some(role =>
-        role.id === movieNightRole.id || role.id === adminRole.id
+        role.id === movieNightRole.id || role.id === movieAdminRole.id || role.id === adminRole.id
     );
-    const hasAdminRole = message.member.roles.cache.some(role => role.id === adminRole.id);
+    const hasAdminRole = message.member.roles.cache.some(role => role.id === movieAdminRole.id || role.id === adminRole.id);
 
     const movieCommands = ['addmovie', 'removemovie', 'removie', 'editmovie', 'movielist', 'listmovie',
         'movie', 'getmovie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
