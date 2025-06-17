@@ -666,16 +666,37 @@ For the **number-based commands**, you can reference a movie by its position in 
         }
 
         if (command === 'moviecount' || command === 'countmovie') {
-            const userId = message.author.id;
+            let targetUsername = args[0];
+            let targetUserId, targetTag;
 
-            if (!userMovieCount[userId]) {
-                userMovieCount[userId] = 0;
+            if (targetUsername) {
+                // Find the userId by username
+                const userEntry = Object.entries(userMovieCount).find(([id]) => {
+                    const member = message.guild.members.cache.get(id);
+                    return member && member.user.username === targetUsername;
+                });
+
+                if (!userEntry) {
+                    message.reply(`User **${targetUsername}** not found in the movie list.`);
+                    return;
+                }
+
+                [targetUserId] = userEntry;
+                const member = message.guild.members.cache.get(targetUserId);
+                targetTag = member ? member.user.tag : targetUsername;
+            } else {
+                targetUserId = message.author.id;
+                targetTag = message.author.tag;
             }
 
-            const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
-            const moviesAdded = movieList.filter(movie => movie.suggestedby === message.author.tag);
+            if (userMovieCount[targetUserId] === undefined) {
+                userMovieCount[targetUserId] = 0;
+            }
 
-            let response = `You have ${moviesLeft} movie(s) left to add.\n\n**Movies added by you:**\n`;
+            const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[targetUserId];
+            const moviesAdded = movieList.filter(movie => movie.userId === targetUserId);
+
+            let response = `**${targetTag}** has ${moviesLeft} movie(s) left to add.\n\n**Movies in list:**\n`;
 
             if (moviesAdded.length === 0) {
                 response += 'No movies added yet.';
@@ -1088,7 +1109,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         if (command === 'setmoviecount') {
             const [username, countStr] = args;
             if (!username || !countStr) {
-                message.reply('Please provide a username and the new movie count. Example: `!setmoviecount BustinBot 5`.');
+                message.reply('Please provide a username and the new movie count. Example: `!setmoviecount BustinBot 3`.');
                 return;
             }
 
