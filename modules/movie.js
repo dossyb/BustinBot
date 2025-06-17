@@ -326,9 +326,9 @@ async function handleMovieCommands(message, client) {
 - **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number. Standard users can only remove movies they have added.
 - **!editmovie <number> <new name>**: Edit a movie's name. Standard users can only edit movies they have added.
 - **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
-- **!movie <name|number>**: Show details of a specific movie by its name or number.
+- **!movie <name|number>**/**!getmovie <name|number>**: Show details of a specific movie by its name or number.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
-- **!moviecount**/**!countmovie**: List the movies you have added and show how many you can still add.
+- **!moviecount** <name>/**!countmovie** <name>: List the movies you have added and show how many you can still add.
 `;
 
         if (hasAdminRole) {
@@ -341,6 +341,7 @@ async function handleMovieCommands(message, client) {
 - **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
 - **!postponemovie <minutes>**/**!ppmovie <minutes>**: Postpone the scheduled movie night by a specified number of minutes (max 24 hours).
+- **!setmoviecount <number>**: Set the number of movies a user has added to the movie list. 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
 - **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
 - **!moviehelp**: Show this list of commands.
