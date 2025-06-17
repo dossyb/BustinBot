@@ -257,13 +257,7 @@ function removeMovieFromList(movieName, client) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
         const removedMovie = movieList.splice(movieIndex, 1)[0];
-        const userTag = removedMovie.suggestedby;
-
-        // Check if the user exists in the cache
-        const userId = Object.keys(userMovieCount).find(id => {
-            const user = client.users.cache.get(id);
-            return user && user.tag === userTag;
-        });
+        const userId = removedMovie.userId;
 
         // Only update movie count if the user is found
         if (userId && userMovieCount[userId] > 0) {
@@ -942,7 +936,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const randomIndex = Math.floor(Math.random() * shuffledMovieList.length);
             selectedMovie = shuffledMovieList[randomIndex];
-            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1}, added by *${selectedMovie.suggestedby}*).`);
+            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1}), added by *${selectedMovie.suggestedby}*.`);
         }
 
         if (command === 'pollmovie' || command === 'moviepoll') {
