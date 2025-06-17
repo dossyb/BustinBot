@@ -977,7 +977,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 const amount = parseInt(args[0], 10);
 
                 if (isNaN(amount) || amount <= 0) {
-                    message.reply('Please provide a valid number of movies to choose from.');
+                    message.reply('Please provide a valid number of movies to choose from or a list of movies.');
                     return;
                 }
 
@@ -1033,6 +1033,11 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
             } else {
                 // Option 2: !pollmovie <m1>, <m2>, <m3>, ...
+                if (args.length === 0 || args.join(' ').trim() === '') {
+                    message.reply('Please provide a valid number of movies to choose from or a list of movies.');
+                    return;
+                }
+                
                 const selectedMovies = [];
                 const movieArgs = args.join(' ').split(',').map(arg => arg.trim());
 
@@ -1064,6 +1069,11 @@ For the **number-based commands**, you can reference a movie by its position in 
 
                 if (selectedMovies.length > pollEmojis.length) {
                     message.reply(`The maximum number of movies for a poll is ${pollEmojis.length}. Please try again.`);
+                    return;
+                }
+
+                if (selectedMovies.length === 0) {
+                    message.reply('No valid movies were provided for the poll. Please try again.');
                     return;
                 }
 
