@@ -345,6 +345,7 @@ async function handleMovieCommands(message, client) {
 - **!pollmovie <m1>, <m2>, <m3> ...**: Create a poll with the specified movies as options.
 - **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
+- **!postponemovie <minutes>**/**!ppmovie <minutes>**: Postpone the scheduled movie night by a specified number of minutes (max 24 hours).
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
 - **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
 - **!moviehelp**: Show this list of commands.
