@@ -942,7 +942,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const randomIndex = Math.floor(Math.random() * shuffledMovieList.length);
             selectedMovie = shuffledMovieList[randomIndex];
-            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1})`);
+            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1}, added by *${selectedMovie.suggestedby}*).`);
         }
 
         if (command === 'pollmovie' || command === 'moviepoll') {
