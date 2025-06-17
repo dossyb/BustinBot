@@ -312,7 +312,7 @@ async function handleMovieCommands(message, client) {
     const hasAdminRole = message.member.roles.cache.some(role => role.id === adminRole.id);
 
     const movieCommands = ['addmovie', 'removemovie', 'removie', 'editmovie', 'movielist', 'listmovie',
-        'movie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
+        'movie', 'getmovie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
         'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie', 'moviehelp'
     ];
 
@@ -613,7 +613,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             });
         }
 
-        if (command === 'movie') {
+        if (command === 'movie' || command === 'getmovie') {
             const input = args.join(' ');
 
             if (!input) {
