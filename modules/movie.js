@@ -356,7 +356,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 
-    else if (movieCommands.includes(command) && !hasAdminRole && ['selectmovie', 'pickmovie', 'rollmovie', 'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie'].includes(command)) {
+    else if (movieCommands.includes(command) && !hasAdminRole && ['selectmovie', 'pickmovie', 'rollmovie', 'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie', 'postponemovie', 'ppmovie', 'setmoviecount'].includes(command)) {
         message.reply('You do not have permission to use this command.');
     }
 
@@ -1083,6 +1083,41 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             movieLog(`Manual poll closure requested by ${message.author.tag}.`);
             closePoll(message.guild, pollChannel);
+        }
+
+        if (command === 'setmoviecount') {
+            const [username, countStr] = args;
+            if (!username || !countStr) {
+                message.reply('Please provide a username and the new movie count. Example: `!setmoviecount BustinBot 5`.');
+                return;
+            }
+
+            const count = parseInt(countStr, 10);
+            if (isNaN(count) || count < 0) {
+                message.reply('Please provide a valid number for the movie count.');
+                return;
+            }
+
+            if (count > MAX_MOVIES_PER_USER) {
+                message.reply(`The maximum number of movies per user is ${MAX_MOVIES_PER_USER}. Please try again.`);
+                return;
+            }
+
+            const userEntry = Object.entries(userMovieCount).find(([id]) => {
+                const member = message.guild.members.cache.get(id);
+                return member && member.user.username === username;
+            });
+
+            if (!userEntry) {
+                message.reply(`ID for user **${username}** not found in the movie count data.`);
+                return;
+            }
+
+            const [userId] = userEntry;
+            userMovieCount[userId] = count;
+            saveUserMovieCount();
+            message.reply(`Set movie count for **${username}** to ${count}.`);
+            movieLog(`Movie count for user ${username} set to ${count} by ${message.author.tag}.`);
         }
     }
 }
