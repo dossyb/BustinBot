@@ -257,13 +257,7 @@ function removeMovieFromList(movieName, client) {
     const movieIndex = movieList.findIndex(movie => movie.name.toLowerCase() === movieName.toLowerCase());
     if (movieIndex !== -1) {
         const removedMovie = movieList.splice(movieIndex, 1)[0];
-        const userTag = removedMovie.suggestedby;
-
-        // Check if the user exists in the cache
-        const userId = Object.keys(userMovieCount).find(id => {
-            const user = client.users.cache.get(id);
-            return user && user.tag === userTag;
-        });
+        const userId = removedMovie.userId;
 
         // Only update movie count if the user is found
         if (userId && userMovieCount[userId] > 0) {
@@ -304,21 +298,22 @@ async function handleMovieCommands(message, client) {
     const command = args.shift().toLowerCase();
 
     const movieNightRole = message.guild.roles.cache.find(r => r.name === 'Movie Night');
+    const movieAdminRole = message.guild.roles.cache.find(r => r.name === 'Movie Admin');
     const adminRole = message.guild.roles.cache.find(r => r.name === 'BustinBot Admin');
 
-    if (!movieNightRole || !adminRole) {
-        console.error("Movie Night or BustinBot Admin role not found.");
+    if (!movieNightRole || !movieAdminRole || !adminRole) {
+        console.error("Required roles not found.");
         message.channel.send("An error occurred: Required roles not found on this server.");
         return;
     }
 
     const hasMovieNightOrAdminRole = message.member.roles.cache.some(role =>
-        role.id === movieNightRole.id || role.id === adminRole.id
+        role.id === movieNightRole.id || role.id === movieAdminRole.id || role.id === adminRole.id
     );
-    const hasAdminRole = message.member.roles.cache.some(role => role.id === adminRole.id);
+    const hasAdminRole = message.member.roles.cache.some(role => role.id === movieAdminRole.id || role.id === adminRole.id);
 
     const movieCommands = ['addmovie', 'removemovie', 'removie', 'editmovie', 'movielist', 'listmovie',
-        'movie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
+        'movie', 'getmovie', 'currentmovie', 'moviecount', 'countmovie', 'selectmovie', 'pickmovie', 'rollmovie',
         'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie', 'moviehelp'
     ];
 
@@ -331,9 +326,9 @@ async function handleMovieCommands(message, client) {
 - **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number. Standard users can only remove movies they have added.
 - **!editmovie <number> <new name>**: Edit a movie's name. Standard users can only edit movies they have added.
 - **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
-- **!movie <name|number>**: Show details of a specific movie by its name or number.
+- **!movie <name|number>**/**!getmovie <name|number>**: Show details of a specific movie by its name or number.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
-- **!moviecount**/**!countmovie**: List the movies you have added and show how many you can still add.
+- **!moviecount** <name>/**!countmovie** <name>: List the movies you have added and show how many you can still add.
 `;
 
         if (hasAdminRole) {
@@ -345,6 +340,8 @@ async function handleMovieCommands(message, client) {
 - **!pollmovie <m1>, <m2>, <m3> ...**: Create a poll with the specified movies as options.
 - **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
+- **!postponemovie <minutes>**/**!ppmovie <minutes>**: Postpone the scheduled movie night by a specified number of minutes (max 24 hours).
+- **!setmoviecount <number>**: Set the number of movies a user has added to the movie list. 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
 - **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
 - **!moviehelp**: Show this list of commands.
@@ -361,7 +358,7 @@ For the **number-based commands**, you can reference a movie by its position in 
         message.reply('You must have the "Movie Night" role to use movie commands. Use `!moviehelp` for more info.');
     }
 
-    else if (movieCommands.includes(command) && !hasAdminRole && ['selectmovie', 'pickmovie', 'rollmovie', 'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie'].includes(command)) {
+    else if (movieCommands.includes(command) && !hasAdminRole && ['selectmovie', 'pickmovie', 'rollmovie', 'randommovie', 'pollmovie', 'pollclose', 'closepoll', 'movienight', 'cancelmovie', 'endmovie', 'postponemovie', 'ppmovie', 'setmoviecount'].includes(command)) {
         message.reply('You do not have permission to use this command.');
     }
 
@@ -618,7 +615,7 @@ For the **number-based commands**, you can reference a movie by its position in 
             });
         }
 
-        if (command === 'movie') {
+        if (command === 'movie' || command === 'getmovie') {
             const input = args.join(' ');
 
             if (!input) {
@@ -671,16 +668,37 @@ For the **number-based commands**, you can reference a movie by its position in 
         }
 
         if (command === 'moviecount' || command === 'countmovie') {
-            const userId = message.author.id;
+            let targetUsername = args[0];
+            let targetUserId, targetTag;
 
-            if (!userMovieCount[userId]) {
-                userMovieCount[userId] = 0;
+            if (targetUsername) {
+                // Find the userId by username
+                const userEntry = Object.entries(userMovieCount).find(([id]) => {
+                    const member = message.guild.members.cache.get(id);
+                    return member && member.user.username === targetUsername;
+                });
+
+                if (!userEntry) {
+                    message.reply(`User **${targetUsername}** not found in the movie list.`);
+                    return;
+                }
+
+                [targetUserId] = userEntry;
+                const member = message.guild.members.cache.get(targetUserId);
+                targetTag = member ? member.user.tag : targetUsername;
+            } else {
+                targetUserId = message.author.id;
+                targetTag = message.author.tag;
             }
 
-            const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[userId];
-            const moviesAdded = movieList.filter(movie => movie.suggestedby === message.author.tag);
+            if (userMovieCount[targetUserId] === undefined) {
+                userMovieCount[targetUserId] = 0;
+            }
 
-            let response = `You have ${moviesLeft} movie(s) left to add.\n\n**Movies added by you:**\n`;
+            const moviesLeft = MAX_MOVIES_PER_USER - userMovieCount[targetUserId];
+            const moviesAdded = movieList.filter(movie => movie.userId === targetUserId);
+
+            let response = `**${targetTag}** has ${moviesLeft} movie(s) left to add.\n\n**Movies in list:**\n`;
 
             if (moviesAdded.length === 0) {
                 response += 'No movies added yet.';
@@ -759,7 +777,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 : 'No movie has been selected yet.';
 
             movieLog(`Movie night scheduled for ${movieTime.format('YYYY-MM-DD HH:mm:ss z')} by ${message.author.tag}.`);
-            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at <t:${Math.floor((unixTimestamp - 2 * 60 * 60))}:T> and <t:${Math.floor((unixTimestamp - 15 * 60))}:T>.`);
+            message.channel.send(`Movie night has been scheduled for <t:${unixTimestamp}:F>! ${movieMessage} Reminders will be sent at <t:${Math.floor((unixTimestamp - 2 * 60 * 60))}:T> and <t:${Math.floor((unixTimestamp - 15 * 60))}:T> if those times have not already passed.`);
 
             if (twoHoursBefore > 0) {
                 scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
@@ -793,6 +811,67 @@ For the **number-based commands**, you can reference a movie by its position in 
                     }
                 }
             }
+        }
+
+        if (command === 'postponemovie' || command == 'ppmovie') {
+            if (!scheduledMovieTime) {
+                message.reply('There is no scheduled movie night to postpone.');
+                return;
+            }
+
+            const delayMinutes = parseInt(args[0], 10);
+            if (isNaN(delayMinutes) || delayMinutes <= 0) {
+                message.reply('Please provide a valid number of minutes to postpone the movie night.');
+                return;
+            }
+
+            if (delayMinutes > 1440) {
+                message.reply('You cannot postpone the movie night by more than 24 hours (1440 minutes). Please cancel the movie night and reschedule it instead.');
+                return;
+            }
+
+            const originalTime = scheduledMovieTime;
+            scheduledMovieTime += delayMinutes * 60; // Convert minutes to seconds
+
+            movieLog(`Movie night postponed by ${delayMinutes} minutes by ${message.author.tag}. Original time: ${moment.unix(originalTime).format('YYYY-MM-DD HH:mm:ss z')}, New time: ${moment.unix(scheduledMovieTime).format('YYYY-MM-DD HH:mm:ss z')}.`);
+            message.channel.send(`Movie night has been postponed by ${delayMinutes} minutes. New time: <t:${scheduledMovieTime}:F>.`);
+
+            // Reschedule reminders
+            const now = Math.floor(Date.now() / 1000);
+            const timeUntilMovie = (scheduledMovieTime - now) * 1000;
+            const twoHoursBefore = timeUntilMovie - (2 * 60 * 60 * 1000);
+            const fifteenMinutesBefore = timeUntilMovie - (15 * 60 * 1000);
+
+            const role = message.guild.roles.cache.find(r => r.name === 'Movie Night');
+            if (!role) {
+                message.channel.send('"Movie Night" role not found.');
+                return;
+            }
+
+            if (scheduledReminders.twoHoursBefore) {
+                clearTimeout(scheduledReminders.twoHoursBefore);
+                delete scheduledReminders.twoHoursBefore;
+            }
+
+            if (scheduledReminders.fifteenMinutesBefore) {
+                clearTimeout(scheduledReminders.fifteenMinutesBefore);
+                delete scheduledReminders.fifteenMinutesBefore;
+            }
+
+            if (scheduledReminders.movieTime) {
+                clearTimeout(scheduledReminders.movieTime);
+                delete scheduledReminders.movieTime;
+            }
+
+            if (twoHoursBefore > 0) {
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 2 hours!`, twoHoursBefore, 'twoHoursBefore');
+            }
+
+            if (fifteenMinutesBefore > 0) {
+                scheduleReminder(message.guild, role, `Reminder: Movie night starts in 15 minutes!`, fifteenMinutesBefore, 'fifteenMinutesBefore');
+            }
+
+            scheduleReminder(message.guild, role, `Movie night is starting now! Join us in the movies channel!`, timeUntilMovie, 'movieTime');
         }
 
         if (command === 'pickmovie' || command === 'selectmovie') {
@@ -880,7 +959,7 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             const randomIndex = Math.floor(Math.random() * shuffledMovieList.length);
             selectedMovie = shuffledMovieList[randomIndex];
-            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1})`);
+            message.channel.send(`Selected movie: **${selectedMovie.name}** (${randomIndex + 1}), added by *${selectedMovie.suggestedby}*.`);
         }
 
         if (command === 'pollmovie' || command === 'moviepoll') {
@@ -898,7 +977,7 @@ For the **number-based commands**, you can reference a movie by its position in 
                 const amount = parseInt(args[0], 10);
 
                 if (isNaN(amount) || amount <= 0) {
-                    message.reply('Please provide a valid number of movies to choose from.');
+                    message.reply('Please provide a valid number of movies to choose from or a list of movies.');
                     return;
                 }
 
@@ -954,6 +1033,11 @@ For the **number-based commands**, you can reference a movie by its position in 
                 message.channel.send('To end the poll and count the votes, use `!pollclose`. Otherwise, the poll will automatically close after 24 hours or 30 minutes before movie night (whichever comes first).');
             } else {
                 // Option 2: !pollmovie <m1>, <m2>, <m3>, ...
+                if (args.length === 0 || args.join(' ').trim() === '') {
+                    message.reply('Please provide a valid number of movies to choose from or a list of movies.');
+                    return;
+                }
+                
                 const selectedMovies = [];
                 const movieArgs = args.join(' ').split(',').map(arg => arg.trim());
 
@@ -985,6 +1069,11 @@ For the **number-based commands**, you can reference a movie by its position in 
 
                 if (selectedMovies.length > pollEmojis.length) {
                     message.reply(`The maximum number of movies for a poll is ${pollEmojis.length}. Please try again.`);
+                    return;
+                }
+
+                if (selectedMovies.length === 0) {
+                    message.reply('No valid movies were provided for the poll. Please try again.');
                     return;
                 }
 
@@ -1027,6 +1116,41 @@ For the **number-based commands**, you can reference a movie by its position in 
 
             movieLog(`Manual poll closure requested by ${message.author.tag}.`);
             closePoll(message.guild, pollChannel);
+        }
+
+        if (command === 'setmoviecount') {
+            const [username, countStr] = args;
+            if (!username || !countStr) {
+                message.reply('Please provide a username and the new movie count. Example: `!setmoviecount BustinBot 3`.');
+                return;
+            }
+
+            const count = parseInt(countStr, 10);
+            if (isNaN(count) || count < 0) {
+                message.reply('Please provide a valid number for the movie count.');
+                return;
+            }
+
+            if (count > MAX_MOVIES_PER_USER) {
+                message.reply(`The maximum number of movies per user is ${MAX_MOVIES_PER_USER}. Please try again.`);
+                return;
+            }
+
+            const userEntry = Object.entries(userMovieCount).find(([id]) => {
+                const member = message.guild.members.cache.get(id);
+                return member && member.user.username === username;
+            });
+
+            if (!userEntry) {
+                message.reply(`ID for user **${username}** not found in the movie count data.`);
+                return;
+            }
+
+            const [userId] = userEntry;
+            userMovieCount[userId] = count;
+            saveUserMovieCount();
+            message.reply(`Set movie count for **${username}** to ${count}.`);
+            movieLog(`Movie count for user ${username} set to ${count} by ${message.author.tag}.`);
         }
     }
 }

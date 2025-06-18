@@ -106,3 +106,20 @@ Initial release
 ## Movie Module
 - Fixed bug where bot would respond to task commands with movie role permissions error
 - Fixed timezone bug by allowing admins to explicitly set bot's timezone.
+
+# v1.2.6
+
+## Movie Module
+- Fixed bug where !endmovie would occasionally not update the suggester's movie count
+- Fixed bug where the !pollmovie command would return an incorrect error message when no parameters were given
+- Introduced the "Movie Admin" role allowing non-BustinBot Admin users to use admin-level movie commands
+- Implemented !postponemovie command to allow a scheduled movie night to be postponed by a given number of minutes
+- Updated !rollmovie to show who added the rolled movie to the list
+- Updated !moviecount to accept an optional parameter for a specific username
+- Added !setmoviecount command to manually update a user's movie count
+- Updated movie night wording to specify that reminders will only be sent at the listed times if that time has not already passed.
+
+## Task Module
+- Added submission validation to prevent duplicate submissions being approved for the same task
+- Refined winner roll to only include submissions from closed tasks and ignore the active task
+- Added command allowing BustinBot admins to pause weekly task scheduling.

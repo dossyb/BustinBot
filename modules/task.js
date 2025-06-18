@@ -8,7 +8,9 @@ const emoteUtils = require('./utils/emote');
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
+const pathTaskSubmissions = './data/task/taskSubmissions.json';
 const pathPollData = './data/task/pollData.json';
+const pathBotData = './data/botData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
@@ -134,6 +136,26 @@ function initialiseTaskUserFiles() {
     }
 }
 
+function loadBotData() {
+    return JSON.parse(fs.readFileSync(pathBotData, 'utf8'));
+}
+
+function saveBotData(botData) {
+    fs.writeFileSync(pathBotData, JSON.stringify(botData, null, 4), 'utf8');
+}
+
+function isTaskPaused() {
+    const botData = loadBotData();
+    return botData.task && botData.task.paused;
+}
+
+function setTaskPaused(paused) {
+    const botData = loadBotData();
+    botData.task = botData.task || {};
+    botData.task.paused = paused;
+    saveBotData(botData);
+}
+
 function loadUsers(filePath) {
     const data = readJSON(filePath);
     return data ? data.users : [];
@@ -214,6 +236,17 @@ function saveRecentKeywords(keywords) {
     writeJSON(recentKeywordsPath, keywords);
 }
 
+function loadTaskSubmissions() {
+    if (!fs.existsSync(pathTaskSubmissions)) {
+        fs.writeFileSync(pathTaskSubmissions, JSON.stringify({ activeTaskId: null, submissions: [] }, null, 4), 'utf8');
+    }
+    return readJSON(pathTaskSubmissions);
+}
+
+function saveTaskSubmissions(data) {
+    writeJSON(pathTaskSubmissions, data);
+}
+
 function getUniqueKeyword() {
     const keywords = readJSON(keywordsPath);
     const recentKeywords = loadRecentKeywords();
@@ -274,16 +307,34 @@ async function handleTaskSubmissions(message, client) {
             }
 
             const userId = message.author.id;
+            const activeTask = loadActiveTask();
+            const taskSubmissions = loadTaskSubmissions();
+
+            if (
+                activeTask &&
+                taskSubmissions.instanceId === activeTask.instanceId &&
+                taskSubmissions.submissions.includes(userId)
+            ) {
+                // User already has approved submission for this task
+                const botAdminChannel = getChannelByName(client, 'botadmin');
+                if (botAdminChannel) {
+                    await botAdminChannel.send(`<@${userId}> already has an approved submission for this task.`);
+                }
+                reaction.users.remove(user.id);
+                taskLog(`Task submission by ${user.username} denied, already approved for this task.`);
+                return;
+            }
 
             // Add user to user lists
-            let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
-
-            monthlyUsers = updateSubmissionCount(monthlyUsers, userId);
             allUsers = updateSubmissionCount(allUsers, userId);
-
-            saveUsers(pathTaskMonthlyUsers, monthlyUsers);
             saveUsers(pathTaskAllUsers, allUsers);
+
+            // Add user to task submissions
+            if (activeTask && taskSubmissions.instanceId === activeTask.instanceId) {
+                taskSubmissions.submissions.push(userId);
+                saveTaskSubmissions(taskSubmissions);
+            }
 
             // React to message to confirm submission
             const bustinEmote = client.emojis.cache.find(emoji => emoji.name === 'Bustin');
@@ -311,7 +362,7 @@ async function handleTaskSubmissions(message, client) {
 
         collector.on('remove', async (reaction, user) => {
             if (reaction.emoji.name === '✅' && !reaction.users.cache.has(client.user.id)) {
-                taskLog(`Approval on submission ${message.id} removed for ${user.username}`);
+                taskLog(`Approval on submission ${message.id} removed for ${user.username}.`);
             }
         });
 
@@ -377,6 +428,10 @@ function schedulePoll(client) {
     // const timeUntilNextPoll = POLL_INTERVAL;
 
     // Production code
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping poll scheduling.');
+        return;
+    }
 
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
@@ -426,6 +481,11 @@ async function updateVotesFromReacts(message, votes) {
 
 // Post task poll
 async function postTaskPoll(client) {
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping poll posting.');
+        return;
+    }
+
     const tasks = getRandomTasks(3);
     if (tasks.length < 3) {
         reportError(client, null, 'Not enough tasks to post poll.');
@@ -444,6 +504,11 @@ async function postTaskPoll(client) {
         reportError(client, null, 'Community event/competition role not found.');
         return;
     }
+
+    taskLog('Posting new poll with tasks:')
+    tasks.forEach(task => {
+        taskLog(`- ${task.taskName} (ID: ${task.id})`);
+    });
 
     const pollData = readJSON(pathPollData) || {};
     if (pollData.lastPollId) {
@@ -577,6 +642,11 @@ function scheduleTaskAnnouncement(client) {
     // const timeUntilNextTask = TASK_DURATION;
 
     // Production code
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping task announcement scheduling.');
+        return;
+    }
+
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
@@ -595,9 +665,30 @@ function scheduleTaskAnnouncement(client) {
 }
 
 async function postTaskAnnouncement(client) {
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping task announcement.');
+        return;
+    }
+
     if (!activePoll) {
         reportError(client, null, 'No active poll to announce.');
         return;
+    }
+
+    const taskSubmissions = loadTaskSubmissions();
+    let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+
+    if (taskSubmissions && Array.isArray(taskSubmissions.submissions) && taskSubmissions.submissions.length > 0) {
+        taskSubmissions.submissions.forEach(userId => {
+            const user = monthlyUsers.find(u => u.id === userId);
+            if (user) {
+                user.submissions++;
+            } else {
+                monthlyUsers.push({ id: userId, submissions: 1 });
+            }
+        });
+        saveUsers(pathTaskMonthlyUsers, monthlyUsers);
+        taskLog('Updated monthly users with task submissions.');
     }
 
     const channel = getChannelByName(client, '📆weekly-task');
@@ -607,12 +698,14 @@ async function postTaskAnnouncement(client) {
     }
 
     // Close the poll
+    let now = Date.now();
     const selectedTask = await closeTaskPoll(client);
 
     if (!selectedTask) {
         reportError(client, null, 'No winning task found.');
         return;
     }
+    const instanceId = `${selectedTask.id}-${now}`;
 
     const uniqueKeyword = getUniqueKeyword();
     if (!uniqueKeyword) {
@@ -623,7 +716,7 @@ async function postTaskAnnouncement(client) {
     const instructionText = instructionMap[selectedTask.instruction];
     const submissionChannel = getChannelByName(client, '📥task-submissions');
 
-    const now = new Date();
+    now = new Date();
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
 
@@ -636,8 +729,10 @@ async function postTaskAnnouncement(client) {
     });
 
     activePoll = null;
+    const activeTask = { id: selectedTask.id };
+    saveTaskSubmissions({ instanceId, activeTaskId: activeTask.id, submissions: [] });
 
-    saveActiveTask(selectedTask);
+    saveActiveTask({ ...selectedTask, instanceId });
 
     taskLog('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
@@ -797,6 +892,23 @@ async function handleTaskCommands(message, client) {
 
     // Commands restricted to BustinBot Admins
     if (isAdmin) {
+        if (command === 'toggletasks') {
+            const paused = isTaskPaused();
+            const newPaused = !paused;
+            setTaskPaused(newPaused);
+            message.channel.send(`Weekly tasks are now ${newPaused ? 'paused' : 'resumed'}.`);
+            taskLog(`Weekly tasks ${newPaused ? 'paused' : 'resumed'} by ${message.author.username}.`);
+            if (!newPaused) {
+                schedulePoll(client);
+                scheduleTaskAnnouncement(client);
+                scheduleWinnerAnnouncement(client);
+            } else {
+                clearTimeout(pollSchedule);
+                clearTimeout(taskAnnouncementSchedule);
+            }
+            return;
+        }
+
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }
