@@ -10,6 +10,7 @@ const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
 const pathTaskSubmissions = './data/task/taskSubmissions.json';
 const pathPollData = './data/task/pollData.json';
+const pathBotData = './data/botData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
 const recentKeywordsPath = './data/task/recentKeywords.json';
@@ -135,6 +136,26 @@ function initialiseTaskUserFiles() {
     }
 }
 
+function loadBotData() {
+    return JSON.parse(fs.readFileSync(pathBotData, 'utf8'));
+}
+
+function saveBotData(botData) {
+    fs.writeFileSync(pathBotData, JSON.stringify(botData, null, 4), 'utf8');
+}
+
+function isTaskPaused() {
+    const botData = loadBotData();
+    return botData.task && botData.task.paused;
+}
+
+function setTaskPaused(paused) {
+    const botData = loadBotData();
+    botData.task = botData.task || {};
+    botData.task.paused = paused;
+    saveBotData(botData);
+}
+
 function loadUsers(filePath) {
     const data = readJSON(filePath);
     return data ? data.users : [];
@@ -217,7 +238,7 @@ function saveRecentKeywords(keywords) {
 
 function loadTaskSubmissions() {
     if (!fs.existsSync(pathTaskSubmissions)) {
-        fs.writeFileSync(pathTaskSubmissions, JSON.stringify({ activeTaskId: null, submissions: []}, null, 4), 'utf8');
+        fs.writeFileSync(pathTaskSubmissions, JSON.stringify({ activeTaskId: null, submissions: [] }, null, 4), 'utf8');
     }
     return readJSON(pathTaskSubmissions);
 }
@@ -407,6 +428,10 @@ function schedulePoll(client) {
     // const timeUntilNextPoll = POLL_INTERVAL;
 
     // Production code
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping poll scheduling.');
+        return;
+    }
 
     const nextSunday = getNextDayOfWeek(0); // 0 = Sunday
     const timeUntilNextPoll = nextSunday.getTime() - Date.now();
@@ -456,6 +481,11 @@ async function updateVotesFromReacts(message, votes) {
 
 // Post task poll
 async function postTaskPoll(client) {
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping poll posting.');
+        return;
+    }
+
     const tasks = getRandomTasks(3);
     if (tasks.length < 3) {
         reportError(client, null, 'Not enough tasks to post poll.');
@@ -612,6 +642,11 @@ function scheduleTaskAnnouncement(client) {
     // const timeUntilNextTask = TASK_DURATION;
 
     // Production code
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping task announcement scheduling.');
+        return;
+    }
+
     const nextMonday = getNextDayOfWeek(1); // 1 = Monday
     const timeUntilNextTask = nextMonday.getTime() - Date.now();
 
@@ -630,6 +665,11 @@ function scheduleTaskAnnouncement(client) {
 }
 
 async function postTaskAnnouncement(client) {
+    if (isTaskPaused()) {
+        taskLog('Task scheduling is paused. Skipping task announcement.');
+        return;
+    }
+
     if (!activePoll) {
         reportError(client, null, 'No active poll to announce.');
         return;
@@ -852,6 +892,23 @@ async function handleTaskCommands(message, client) {
 
     // Commands restricted to BustinBot Admins
     if (isAdmin) {
+        if (command === 'toggletasks') {
+            const paused = isTaskPaused();
+            const newPaused = !paused;
+            setTaskPaused(newPaused);
+            message.channel.send(`Weekly tasks are now ${newPaused ? 'paused' : 'resumed'}.`);
+            taskLog(`Weekly tasks ${newPaused ? 'paused' : 'resumed'} by ${message.author.username}.`);
+            if (!newPaused) {
+                schedulePoll(client);
+                scheduleTaskAnnouncement(client);
+                scheduleWinnerAnnouncement(client);
+            } else {
+                clearTimeout(pollSchedule);
+                clearTimeout(taskAnnouncementSchedule);
+            }
+            return;
+        }
+
         if (command === 'taskpoll') {
             await postTaskPoll(client);
         }

@@ -3,7 +3,7 @@ logs
 .env
 movies.json
 userMovieCount.json
-counters.json
+botData.json
 taskAllUsers.json
 taskMonthlyUsers.json
 taskSubmissions.json

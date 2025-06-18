@@ -18,7 +18,7 @@ const emoteUtils = require('./modules/utils/emote');
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 
-const pathCounter = './data/counters.json';
+const pathBotData = './data/botData.json';
 const versionFilePath = path.join(__dirname, 'data/version.json');
 const changelogFilePath = path.join(__dirname, 'CHANGELOG.md');
 
@@ -66,19 +66,21 @@ function flushLogsOnExit() {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions] });
 
-function loadCounter() {
-    if (!fs.existsSync(pathCounter)) {
-        const initialData = { bustinCount: 0, goodbotCount: 0, badbotCount: 0 };
-        fs.writeFileSync(pathCounter, JSON.stringify(initialData, null, 4), 'utf8');
+function loadBotData() {
+    if (!fs.existsSync(pathBotData)) {
+        const initialData = {
+            counters: { bustinCount: 0, goodbotCount: 0, badbotCount: 0 },
+            task: { paused: false }
+        };
+        fs.writeFileSync(pathBotData, JSON.stringify(initialData, null, 4), 'utf8');
     }
-    const data = fs.readFileSync(pathCounter, 'utf8');
+    const data = fs.readFileSync(pathBotData, 'utf8');
     return JSON.parse(data);
 }
 
 // Save the counter data independent of the command used
-function saveCounter(count) {
-    const data = { bustinCount: bustinCount, goodbotCount: goodbotCount, badbotCount: badbotCount };
-    fs.writeFileSync(pathCounter, JSON.stringify(data, null, 4), 'utf8');
+function saveBotData(botData) {
+    fs.writeFileSync(pathBotData, JSON.stringify(botData, null, 4), 'utf8');
 }
 
 const versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
@@ -159,9 +161,10 @@ function extractChangesForVersion(changelog, version) {
     return versionChanges;
 }
 
-let bustinCount = loadCounter().bustinCount;
-let goodbotCount = loadCounter().goodbotCount;
-let badbotCount = loadCounter().badbotCount;
+let botData = loadBotData();
+let bustinCount = botData.counters.bustinCount;
+let goodbotCount = botData.counters.goodbotCount;
+let badbotCount = botData.counters.badbotCount;
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
@@ -197,7 +200,8 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'bustin') {
         bustinCount++;
-        saveCounter(bustinCount);
+        botData.counters.bustinCount = bustinCount;
+        saveBotData(botData);
 
         message.channel.send(`Bustin\' makes me feel good! ${bustinEmote}`);
         console.log(`${message.author.username} busted!`);
@@ -212,7 +216,8 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'goodbot') {
         goodbotCount++;
-        saveCounter(goodbotCount);
+        botData.counters.goodbotCount = goodbotCount;
+        saveBotData(botData);
         message.reply(`${bustinEmote}`);
         message.channel.send(`*BustinBot has been called a good bot ${goodbotCount} time(s)!*`);
 
@@ -221,7 +226,8 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'badbot') {
         badbotCount++;
-        saveCounter(badbotCount);
+        botData.counters.badbotCount = badbotCount;
+        saveBotData(botData);
         message.reply(`${sadEmote}`);
         message.channel.send(`*BustinBot has been called a bad bot ${badbotCount} time(s)!*`);
 
