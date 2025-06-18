@@ -323,24 +323,24 @@ async function handleMovieCommands(message, client) {
 
 **Use of these commands requires the "Movie Night" role.**
 - **!addmovie <name>**: Add a movie to the list.
-- **!removemovie <name|number>**/**!removie <name|number>**: Remove a movie from the list by its name or number. Standard users can only remove movies they have added.
+- **!removemovie <name|number>**: Remove a movie from the list by its name or number. Standard users can only remove movies they have added.
 - **!editmovie <number> <new name>**: Edit a movie's name. Standard users can only edit movies they have added.
-- **!movielist**/**!listmovie**: Show a numbered list of all movies in the list.
-- **!movie <name|number>**/**!getmovie <name|number>**: Show details of a specific movie by its name or number.
+- **!movielist**: Show a numbered list of all movies in the list.
+- **!movie <name|number>**: Show details of a specific movie by its name or number.
 - **!currentmovie**: Show the currently selected movie and the scheduled movie night time (if any).
-- **!moviecount** <name>/**!countmovie** <name>: List the movies you have added and show how many you can still add.
+- **!moviecount** <name>: List the movies you have added and show how many you can still add.
 `;
 
         if (hasAdminRole) {
             helpMessage += `
 **Admins**:
-- **!selectmovie <name|number>**/**!pickmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
-- **!rollmovie**/**!randommovie**: Randomly select a movie from the list. 
+- **!selectmovie <name|number>**: Select a movie from the list by its name or number for movie night. 
+- **!rollmovie**: Randomly select a movie from the list. 
 - **!pollmovie <amount>**: Randomly select <amount> of movies from the list and create a poll with them as options. 
 - **!pollmovie <m1>, <m2>, <m3> ...**: Create a poll with the specified movies as options.
-- **!pollclose**/**!closepoll**: Close the active poll, count the votes, and select the winning movie.
+- **!pollclose**: Close the active poll, count the votes, and select the winning movie.
 - **!movienight <YYYY-MM-DD HH:mm>**: Schedule a movie night at a specific time (within 3 weeks). 
-- **!postponemovie <minutes>**/**!ppmovie <minutes>**: Postpone the scheduled movie night by a specified number of minutes (max 24 hours).
+- **!postponemovie <minutes>**: Postpone the scheduled movie night by a specified number of minutes (max 24 hours).
 - **!setmoviecount <number>**: Set the number of movies a user has added to the movie list. 
 - **!cancelmovie**: Cancel the scheduled movie night and all reminders. 
 - **!endmovie**: End the current movie night, remove the selected movie from the list, and clear the schedule. 
