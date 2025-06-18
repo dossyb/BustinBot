@@ -286,13 +286,12 @@ async function handleTaskSubmissions(message, client) {
             }
 
             const userId = message.author.id;
-
             const activeTask = loadActiveTask();
             const taskSubmissions = loadTaskSubmissions();
 
             if (
                 activeTask &&
-                taskSubmissions.activeTaskId === activeTask.id &&
+                taskSubmissions.instanceId === activeTask.instanceId &&
                 taskSubmissions.submissions.includes(userId)
             ) {
                 // User already has approved submission for this task
@@ -306,17 +305,12 @@ async function handleTaskSubmissions(message, client) {
             }
 
             // Add user to user lists
-            let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
-
-            monthlyUsers = updateSubmissionCount(monthlyUsers, userId);
             allUsers = updateSubmissionCount(allUsers, userId);
-
-            saveUsers(pathTaskMonthlyUsers, monthlyUsers);
             saveUsers(pathTaskAllUsers, allUsers);
 
             // Add user to task submissions
-            if (activeTask && taskSubmissions.activeTaskId === activeTask.id) {
+            if (activeTask && taskSubmissions.instanceId === activeTask.instanceId) {
                 taskSubmissions.submissions.push(userId);
                 saveTaskSubmissions(taskSubmissions);
             }
@@ -636,6 +630,22 @@ async function postTaskAnnouncement(client) {
         return;
     }
 
+    const taskSubmissions = loadTaskSubmissions();
+    let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
+
+    if (taskSubmissions && Array.isArray(taskSubmissions.submissions) && taskSubmissions.submissions.length > 0) {
+        taskSubmissions.submissions.forEach(userId => {
+            const user = monthlyUsers.find(u => u.id === userId);
+            if (user) {
+                user.submissions++;
+            } else {
+                monthlyUsers.push({ id: userId, submissions: 1 });
+            }
+        });
+        saveUsers(pathTaskMonthlyUsers, monthlyUsers);
+        taskLog('Updated monthly users with task submissions.');
+    }
+
     const channel = getChannelByName(client, '📆weekly-task');
     if (!channel) {
         reportError(client, null, 'Weekly task channel not found.');
@@ -643,12 +653,14 @@ async function postTaskAnnouncement(client) {
     }
 
     // Close the poll
+    let now = Date.now();
     const selectedTask = await closeTaskPoll(client);
 
     if (!selectedTask) {
         reportError(client, null, 'No winning task found.');
         return;
     }
+    const instanceId = `${selectedTask.id}-${now}`;
 
     const uniqueKeyword = getUniqueKeyword();
     if (!uniqueKeyword) {
@@ -659,7 +671,7 @@ async function postTaskAnnouncement(client) {
     const instructionText = instructionMap[selectedTask.instruction];
     const submissionChannel = getChannelByName(client, '📥task-submissions');
 
-    const now = new Date();
+    now = new Date();
     const nextSunday = new Date(now.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))); // Get the next Sunday
     nextSunday.setUTCHours(23, 59, 0, 0); // Set time to 11:59 PM UTC
 
@@ -673,9 +685,9 @@ async function postTaskAnnouncement(client) {
 
     activePoll = null;
     const activeTask = { id: selectedTask.id };
-    saveTaskSubmissions({ activeTaskId: activeTask.id, submissions: [] });
+    saveTaskSubmissions({ instanceId, activeTaskId: activeTask.id, submissions: [] });
 
-    saveActiveTask(selectedTask);
+    saveActiveTask({ ...selectedTask, instanceId });
 
     taskLog('Task of the week: ' + selectedTask.taskName + ' announced.');
 }
