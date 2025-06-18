@@ -8,6 +8,7 @@ const emoteUtils = require('./utils/emote');
 const pathTasks = './data/task/tasks.json';
 const pathTaskMonthlyUsers = './data/task/taskMonthlyUsers.json';
 const pathTaskAllUsers = './data/task/taskAllUsers.json';
+const pathTaskSubmissions = './data/task/taskSubmissions.json';
 const pathPollData = './data/task/pollData.json';
 const activeTaskPath = './data/task/activeTask.json';
 const keywordsPath = './data/task/keywords.json';
@@ -214,6 +215,17 @@ function saveRecentKeywords(keywords) {
     writeJSON(recentKeywordsPath, keywords);
 }
 
+function loadTaskSubmissions() {
+    if (!fs.existsSync(pathTaskSubmissions)) {
+        fs.writeFileSync(pathTaskSubmissions, JSON.stringify({ activeTaskId: null, submissions: []}, null, 4), 'utf8');
+    }
+    return readJSON(pathTaskSubmissions);
+}
+
+function saveTaskSubmissions(data) {
+    writeJSON(pathTaskSubmissions, data);
+}
+
 function getUniqueKeyword() {
     const keywords = readJSON(keywordsPath);
     const recentKeywords = loadRecentKeywords();
@@ -275,6 +287,24 @@ async function handleTaskSubmissions(message, client) {
 
             const userId = message.author.id;
 
+            const activeTask = loadActiveTask();
+            const taskSubmissions = loadTaskSubmissions();
+
+            if (
+                activeTask &&
+                taskSubmissions.activeTaskId === activeTask.id &&
+                taskSubmissions.submissions.includes(userId)
+            ) {
+                // User already has approved submission for this task
+                const botAdminChannel = getChannelByName(client, 'botadmin');
+                if (botAdminChannel) {
+                    await botAdminChannel.send(`<@${userId}> already has an approved submission for this task.`);
+                }
+                reaction.users.remove(user.id);
+                taskLog(`Task submission by ${user.username} denied, already approved for this task.`);
+                return;
+            }
+
             // Add user to user lists
             let monthlyUsers = loadUsers(pathTaskMonthlyUsers);
             let allUsers = loadUsers(pathTaskAllUsers);
@@ -284,6 +314,12 @@ async function handleTaskSubmissions(message, client) {
 
             saveUsers(pathTaskMonthlyUsers, monthlyUsers);
             saveUsers(pathTaskAllUsers, allUsers);
+
+            // Add user to task submissions
+            if (activeTask && taskSubmissions.activeTaskId === activeTask.id) {
+                taskSubmissions.submissions.push(userId);
+                saveTaskSubmissions(taskSubmissions);
+            }
 
             // React to message to confirm submission
             const bustinEmote = client.emojis.cache.find(emoji => emoji.name === 'Bustin');
@@ -311,7 +347,7 @@ async function handleTaskSubmissions(message, client) {
 
         collector.on('remove', async (reaction, user) => {
             if (reaction.emoji.name === '✅' && !reaction.users.cache.has(client.user.id)) {
-                taskLog(`Approval on submission ${message.id} removed for ${user.username}`);
+                taskLog(`Approval on submission ${message.id} removed for ${user.username}.`);
             }
         });
 
@@ -636,6 +672,8 @@ async function postTaskAnnouncement(client) {
     });
 
     activePoll = null;
+    const activeTask = { id: selectedTask.id };
+    saveTaskSubmissions({ activeTaskId: activeTask.id, submissions: [] });
 
     saveActiveTask(selectedTask);
 
