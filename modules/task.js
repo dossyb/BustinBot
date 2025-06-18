@@ -475,6 +475,11 @@ async function postTaskPoll(client) {
         return;
     }
 
+    taskLog('Posting new poll with tasks:')
+    tasks.forEach(task => {
+        taskLog(`- ${task.taskName} (ID: ${task.id})`);
+    });
+
     const pollData = readJSON(pathPollData) || {};
     if (pollData.lastPollId) {
         try {
