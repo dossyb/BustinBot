@@ -214,6 +214,11 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    if (command === 'bustinsong') {
+        message.channel.send('https://www.youtube.com/watch?v=0tdyU_gW6WE');
+        return;
+    }
+
     if (command === 'goodbot') {
         goodbotCount++;
         botData.counters.goodbotCount = goodbotCount;
