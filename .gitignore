@@ -1,6 +1,8 @@
 node_modules
 logs
 .env
+.vs
+.vscode
 movies.json
 userMovieCount.json
 botData.json
