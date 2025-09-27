@@ -4,6 +4,7 @@ import path from 'path';
 import { handleMessage } from './core/events/onMessage';
 import { handleInteraction } from './core/events/onInteraction';
 import { loadCommands } from './core/services/CommandService';
+import { BotStatsService } from './core/services/BotStatsService';
 import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
 
@@ -13,6 +14,9 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file
 config();
+
+// Initialize bot statistics
+BotStatsService.init();
 
 // Create Discord client with required intents
 const client = new Client({

@@ -8,13 +8,13 @@ export async function handleInteraction(
 ) {
     const command = commands.get(interaction.commandName);
     if (!command) {
-        await interaction.reply({ content: 'Command not found.', ephemeral: true });
+        await interaction.reply({ content: 'Command not found.', flags: 1 << 6 });
         return;
     }
 
     // Simple placeholder permission check
     if (!command.allowedRoles.includes(CommandRole.Everyone)) {
-        await interaction.reply({ content: "You don't have permission to use this command.", ephemeral: true });
+        await interaction.reply({ content: "You don't have permission to use this command.", flags: 1 << 6 });
         return;
     }
 
@@ -22,6 +22,6 @@ export async function handleInteraction(
         await command.execute({ interaction });
     } catch (error) {
         console.error(`[Slash Command Error]: ${command.name}`, error);
-        await interaction.reply({ content: 'There was an error executing that command.', ephemeral: true });
+        await interaction.reply({ content: 'There was an error executing that command.', flags: 1 << 6 });
     }
 }

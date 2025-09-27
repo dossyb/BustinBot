@@ -20,7 +20,6 @@ export interface BotStats {
     moviesAdded: number;
     moviesWatched: number;
     moviePollsRun: number;
-    movieEventsHosted: number;
 
     // Task module statistics
     tasksAdded: number;
