@@ -1,13 +1,18 @@
 import type { Command } from "../../../models/Command";
 import { CommandRole } from "../../../models/Command";
+import { SlashCommandBuilder } from "discord.js";
 
 const bustin: Command = {
     name: 'bustin',
     description: 'Ping the bot to see if it is responsive.',
     allowedRoles: [ CommandRole.Everyone ],
+    slashData: new SlashCommandBuilder()
+        .setName('bustin')
+        .setDescription('Ping the bot to see if it is responsive (it makes him feel good).'),
     async execute({ message, interaction }) {
-        if (message) await message.reply('Bustin makes me feel good!');
-        else if (interaction) await interaction.reply('Bustin makes me feel good!');
+        const response = 'Bustin makes me feel good!';
+        if (message) await message.reply(response);
+        else if (interaction) await interaction.reply(response);
     },
 };
 
