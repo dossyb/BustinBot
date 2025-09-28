@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 
@@ -12,10 +12,31 @@ export async function handleInteraction(
         return;
     }
 
-    // Simple placeholder permission check
-    if (!command.allowedRoles.includes(CommandRole.Everyone)) {
-        await interaction.reply({ content: "You don't have permission to use this command.", flags: 1 << 6 });
-        return;
+    // Role-based permission logic
+    if (
+        command.allowedRoles.length > 0 &&
+        !command.allowedRoles.includes(CommandRole.Everyone)
+    ) {
+        const member = interaction.member as GuildMember;
+        const roleNames = member.roles.cache.map(role => role.name);
+
+        const roleMatch = command.allowedRoles.some(role => {
+            switch (role) {
+                case CommandRole.BotAdmin:
+                    return roleNames.includes(process.env.ADMIN_ROLE_NAME || 'BustinBot Admin');
+                case CommandRole.MovieAdmin:
+                    return roleNames.includes(process.env.MOVIE_ADMIN_ROLE_NAME || 'Movie Admin');
+                case CommandRole.TaskAdmin:
+                    return roleNames.includes(process.env.TASK_ADMIN_ROLE_NAME || 'Task Admin');
+                default:
+                    return false;
+            }
+        });
+
+        if (!roleMatch) {
+            await interaction.reply({ content: "You don't have permission to use this command.", flags: 1 << 6 });
+            return;
+        }
     }
 
     try {

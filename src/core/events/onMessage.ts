@@ -1,15 +1,10 @@
-import { Message } from 'discord.js';
+import { Message, GuildMember } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { loadCommands } from '../services/CommandService';
 
 const PREFIX = '!'; // Handle ! as the command prefix
 const commands = loadCommands('./src/modules/commands');
-
-function checkPermissions(userId: string, roles: CommandRole[]): boolean {
-    // TODO: Replace with real role-check logic using Firestore or role IDs
-    return roles.includes(CommandRole.Everyone);
-}
 
 export async function handleMessage(message: Message, commands: Map<string, Command>) {
     if (!message.content.startsWith(PREFIX) || message.author.bot) return;
@@ -24,9 +19,32 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
     if (!command) return;
 
     // Permission check placeholder
-    const userHasPermission = checkPermissions(message.author.id, command.allowedRoles);
-    if (!userHasPermission) {
-        message.reply("You don't have permission to use this command.");
+    const member = message.member as GuildMember;
+    if (!member) {
+        await message.reply('Unable to verify your permissions.');
+        return;
+    }
+
+    const roleNames = member.roles.cache.map(role => role.name);
+
+    // Role-based permission logic
+    const hasPermission =
+        command.allowedRoles.includes(CommandRole.Everyone) ||
+        command.allowedRoles.some(role => {
+            switch (role) {
+                case CommandRole.BotAdmin:
+                    return roleNames.includes(process.env.ADMIN_ROLE_NAME || 'BustinBot Admin');
+                case CommandRole.MovieAdmin:
+                    return roleNames.includes(process.env.MOVIE_ADMIN_ROLE_NAME || 'Movie Admin');
+                case CommandRole.TaskAdmin:
+                    return roleNames.includes(process.env.TASK_ADMIN_ROLE_NAME || 'Task Admin');
+                default:
+                    return false;
+            }
+        });
+
+    if (!hasPermission) {
+        await message.reply("You don't have permission to use this command.");
         return;
     }
 
