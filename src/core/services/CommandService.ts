@@ -19,6 +19,12 @@ async function loadCommandFiles(dir: string): Promise<void> {
             const commandUrl = pathToFileURL(fullPath).href;
             const commandModule = await import(commandUrl);
             const command: Command = commandModule.default;
+
+            if (!command || !command.name) {
+                console.warn(`Skipped invalid command module: ${fullPath}`);
+                continue;
+            }
+
             commandMap.set(command.name, command);
 
             // Register aliases

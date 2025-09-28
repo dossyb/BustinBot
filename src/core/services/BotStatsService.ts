@@ -59,7 +59,25 @@ export const BotStatsService = {
         stats.lastUpdatedAt = new Date();
         saveStats();
     },
+    incrementGoodBot() {
+        stats.funStats = stats.funStats || {};
+        stats.funStats.goodbotCount = (stats.funStats.goodbotCount || 0) + 1;
+        stats.lastUpdatedAt = new Date();
+        saveStats();
+    },
+    incrementBadBot() {
+        stats.funStats = stats.funStats || {};
+        stats.funStats.badbotCount = (stats.funStats.badbotCount || 0) + 1;
+        stats.lastUpdatedAt = new Date();
+        saveStats();
+    },
     getStats(): BotStats {
         return stats;
+    },
+    getGoodBotCount() {
+        return stats.funStats?.goodbotCount || 0;
+    },
+    getBadBotCount() {
+        return stats.funStats?.badbotCount || 0;
     }
 };
