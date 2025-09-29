@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import path from 'path';
 import { handleMessage } from './core/events/onMessage';
 import { handleInteraction } from './core/events/onInteraction';
+import { handleDirectMessage } from './modules/tasks/TaskInteractions'
 import { loadCommands } from './core/services/CommandService';
 import { BotStatsService } from './core/services/BotStatsService';
 import type { Command } from './models/Command';
@@ -24,6 +25,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
     ],
     partials: [Partials.Channel]
 });
@@ -31,8 +33,8 @@ const client = new Client({
 async function registerSlashCommands(commands: Map<string, Command>) {
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN_DEV || '');
     const slashCommands = [...commands.values()]
-    .filter(cmd => cmd.slashData)
-    .map(cmd => cmd.slashData!.toJSON());
+        .filter(cmd => cmd.slashData)
+        .map(cmd => cmd.slashData!.toJSON());
 
     console.log(`Registering ${slashCommands.length} slash command(s)...`);
 
@@ -43,7 +45,7 @@ async function registerSlashCommands(commands: Map<string, Command>) {
         ),
         { body: slashCommands }
     );
-    
+
     console.log('Slash commands registered successfully.');
 }
 
@@ -55,9 +57,12 @@ console.log('Loading commands...');
     await registerSlashCommands(commands);
 
 
-    
+
     // Register message handler
     client.on('messageCreate', async (message) => {
+        if (message.channel.type === 1) {
+            await handleDirectMessage(message, client);
+        }
         try {
             await handleMessage(message, commands);
         } catch (error) {
@@ -67,12 +72,10 @@ console.log('Loading commands...');
 
     // Register interaction handler
     client.on('interactionCreate', async (interaction) => {
-        if (interaction.isChatInputCommand()) {
-            try {
-                await handleInteraction(interaction, commands);
-            } catch (error) {
-                console.error('Error handling interaction:', error);
-            }
+        try {
+            await handleInteraction(interaction, commands);
+        } catch (error) {
+            console.error('Error handling interaction:', error);
         }
     });
 

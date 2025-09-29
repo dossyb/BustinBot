@@ -1,4 +1,5 @@
 import type { Task } from "./Task";
+import type { TaskSubmission } from "./TaskSubmission";
 
 export interface TaskEvent {
     // Base task template
@@ -19,4 +20,7 @@ export interface TaskEvent {
     // Optional metadata about voting and selection process
     votedOptions?: Task[];
     winningOptionId?: number;
+
+    // Submissions made for this task event
+    submissions?: TaskSubmission[];
 }
