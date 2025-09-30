@@ -40,4 +40,7 @@ export interface Task {
     
     // Type of task
     type: TaskType;
+
+    // Weighting based on user feedback
+    weight?: number;
 }
