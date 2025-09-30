@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, embedLength } from "discord.js";
 import type { APIEmbed } from "discord.js";
 import type { TaskEvent } from "../../models/TaskEvent";
 
@@ -26,15 +26,23 @@ export function buildTaskEventEmbed(event: TaskEvent) {
 
 // Embed shown in task verification channel when a submission is received
 export function buildSubmissionEmbed(submission: any, taskName: string) {
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
     .setTitle('Task Submission')
     .addFields(
         { name: 'User', value: `<@${submission.userId}>`, inline: true },
         { name: 'Task', value: taskName, inline: true },
         { name: 'Message', value: submission.notes || "No message included" }
     )
-    .setImage(submission.screenshotUrl)
     .setTimestamp();
+
+    if (submission.alreadyApproved) {
+        embed.addFields({
+            name: '⚠️ Warning',
+            value: 'This user already has an **approved submission** for this task.'
+        });
+    }
+
+    return embed;
 }
 
 // Embed sent to archive once approved/rejected
@@ -44,12 +52,12 @@ export function buildArchiveEmbed(submission: any, status: string, taskName: str
     .addFields(
         { name: 'User', value: `<@${submission.userId}>`, inline: true },
         { name: 'Task', value: taskName, inline: true},
-        { name: 'Message', value: submission.message || "No message included" },
+        { name: 'Message', value: submission.notes || "No message included" },
         ...(submission.reason 
             ? [{ name: 'Reason', value: submission.reason }]
             : []),
-        { name: 'Reviewed By', value: `<@${reviewedBy}>`, inline: true }
+        { name: 'Reviewed By', value: `<@${reviewedBy}>`, inline: true },
+        { name: 'Screenshots', value: "See attached screenshots(s) below."}
     )
-    .setImage(submission.screenshotUrl)
     .setTimestamp();
 }

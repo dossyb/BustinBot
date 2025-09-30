@@ -14,8 +14,8 @@ export interface TaskSubmission {
     // ID for the associated task event
     taskEventId: string;
 
-    // URL to the screenshot or evidence provided
-    screenshotUrl: string;
+    // URLs to the screenshot or evidence provided
+    screenshotUrls: string[];
 
     // Optional submission notes
     notes?: string;
@@ -34,4 +34,13 @@ export interface TaskSubmission {
 
     // Reason for rejection (if applicable)
     rejectionReason?: string;
+
+    // Optional storage of message ID in admin verification channel
+    message?: string;
+
+    // Optional storage of screenshot message ID in admin verification channel
+    screenshotMessage?: string;
+
+    // Flag if submission is a duplicate of one already approved
+    alreadyApproved?: boolean;
 }

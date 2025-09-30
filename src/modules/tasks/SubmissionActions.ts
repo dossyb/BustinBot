@@ -3,14 +3,11 @@ import type { Channel } from 'discord.js';
 import type { TaskSubmission } from '../../models/TaskSubmission';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { buildSubmissionEmbed, buildArchiveEmbed } from './TaskEmbeds';
+import { isTextChannel } from '../../utils/ChannelUtils';
 
 // Configurable constants (replace with environment variable later)
 const ADMIN_CHANNEL_NAME = 'task-admin';
 const ARCHIVE_CHANNEL_NAME = 'bot-archive';
-
-function isTextChannel(channel: Channel): channel is TextChannel {
-    return channel.isTextBased() && 'name' in channel;
-}
 
 export async function postToAdminChannel(client: Client, submission: TaskSubmission) {
     const channel = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === ADMIN_CHANNEL_NAME) as TextChannel;
@@ -29,7 +26,18 @@ export async function postToAdminChannel(client: Client, submission: TaskSubmiss
             .setStyle(ButtonStyle.Danger)
     );
 
-    await channel.send({ embeds: [embed], components: [buttons] });
+    // First message: embed with info and buttons
+    const sentMessage = await channel.send({ embeds: [embed], components: [buttons] });
+    submission.message = sentMessage.id;
+
+    // Second message: screenshots as file uploads
+    if (submission.screenshotUrls?.length > 0) {
+        const sentScreens = await channel.send({
+            content: `Submission screenshots for <@${submission.userId}>:`,
+            files: submission.screenshotUrls
+        });
+        submission.screenshotMessage = sentScreens.id;
+    }
 }
 
 export async function notifyUser(client: Client, submission: TaskSubmission) {
@@ -56,6 +64,13 @@ export async function archiveSubmission(client: Client, submission: TaskSubmissi
     );
 
     await archive.send({ embeds: [embed] });
+
+    if (submission.screenshotUrls?.length > 0) {
+        await archive.send({
+            content: `Archived screenshots for <@${submission.userId}>:`,
+            files: submission.screenshotUrls
+        });
+    }
 }
 
 export async function updateTaskCounter(client: Client, taskEventId: string) {

@@ -1,7 +1,9 @@
 import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, StringSelectMenuBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import { createSubmission, completeSubmission, getPendingSubmission, updateSubmissionStatus } from './TaskService';
+import { createSubmission, completeSubmission, getPendingSubmission, updateSubmissionStatus, setPendingTask, consumePendingTask } from './TaskService';
 import { SubmissionStatus } from '../../models/TaskSubmission';
+import { channel } from 'diagnostics_channel';
+import { isTextChannel } from '../../utils/ChannelUtils';
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction) {
@@ -10,18 +12,45 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
         await interaction.reply({ content: "Task ID missing from interaction.", flags: 1 << 6 });
         return;
     }
-    const submission = createSubmission(interaction.user.id, taskId);
 
+    // TODO: Fetch active tasks from database
+    const activeTasks = [taskId];
+    const userId = interaction.user.id;
+
+    if (activeTasks.length === 1) {
+        const onlyTaskId = activeTasks[0];
+        if (!onlyTaskId) {
+            await interaction.reply({
+                content: "Could not identify the active task.",
+                flags: 1 << 6
+            });
+            return;
+        }
+        setPendingTask(userId, onlyTaskId);
+        // Directly prompt for screenshot
+        await interaction.user.send(
+            `Please upload your screenshot for Task ${taskId} and include any notes/comments in the same message.`
+        );
+
+        await interaction.reply({
+            content: 'Check your DMs to submit your screenshot!',
+            flags: 1 << 6
+        });
+
+        return;
+    }
+
+    // Multiple active tasks -> show dropdown
     const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`select-task-${submission.id}`)
+        .setCustomId(`select-task-${taskId}-${interaction.user.id}`)
         .setPlaceholder('Select the active task')
-        .addOptions([
-            {
-                label: `Task ${taskId}`,
-                value: taskId,
-                description: 'Selected task from the weekly event.'
-            }
-        ]);
+        .addOptions(
+            activeTasks.map(t => ({
+                label: `Task ${t}`,
+                value: t,
+                description: 'Active weekly task'
+            }))
+        );
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
@@ -38,7 +67,26 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
 
 // STEP 2: User confirms task from select menu
 export async function handleTaskSelect(interaction: StringSelectMenuInteraction) {
-    const submissionId = interaction.customId.split('-')[2];
+    const [, taskId, userId] = interaction.customId.split('-');
+
+    if (!taskId || !userId) {
+        await interaction.reply({
+            content: "Task ID or User ID missing from selection.",
+            flags: 1 << 6
+        });
+        return;
+    }
+
+    const selectedTaskId = interaction.values[0]
+    if (!selectedTaskId) {
+        await interaction.reply({
+            content: "No task selected.",
+            flags: 1 << 6
+        });
+        return;
+    }
+
+    const submission = createSubmission(userId, selectedTaskId);
 
     await interaction.reply({
         content: `Thank you for confirming. Now upload your screenshot for Task ${interaction.values[0]} and include any notes/comments in the same message.`,
@@ -50,18 +98,29 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction)
 export async function handleDirectMessage(message: Message, client: Client) {
     if (message.author.bot || message.channel.type !== 1) return;
 
-    const pending = getPendingSubmission(message.author.id);
-    if (!pending) return;
+    const taskEventId = consumePendingTask(message.author.id);
+    const pending = taskEventId ? getPendingSubmission(message.author.id, taskEventId) : undefined;
+    if (!pending && !taskEventId) return;
 
-    const attachment = message.attachments.first();
-    if (!attachment) {
-        await message.reply("Please upload a screenshot as an attachment.");
+    const submission = pending ?? createSubmission(message.author.id, taskEventId!);
+
+    const attachments = message.attachments;
+
+    const imageUrls: string[] = [];
+    attachments.forEach((attachment) => {
+        if (attachment.contentType?.startsWith("image/")) {
+            imageUrls.push(attachment.url);
+        }
+    });
+
+    if (imageUrls.length === 0) {
+        await message.reply("Please attach at least one image for your submission.");
         return;
     }
 
     const notes = message.content.trim() || undefined;
 
-    await completeSubmission(client, pending.id, attachment.url, notes);
+    await completeSubmission(client, submission.id, imageUrls.slice(0, 2), notes);
     await message.reply("✅ Submission received and sent for review!");
 }
 
@@ -75,13 +134,13 @@ export async function handleAdminButton(interaction: ButtonInteraction) {
     const reviewerId = interaction.user.id;
 
     if (action === 'approve') {
-        await updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Approved, reviewerId);
-        const taskId = interaction.message?.embeds[0]?.fields?.find(f => f.name.toLowerCase().includes('task id'))?.value || 'Unknown Task';
-        await interaction.update({
-            content: `<@${reviewerId}> approved submission for Task ${taskId} by ${interaction.message.embeds[0]?.fields[0]?.value}`,
-            embeds: [],
-            components: []
-        });
+        await interaction.deferReply({ flags: 1 << 6 });
+
+        const submission = await updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Approved, reviewerId);
+        await interaction.editReply({ content: "✅ Submission approved and archived." });
+
+        const channel = interaction.channel as TextChannel;
+        await channel.send(`✅ <@${reviewerId}> approved submission for Task ${submission?.taskEventId} by ${interaction.message.embeds[0]?.fields[0]?.value}. Submission moved to archive channel.`);
     }
 
     if (action === 'reject') {
@@ -94,7 +153,7 @@ export async function handleAdminButton(interaction: ButtonInteraction) {
                         .setCustomId('reason')
                         .setLabel('Rejection Reason')
                         .setStyle(TextInputStyle.Paragraph)
-                        .setRequired(true)
+                        .setRequired(false)
                 )
             );
         await interaction.showModal(modal);
@@ -103,21 +162,35 @@ export async function handleAdminButton(interaction: ButtonInteraction) {
 
 // STEP 5: Modal submit for rejection reason
 export async function handleRejectionModal(interaction: ModalSubmitInteraction) {
+    // Acknowledge the modal submission ephemerally
+    await interaction.deferReply({ flags: 1 << 6 });
+
+    const reviewerId = interaction.user.id;
+    const reason = interaction.fields.getTextInputValue('reason');
     const submissionId = interaction.customId.split('_')[2];
     if (!submissionId) {
         await interaction.reply({ content: "Subbmision ID missing from interaction.", flags: 1 << 6 });
         return;
     }
-    const reviewerId = interaction.user.id;
-    const reason = interaction.fields.getTextInputValue('reason');
 
     const updated = await updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Rejected, reviewerId, reason);
 
-    const taskId = interaction.message?.embeds[0]?.fields?.find(f => f.name.toLowerCase().includes('task id'))?.value || 'Unknown Task';
-    await interaction.reply({
-        content: `<@${reviewerId}> rejected submission for Task ${taskId} by <@${updated?.userId}>.`,
-        flags: 1 << 6
+    // Update the ephemeral reply
+    await interaction.editReply({
+        content: "❌ Submission rejected and archived."
     });
+
+    // Post a visible message in the admin channel
+    const adminChannel = interaction.client.channels.cache.find(
+        (c): c is TextChannel => c.isTextBased() && "name" in c && c.name === "task-admin"
+    );
+
+    if (adminChannel) {
+        await adminChannel.send(
+            `❌ <@${reviewerId}> rejected submission for Task ${updated?.taskEventId} by <@${updated?.userId}>. Reason: ${reason || "No reason provided"}. Submission moved to archive channel.`
+        );
+    }
+
 }
 
 // Main interaction router

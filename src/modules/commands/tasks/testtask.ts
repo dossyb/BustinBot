@@ -20,7 +20,7 @@ const testtask: Command = {
         // Fake task event data
         const event: TaskEvent = {
             task: {
-                id: 9999,
+                id: Math.floor(Math.random() * 10000), // Randomly generated ID
                 taskName: "Catch {amount} Bustin Implings",
                 amounts: [50, 100, 200],
                 instruction: TaskInstruction.ScreenshotsRequired,
