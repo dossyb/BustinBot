@@ -2,6 +2,7 @@ import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalS
 import type { Interaction } from 'discord.js';
 import { createSubmission, completeSubmission, getPendingSubmission, updateSubmissionStatus, setPendingTask, consumePendingTask } from './TaskService';
 import { SubmissionStatus } from '../../models/TaskSubmission';
+import { handleTaskFeedback } from './HandleTaskFeedback';
 import { channel } from 'diagnostics_channel';
 import { isTextChannel } from '../../utils/ChannelUtils';
 
@@ -196,6 +197,10 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction) 
 // Main interaction router
 export async function handleTaskInteraction(interaction: Interaction, client: Client) {
     if (interaction.isButton()) {
+        if (interaction.customId.startsWith('task-feedback-')) {
+            return await handleTaskFeedback(interaction);
+        }
+
         if (interaction.customId.startsWith("task-submit-")) {
             await handleSubmitButton(interaction);
         } else if (

@@ -1,67 +1,67 @@
 [
-    {
-        "id": 3,
-        "taskName": "Get {amount} Bustin Pearls from Aerial Fishing",
-        "amounts": [
-            10,
-            30,
-            50
-        ],
-        "instruction": 1,
-        "category": "Skilling",
-        "type": "Drop",
-        "weight": 50
-    },
-    {
-        "id": 25,
-        "taskName": "Get {amount} Bustcano kills",
-        "amounts": [
-            25,
-            50,
-            100
-        ],
-        "instruction": 2,
-        "category": "PvM",
-        "type": "KC",
-        "weight": 50
-    },
-    {
-        "id": 14,
-        "taskName": "Complete {amount} Bustogany Homes contracts",
-        "amounts": [
-            25,
-            50,
-            75
-        ],
-        "instruction": 2,
-        "category": "Misc",
-        "type": "Other",
-        "weight": 50
-    },
-    {
-        "id": 54,
-        "taskName": "Get {amount} Bustrah kills",
-        "amounts": [
-            50,
-            100,
-            150
-        ],
-        "instruction": 2,
-        "category": "PvM",
-        "type": "KC",
-        "weight": 50
-    },
-    {
-        "id": 18,
-        "taskName": "Get {amount}k Woodbusting XP",
-        "amounts": [
-            100,
-            250,
-            500
-        ],
-        "instruction": 3,
-        "category": "Skilling",
-        "type": "XP",
-        "weight": 50
-    }
+  {
+    "id": 3,
+    "taskName": "Get {amount} Bustin Pearls from Aerial Fishing",
+    "amounts": [
+      10,
+      30,
+      50
+    ],
+    "instruction": 1,
+    "category": "Skilling",
+    "type": "Drop",
+    "weight": 52
+  },
+  {
+    "id": 25,
+    "taskName": "Get {amount} Bustcano kills",
+    "amounts": [
+      25,
+      50,
+      100
+    ],
+    "instruction": 2,
+    "category": "PvM",
+    "type": "KC",
+    "weight": 50
+  },
+  {
+    "id": 14,
+    "taskName": "Complete {amount} Bustogany Homes contracts",
+    "amounts": [
+      25,
+      50,
+      75
+    ],
+    "instruction": 2,
+    "category": "Misc",
+    "type": "Other",
+    "weight": 50
+  },
+  {
+    "id": 54,
+    "taskName": "Get {amount} Bustrah kills",
+    "amounts": [
+      50,
+      100,
+      150
+    ],
+    "instruction": 2,
+    "category": "PvM",
+    "type": "KC",
+    "weight": 49
+  },
+  {
+    "id": 18,
+    "taskName": "Get {amount}k Woodbusting XP",
+    "amounts": [
+      100,
+      250,
+      500
+    ],
+    "instruction": 3,
+    "category": "Skilling",
+    "type": "XP",
+    "weight": 50
+  }
 ]

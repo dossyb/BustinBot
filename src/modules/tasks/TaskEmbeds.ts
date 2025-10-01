@@ -18,7 +18,15 @@ export function buildTaskEventEmbed(event: TaskEvent) {
         new ButtonBuilder()
             .setCustomId(`task-submit-${event.task.id}`)
             .setLabel('📤 Submit Screenshot')
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId(`task-feedback-up-${event.task.id}`)
+            .setLabel('👍')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`task-feedback-down-${event.task.id}`)
+            .setLabel('👎')
+            .setStyle(ButtonStyle.Secondary)
     );
 
     return { embeds: [embed], components: [buttonRow] };
@@ -27,13 +35,13 @@ export function buildTaskEventEmbed(event: TaskEvent) {
 // Embed shown in task verification channel when a submission is received
 export function buildSubmissionEmbed(submission: any, taskName: string) {
     const embed = new EmbedBuilder()
-    .setTitle('Task Submission')
-    .addFields(
-        { name: 'User', value: `<@${submission.userId}>`, inline: true },
-        { name: 'Task', value: taskName, inline: true },
-        { name: 'Message', value: submission.notes || "No message included" }
-    )
-    .setTimestamp();
+        .setTitle('Task Submission')
+        .addFields(
+            { name: 'User', value: `<@${submission.userId}>`, inline: true },
+            { name: 'Task', value: taskName, inline: true },
+            { name: 'Message', value: submission.notes || "No message included" }
+        )
+        .setTimestamp();
 
     if (submission.alreadyApproved) {
         embed.addFields({
@@ -48,16 +56,16 @@ export function buildSubmissionEmbed(submission: any, taskName: string) {
 // Embed sent to archive once approved/rejected
 export function buildArchiveEmbed(submission: any, status: string, taskName: string, reviewedBy: string) {
     return new EmbedBuilder()
-    .setTitle(`Task Submission (${status})`)
-    .addFields(
-        { name: 'User', value: `<@${submission.userId}>`, inline: true },
-        { name: 'Task', value: taskName, inline: true},
-        { name: 'Message', value: submission.notes || "No message included" },
-        ...(submission.reason 
-            ? [{ name: 'Reason', value: submission.reason }]
-            : []),
-        { name: 'Reviewed By', value: `<@${reviewedBy}>`, inline: true },
-        { name: 'Screenshots', value: "See attached screenshots(s) below."}
-    )
-    .setTimestamp();
+        .setTitle(`Task Submission (${status})`)
+        .addFields(
+            { name: 'User', value: `<@${submission.userId}>`, inline: true },
+            { name: 'Task', value: taskName, inline: true },
+            { name: 'Message', value: submission.notes || "No message included" },
+            ...(submission.reason
+                ? [{ name: 'Reason', value: submission.reason }]
+                : []),
+            { name: 'Reviewed By', value: `<@${reviewedBy}>`, inline: true },
+            { name: 'Screenshots', value: "See attached screenshots(s) below." }
+        )
+        .setTimestamp();
 }
