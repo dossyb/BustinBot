@@ -43,4 +43,7 @@ export interface Task {
 
     // Weighting based on user feedback
     weight?: number;
+
+    // Short hand name for quick reference (e.g. task poll buttons)
+    shortName?: string;
 }

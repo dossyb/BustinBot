@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { Client, TextChannel } from 'discord.js';
+import { postTaskPoll } from './HandleTaskPoll';
 
 // Replace with config store (admin editable)
 const defaultSchedule = {
@@ -45,7 +46,7 @@ export function initTaskScheduler(client: Client) {
         console.log('[TaskScheduler] Running weekly task poll post...');
         const channel = await getDefaultChannel(client);
         if (channel) {
-            await channel.send('🗳️ Weekly task poll posted!');
+            await postTaskPoll(client);
         }
     });
 
