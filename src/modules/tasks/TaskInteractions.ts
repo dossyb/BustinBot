@@ -3,8 +3,6 @@ import type { Interaction } from 'discord.js';
 import { createSubmission, completeSubmission, getPendingSubmission, updateSubmissionStatus, setPendingTask, consumePendingTask } from './TaskService';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { handleTaskFeedback } from './HandleTaskFeedback';
-import { channel } from 'diagnostics_channel';
-import { isTextChannel } from '../../utils/ChannelUtils';
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction) {

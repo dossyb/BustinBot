@@ -23,7 +23,7 @@
     "instruction": 2,
     "category": "PvM",
     "type": "KC",
-    "weight": 50
+    "weight": 51
   },
   {
     "id": 14,
@@ -62,6 +62,6 @@
     "instruction": 3,
     "category": "Skilling",
     "type": "XP",
-    "weight": 50
+    "weight": 49
   }
 ]
