@@ -37,9 +37,11 @@ const testtask: Command = {
             return;
         }
         const selectedAmount = randomTask.amounts?.length ? randomTask.amounts[Math.floor(Math.random() * randomTask?.amounts.length)] : undefined;
+    
 
         // Fake task event data
         const baseEvent = {
+            taskEventId: '9999-20251003',
             task: randomTask,
             keyword: 'pineapple',
             startTime: new Date(),

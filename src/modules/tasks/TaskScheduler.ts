@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { Client, TextChannel } from 'discord.js';
 import { postTaskPoll } from './HandleTaskPoll';
+import { startTaskEvent } from './HandleTaskStart';
 
 // Replace with config store (admin editable)
 const defaultSchedule = {
@@ -14,9 +15,14 @@ const defaultSchedule = {
     prizeHourUTC: 0,
 };
 
+// Test config
+const testMode = true;
+const testIntervalMinutes = 7;
+
 let pollJob: ScheduledTask;
 let taskStartJob: ScheduledTask;
 let prizeJob: ScheduledTask;
+let testJob: ScheduledTask;
 
 function getWeekNumber(d: Date): number {
     const oneJan = new Date(d.getUTCFullYear(), 0, 1);
@@ -37,52 +43,74 @@ async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
 export function initTaskScheduler(client: Client) {
     console.log('[TaskScheduler] Initialising default task schedule...');
 
-    // Schedule poll
-    pollJob = cron.schedule(
-        // `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`, 
-        // Test timing
-        '0 * * * * *',
-        async () => {
-        console.log('[TaskScheduler] Running weekly task poll post...');
-        const channel = await getDefaultChannel(client);
-        if (channel) {
-            await postTaskPoll(client);
-        }
-    });
+    if (testMode) {
+        // ------------------------------
+        // TEST MODE (minute-base cycle)
+        // ------------------------------
+        const T = testIntervalMinutes;
 
-    // Schedule task start
-    taskStartJob = cron.schedule(
-        // `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
-        // Test timing
-        '20 * * * * *',
-        async () => {
-            console.log('[TaskScheduler] Closing poll and starting task event...');
-            const channel = await getDefaultChannel(client);
-            if (channel) {
-                await channel.send('⏳ Poll closed! Weekly task started.');
-            }
-        }
-    );
+        testJob = cron.schedule('* * * * *', async () => {
+            const minute = new Date().getMinutes();
 
-    // Schedule prize draw
-    prizeJob = cron.schedule(
-        // `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`,
-        // Test timing
-        '50 */2 * * * *',
-        async () => {
-            const now = new Date();
-            const isEvenWeek = Math.floor(getWeekNumber(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
-            if (!isEvenWeek) return;
-            console.log('[TaskScheduler] Running prize draw...');
-            const channel = await getDefaultChannel(client);
-            if (channel) {
-                await channel.send('🏆 Running prize draw. The winner is BustinBot!');
+            if (minute % T === (T - 1)) {
+                console.log('[TaskScheduler] [TEST] Running poll...');
+                await postTaskPoll(client);
             }
-        }
-    );
+
+            if (minute % T === 0) {
+                console.log('[TaskScheduler] [TEST] Starting task event...');
+                await startTaskEvent(client);
+            }
+
+            if ((minute - 1) % (2 * T) === 0) {
+                console.log('[TaskScheduler] [TEST] Running prize draw...');
+                const channel = await getDefaultChannel(client);
+                if (channel) await channel.send('🏆 Running prize draw. The winner is BustinBot!');
+            }
+        });
+    } else {
+        // ------------------------------
+        // PRODUCTION MODE (admin-configured cycle)
+        // ------------------------------
+        pollJob = cron.schedule(
+            `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`,
+            async () => {
+                console.log('[TaskScheduler] Running weekly task poll post...');
+                const channel = await getDefaultChannel(client);
+                if (channel) {
+                    await postTaskPoll(client);
+                }
+            });
+
+        taskStartJob = cron.schedule(
+            `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
+            async () => {
+                console.log('[TaskScheduler] Closing poll and starting task event...');
+                const channel = await getDefaultChannel(client);
+                if (channel) {
+                    await startTaskEvent(client);
+                }
+            }
+        );
+
+        prizeJob = cron.schedule(
+            `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`,
+            async () => {
+                const now = new Date();
+                const isEvenWeek = Math.floor(getWeekNumber(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
+                if (!isEvenWeek) return;
+                console.log('[TaskScheduler] Running prize draw...');
+                const channel = await getDefaultChannel(client);
+                if (channel) {
+                    await channel.send('🏆 Running prize draw. The winner is BustinBot!');
+                }
+            }
+        );
+    }
 }
 
 export function stopTaskScheduler() {
+    testJob?.stop();
     pollJob?.stop();
     taskStartJob?.stop();
     prizeJob?.stop();

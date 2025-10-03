@@ -6,7 +6,6 @@ import type { Task } from '../../models/Task';
 const taskFilePath = path.resolve(process.cwd(), 'src/data/tasks.json');
 const pollPath = path.resolve(process.cwd(), 'src/data/activePoll.json');
 const activeVotes = new Map<string, Map<string, number>>(); // messageId -> Map<taskId, voteCount>
-const userVotes = new Map<string, string>(); // userId -> taskId
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣'];
 
 function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
@@ -19,6 +18,8 @@ function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
 }
 
 export async function postTaskPoll(client: Client) {
+    const userVotes = new Map<string, string>(); // userId -> taskId
+
     const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
     if (!guildId || !channelId) return;
@@ -48,12 +49,17 @@ export async function postTaskPoll(client: Client) {
             .setStyle(ButtonStyle.Secondary);
     });
 
+    const pollDuration = 60_000;
+    const endTime = Date.now() + pollDuration;
+    const timeString = `<t:${Math.floor(endTime / 1000)}:R>`
+    const footerText = `Click a button below to vote.`;
+
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(taskButtons);
 
     const embed = new EmbedBuilder()
         .setTitle('🗳️ Vote for the next task')
-        .setDescription(getVoteSummary(selectedTasks, taskVotes))
-        .setFooter({ text: 'Click a button below to vote. Poll closes in 1 minute (test).' })
+        .setDescription(`${getVoteSummary(selectedTasks, taskVotes)}\n\n Poll closes ${timeString}`)
+        .setFooter({ text: footerText })
         .setColor(0x00ae86);
 
     const message = await (channel as TextChannel).send({ embeds: [embed], components: [row] });
@@ -61,7 +67,7 @@ export async function postTaskPoll(client: Client) {
 
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 60_000
+        time: pollDuration
     });
 
     collector.on('collect', async (interaction: ButtonInteraction) => {
@@ -83,7 +89,7 @@ export async function postTaskPoll(client: Client) {
         }
 
         const updatedEmbed = EmbedBuilder.from(embed)
-            .setDescription(getVoteSummary(selectedTasks, currentVotes));
+            .setDescription(`${getVoteSummary(selectedTasks, taskVotes)}\n\n Poll closes ${timeString}`);
 
         await interaction.update({ embeds: [updatedEmbed] });
 

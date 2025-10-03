@@ -6,14 +6,16 @@ import { handleTaskFeedback } from './HandleTaskFeedback';
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction) {
-    const taskId = interaction.customId.split('-')[2];
-    if (!taskId) {
+    const parts = interaction.customId.split('-');
+    const taskEventId = parts.slice(2).join('-');
+
+    if (!taskEventId) {
         await interaction.reply({ content: "Task ID missing from interaction.", flags: 1 << 6 });
         return;
     }
 
     // TODO: Fetch active tasks from database
-    const activeTasks = [taskId];
+    const activeTasks = [taskEventId];
     const userId = interaction.user.id;
 
     if (activeTasks.length === 1) {
@@ -28,7 +30,7 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
         setPendingTask(userId, onlyTaskId);
         // Directly prompt for screenshot
         await interaction.user.send(
-            `Please upload your screenshot for Task ${taskId} and include any notes/comments in the same message.`
+            `Please upload your screenshot for Task ${taskEventId} and include any notes/comments in the same message.`
         );
 
         await interaction.reply({
@@ -41,12 +43,12 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
 
     // Multiple active tasks -> show dropdown
     const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`select-task-${taskId}-${interaction.user.id}`)
+        .setCustomId(`select-task-${taskEventId}-${interaction.user.id}`)
         .setPlaceholder('Select the active task')
         .addOptions(
-            activeTasks.map(t => ({
-                label: `Task ${t}`,
-                value: t,
+            activeTasks.map(eventId => ({
+                label: `Task ${eventId}`,
+                value: eventId,
                 description: 'Active weekly task'
             }))
         );
@@ -66,18 +68,18 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
 
 // STEP 2: User confirms task from select menu
 export async function handleTaskSelect(interaction: StringSelectMenuInteraction) {
-    const [, taskId, userId] = interaction.customId.split('-');
+    const [, , userId] = interaction.customId.split('-');
 
-    if (!taskId || !userId) {
+    if (!userId) {
         await interaction.reply({
-            content: "Task ID or User ID missing from selection.",
+            content: "User ID missing from selection.",
             flags: 1 << 6
         });
         return;
     }
 
-    const selectedTaskId = interaction.values[0]
-    if (!selectedTaskId) {
+    const selectedTaskEventId = interaction.values[0];
+    if (!selectedTaskEventId) {
         await interaction.reply({
             content: "No task selected.",
             flags: 1 << 6
@@ -85,7 +87,7 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction)
         return;
     }
 
-    const submission = createSubmission(userId, selectedTaskId);
+    const submission = createSubmission(userId, selectedTaskEventId);
 
     await interaction.reply({
         content: `Thank you for confirming. Now upload your screenshot for Task ${interaction.values[0]} and include any notes/comments in the same message.`,
