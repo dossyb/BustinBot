@@ -3,6 +3,7 @@ import type { ScheduledTask } from 'node-cron';
 import { Client, TextChannel } from 'discord.js';
 import { postTaskPoll } from './HandleTaskPoll';
 import { startTaskEvent } from './HandleTaskStart';
+import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw';
 
 // Replace with config store (admin editable)
 const defaultSchedule = {
@@ -64,8 +65,16 @@ export function initTaskScheduler(client: Client) {
 
             if ((minute - 1) % (2 * T) === 0) {
                 console.log('[TaskScheduler] [TEST] Running prize draw...');
-                const channel = await getDefaultChannel(client);
-                if (channel) await channel.send('🏆 Running prize draw. The winner is BustinBot!');
+                
+                const snapshot = generatePrizeDrawSnapshot();
+                const winner = rollWinnerForSnapshot(snapshot.id);
+
+                if (winner) {
+                    await announcePrizeDrawWinner(client, snapshot.id);
+                } else {
+                    console.log(`[PrizeDraw] No winner - no eligible entries.`);
+                }
+
             }
         });
     } else {

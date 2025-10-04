@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Message, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, Message, SlashCommandBuilder, type SlashCommandOptionsOnlyBuilder, type SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
 
 export enum CommandRole {
     Everyone = 'Everyone',
@@ -38,5 +38,5 @@ export interface Command {
     }) => Promise<void>;
 
     // Optional method to return a SlashCommandBuilder for registering slash commands
-    slashData?: SlashCommandBuilder
+    slashData?: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder
 }

@@ -69,3 +69,20 @@ export function buildArchiveEmbed(submission: any, status: string, taskName: str
         )
         .setTimestamp();
 }
+
+// Embed shown when a prize draw winner is announced
+export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, totalParticipants: number, start: string, end: string) {
+    const formattedStart = new Date(start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    const formattedEnd = new Date(end).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    return new EmbedBuilder()
+        .setTitle("🏆 And the winner is...")
+        .setColor(0x0003bd)
+        .setDescription(
+            'During this task period, there were...\n\n' +
+            `**${totalSubmissions}** submissions from **${totalParticipants}** participants!\n\n` +
+            `🎉 Congratulations <@${winnerId}>!\n\n` +
+            `Please message a **Task Admin** to claim your prize.`
+        )
+        .setFooter({ text: `Task Period: ${formattedStart} to ${formattedEnd}`})
+}
