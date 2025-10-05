@@ -2,20 +2,23 @@ export interface Movie {
     // Unique identifier for the movie
     id: string;
 
+    // ID of the movie on TMDb
+    tmdbId?: number | undefined;
+
     // Title of the movie as entered or pulled from API
     title: string;
 
     // Year of release, if known
-    year?: number;
+    releaseDate?: number | undefined;
 
     // Optional URL to a poster image
-    posterUrl?: string;
+    posterUrl?: string | undefined;
 
-    // Optional URL to more information (e.g. IMDb page)
-    infoUrl?: string;
+    // Optional link to TMDb page
+    infoUrl?: string | undefined;
 
     // Optional description or plot summary
-    description?: string;
+    overview?: string | undefined;
 
     // Whether the movie has been watched
     watched: boolean;
@@ -27,5 +30,12 @@ export interface Movie {
     addedAt: Date;
 
     // Optional timestamp when the movie was watched
-    watchedAt?: Date;
+    watchedAt?: Date | undefined;
+
+    // The movie's runtime in minutes
+    runtime?: number | undefined;
+
+    genres?: string[] | undefined;
+
+    rating?: number | undefined;
 }
