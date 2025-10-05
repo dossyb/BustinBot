@@ -60,5 +60,31 @@ export async function fetchMovieDetails(movieName: string): Promise<Partial<Movi
         rating: detailsData.vote_average ?? undefined,
         genres: detailsData.genres?.map((g) => g.name) ?? undefined,
     } satisfies Partial<Movie>;
+}
 
+export async function fetchMovieDetailsById(id: number): Promise<Partial<Movie> | null> {
+    const TMDB_API_KEY = process.env.TMDB_API_KEY;
+    const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+
+    const url = `${TMDB_API_KEY && TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`;
+    const res = await fetch(url);
+    const details = await res.json() as TMDbDetailsResponse;
+
+    if (!details?.id) return null;
+
+    return {
+        tmdbId: details.id,
+        title: details.title,
+        overview: details.overview,
+        releaseDate: details.release_date
+            ? Number(details.release_date.slice(0, 4))
+            : undefined,
+        posterUrl: details.poster_path
+            ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
+            : undefined,
+        infoUrl: `https://www.themoviedb.org/movie/${details.id}`,
+        runtime: details.runtime ?? undefined,
+        rating: details.vote_average ?? undefined,
+        genres: details.genres?.map((g: { name: string }) => g.name) ?? undefined,
+    };
 }
