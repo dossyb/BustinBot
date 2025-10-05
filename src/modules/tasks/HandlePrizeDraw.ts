@@ -122,6 +122,20 @@ export async function announcePrizeDrawWinner(client: Client, snapshotId: string
         return;
     }
 
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const roleName = process.env.TASK_USER_ROLE_NAME;
+
+    let mention = '';
+    if (guildId && roleName) {
+        const guild = await client.guilds.fetch(guildId);
+        const role = guild.roles.cache.find(r => r.name === roleName);
+        if (role) {
+            mention = `<@&${role.id}>`;
+        } else {
+            console.warn(`[PrizeDraw] Could not find role named "${roleName}". Proceeding without mention.`);
+        }
+    }
+
     const embed = buildPrizeDrawEmbed(
         snapshot.winnerId,
         snapshot.totalEntries,
@@ -139,6 +153,7 @@ export async function announcePrizeDrawWinner(client: Client, snapshotId: string
         return;
     }
 
+    await channel.send(`${mention}`);
     await channel.send({ embeds: [embed] });
     console.log(`[PrizeDraw] Winner embed sent to #${channel.name}`);
 }

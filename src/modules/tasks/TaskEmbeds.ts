@@ -5,12 +5,15 @@ import type { TaskEvent } from "../../models/TaskEvent";
 // Embed shown for each task event post
 export function buildTaskEventEmbed(event: TaskEvent) {
     const embed: APIEmbed = {
-        title: 'This Week\'s Task',
-        description: `${event.task.taskName.replace(
+        title: '**This Week\'s Task**',
+        description: `**${event.task.taskName.replace(
             "{amount}",
             String(event.selectedAmount ?? "")
-        )}\n\nInclude the keyword **${event.keyword}** in your screenshot.`,
-        footer: { text: `Ends ${event.endTime.toUTCString()}` },
+        )}**\n\n**Submission instructions:**\n
+        <insert instructions here>\n\n
+        🔑 Keyword: **${event.keyword}** 🔑\n
+        Click the **Submit Screenshot** button below to make your submission.`,
+        footer: { text: `Task ends ${event.endTime.toUTCString()}` },
         color: 0xa60000,
     };
 

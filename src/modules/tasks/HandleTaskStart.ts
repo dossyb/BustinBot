@@ -5,6 +5,7 @@ import { buildTaskEventEmbed } from './TaskEmbeds';
 import type { Task } from '../../models/Task';
 import type { TaskEvent } from '../../models/TaskEvent';
 import { storeTaskEvent } from './TaskEventStore';
+import { selectKeyword } from './KeywordSelector';
 
 const pollPath = path.resolve(process.cwd(), 'src/data/activePoll.json');
 const taskPath = path.resolve(process.cwd(), 'src/data/tasks.json');
@@ -25,6 +26,9 @@ export async function startTaskEvent(client: Client): Promise<void> {
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(channelId);
     if (!channel?.isTextBased()) return;
+
+    const roleName = process.env.TASK_USER_ROLE_NAME;
+    const role = guild.roles.cache.find(r => r.name === roleName);
 
     // Load and validate poll data
     if (!fs.existsSync(pollPath)) {
@@ -55,7 +59,7 @@ export async function startTaskEvent(client: Client): Promise<void> {
     const baseEvent = {
         taskEventId,
         task,
-        keyword: 'pineapple', // TODO: Replace with random keyword logic
+        keyword: selectKeyword(),
         startTime: new Date(),
         endTime: new Date(Date.now() + 7 * 60 * 1000) // Testing interval
     };
@@ -65,6 +69,12 @@ export async function startTaskEvent(client: Client): Promise<void> {
         : baseEvent;
 
     const { embeds, components } = buildTaskEventEmbed(event);
+
+    const mention = role ? `<@&${role.id}>` : '';
+    if (!role) {
+        console.warn(`[TaskStart] Could not find role named "${roleName}. Proceeding without mention.`);
+    }
+    await channel.send(`${mention}`);
     await (channel as TextChannel).send({ embeds, components });
 
     console.log(`[TaskStart] Task event posted for task ID ${taskEventId}`);

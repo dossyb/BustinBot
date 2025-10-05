@@ -28,6 +28,9 @@ export async function postTaskPoll(client: Client) {
     const channel = await guild.channels.fetch(channelId);
     if (!channel?.isTextBased()) return;
 
+    const roleName = process.env.TASK_USER_ROLE_NAME;
+    const role = guild.roles.cache.find(r => r.name === roleName);
+
     const taskData: Task[] = JSON.parse(fs.readFileSync(taskFilePath, 'utf8'));
     if (taskData.length < 3) return;
 
@@ -61,6 +64,12 @@ export async function postTaskPoll(client: Client) {
         .setDescription(`${getVoteSummary(selectedTasks, taskVotes)}\n\n Poll closes ${timeString}`)
         .setFooter({ text: footerText })
         .setColor(0x00ae86);
+
+    const mention = role ? `<@&${role.id}>` : '';
+    if (!role) {
+        console.warn(`[TaskStart] Could not find role name "${roleName}". Proceeding without mention.`);
+    }
+    await channel.send(`${mention}`);
 
     const message = await (channel as TextChannel).send({ embeds: [embed], components: [row] });
     activeVotes.set(message.id, taskVotes);
