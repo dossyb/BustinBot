@@ -3,6 +3,9 @@ import type { Interaction } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { handleTaskInteraction } from '../../modules/tasks/TaskInteractions';
+import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
+import { pollMovieRandom } from '../../modules/movies/MoviePolls';
+import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
 
 export async function handleInteraction(
     interaction: Interaction,
@@ -51,13 +54,57 @@ export async function handleInteraction(
         return;
     }
 
+    // Route ModalSubmit interactions
+    if (interaction.isModalSubmit()) {
+        switch (interaction.customId) {
+            case 'movie_pick_choose_modal':
+                return handleMoviePickChooseModalSubmit(interaction);
+        }
+    }
+
+    if (interaction.isButton()) {
+        const { customId } = interaction;
+        const uid = interaction.user.id;
+
+        if (customId === 'confirm_random_movie') {
+            return handleConfirmRandomMovie(interaction);
+        }
+        if (customId === 'reroll_random_movie') {
+            return handleRerollRandomMovie(interaction);
+        }
+        if (customId.startsWith('movie_vote_')) {
+            const { handleMoviePollVote } = await import('../../modules/movies/PickMovieInteractions');
+            return handleMoviePollVote(interaction);
+        }
+
+        if (customId.startsWith('movie_poll_manual_')) {
+            const { handleManualPollInteraction } = await import('../../modules/movies/PickMovieInteractions');
+            return handleManualPollInteraction(interaction);
+        };
+    }
+
+    if (interaction.isStringSelectMenu()) {
+        switch (interaction.customId) {
+            case 'movie_poll_random_count': {
+                const { handleRandomPollCountSelect } = await import('../../modules/movies/PickMovieInteractions');
+                return handleRandomPollCountSelect(interaction);
+            }
+            case 'movie_poll_manual_select': {
+                const { updateManualPollSelection } = await import('../../modules/movies/MovieManualPoll');
+                updateManualPollSelection(interaction.user.id, interaction.values);
+                return showMovieManualPollMenu(interaction);
+            }
+        }
+    }
+
+
     // Forward all non-slash interactions to task module
     try {
         await handleTaskInteraction(interaction, interaction.client);
     } catch (error) {
         console.error(`[Task Interaction Error]:`, error);
         if (interaction.isRepliable()) {
-            await interaction.reply({ content: 'There was an error processing the task interaction.', flags: 1 << 6})
+            await interaction.reply({ content: 'There was an error processing the task interaction.', flags: 1 << 6 })
         }
     }
 }

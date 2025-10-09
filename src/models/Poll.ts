@@ -22,4 +22,6 @@ export interface Poll<T> {
 
     // The ID of the winning option, if the poll has ended
     winningOptionId?: string;
+
+    votes: Record<string, string>;
 }

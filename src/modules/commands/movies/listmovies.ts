@@ -53,7 +53,7 @@ const listmovies: Command = {
 
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: 1 << 6 });
 
         // Load movies from file
         if (!fs.existsSync(movieFilePath)) {

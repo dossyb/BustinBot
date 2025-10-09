@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import type { Movie } from '../../models/Movie';
+import { getDisplayNameFromAddedBy } from './MovieMockUtils';
 
 function truncate(text: string, length = 200): string {
     return text.length > length ? text.slice(0, length - 3) + '...' : text;
@@ -36,8 +37,9 @@ export function createMoviePreviewEmbeds(results: any[]): EmbedBuilder[] {
 export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3): EmbedBuilder[] {
     return movies.map((movie, i) => {
         const index = page * perPage + i + 1;
-        const title = `${index}. ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})`: ''}`;
-        const addedByLine = `\n\n_Added by <@${movie.addedBy}>_`;
+        const title = `${index}. ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
+        const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+        const addedByLine = `\n\n_Added by ${addedByText}_`;
 
         return new EmbedBuilder()
             .setTitle(title)
@@ -45,4 +47,16 @@ export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3
             .setThumbnail(movie.posterUrl || null)
             .setURL(movie.infoUrl || 'https://www.themoviedb.org/');
     });
+}
+
+export function createLocalMoviePreviewEmbed(movie: Movie): EmbedBuilder {
+    const title = `${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
+    const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+    const addedByLine = `\n\n_Added by ${addedByText}_`;
+
+    return new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(truncate(movie.overview || 'No description available.', 130) + addedByLine)
+        .setThumbnail(movie.posterUrl ?? null)
+        .setURL(movie.infoUrl || 'https://www.themoviedb.org/');
 }
