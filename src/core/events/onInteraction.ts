@@ -4,8 +4,8 @@ import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { handleTaskInteraction } from '../../modules/tasks/TaskInteractions';
 import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
-import { pollMovieRandom } from '../../modules/movies/MoviePolls';
 import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
+import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies/MovieScheduler';
 
 export async function handleInteraction(
     interaction: Interaction,
@@ -60,6 +60,10 @@ export async function handleInteraction(
             case 'movie_pick_choose_modal':
                 return handleMoviePickChooseModalSubmit(interaction);
         }
+
+        if (interaction.customId.startsWith('movienight-time-')) {
+            return handleMovieNightTime(interaction);
+        }
     }
 
     if (interaction.isButton()) {
@@ -94,6 +98,8 @@ export async function handleInteraction(
                 updateManualPollSelection(interaction.user.id, interaction.values);
                 return showMovieManualPollMenu(interaction);
             }
+            case 'movienight-select-date':
+                return handleMovieNightDate(interaction);
         }
     }
 

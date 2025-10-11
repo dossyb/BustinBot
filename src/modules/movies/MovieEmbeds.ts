@@ -60,3 +60,45 @@ export function createLocalMoviePreviewEmbed(movie: Movie): EmbedBuilder {
         .setThumbnail(movie.posterUrl ?? null)
         .setURL(movie.infoUrl || 'https://www.themoviedb.org/');
 }
+
+export function createMovieNightEmbed(
+    movie: Partial<Movie> | null,
+    unixTimestamp: number,
+    stateMessage: string,
+    scheduledBy: string
+): EmbedBuilder {
+    let embed: EmbedBuilder;
+
+    if (movie) {
+        const titleText = `We are watching: ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
+
+        // Conditionally append the "Added by" line
+        let description = movie.overview || "No description available.";
+        if (movie.addedBy) {
+            const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+            description += `\n\n_Added by ${addedByText}_`;
+        }
+
+        embed = createMovieEmbed(movie)
+            .setTitle(titleText)
+            .setDescription(description)
+            .addFields(
+                {
+                    name: '🎥 Start Time',
+                    value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`,
+                    inline: false,
+                }
+            )
+            .setFooter({ text: `Scheduled by ${scheduledBy} • Powered by TMDb` });
+    } else {
+        // Fallback if no movie is locked in yet
+        embed = new EmbedBuilder()
+            .setTitle('🎞️ Upcoming Movie Night!')
+            .setDescription(
+                `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)\n\n${stateMessage}`
+            )
+            .setColor(0xE91E63)
+            .setFooter({ text: `Scheduled by ${scheduledBy}` });
+    }
+    return embed;
+}
