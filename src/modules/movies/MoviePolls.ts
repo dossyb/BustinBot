@@ -7,6 +7,7 @@ import type { Movie } from "../../models/Movie";
 import type { MoviePoll } from "../../models/MoviePoll";
 import { injectMockUsers } from "./MovieMockUtils";
 import { createLocalMoviePreviewEmbed } from "./MovieEmbeds";
+import { saveCurrentMovie } from "./PickMovieInteractions";
 
 const movieFilePath = path.resolve(process.cwd(), "src/data/movies.json");
 const pollPath = path.resolve(process.cwd(), "src/data/activeMoviePoll.json");
@@ -140,7 +141,7 @@ export async function pollMovieWithList(interaction: RepliableInteraction, selec
         if (interaction.isButton()) {
             await interaction.deferUpdate();
         } else {
-            await interaction.deferReply({ flags: 1 << 6 }); 
+            await interaction.deferReply({ flags: 1 << 6 });
         }
     }
 
@@ -151,4 +152,85 @@ export async function pollMovieWithList(interaction: RepliableInteraction, selec
     });
 
     await createAndSendMoviePoll(interaction, client, moviesWithUsers);
+}
+
+export async function closeActiveMoviePoll(closedBy: string): Promise<{ success: boolean; message: string; winner?: Movie, winningVotes?: number, tieBreak?: boolean }> {
+    const pollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
+    const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
+
+    if (!fs.existsSync(pollPath)) {
+        return { success: false, message: "No active poll found." };
+    }
+
+    const pollData: MoviePoll = JSON.parse(fs.readFileSync(pollPath, 'utf-8'));
+
+    if (!pollData.isActive) {
+        return { success: false, message: "The poll is already closed." };
+    }
+
+    if (!pollData.votes || Object.keys(pollData.votes).length === 0) {
+        return { success: false, message: "No votes were cast in this poll. Cannot determine a winner." };
+    }
+
+    // Tally votes
+    const voteCounts = new Map<string, number>();
+    for (const option of pollData.options) {
+        voteCounts.set(option.id, 0);
+    }
+
+    Object.values(pollData.votes).forEach((movieId) => {
+        if (voteCounts.has(movieId)) {
+            voteCounts.set(movieId, (voteCounts.get(movieId) ?? 0) + 1);
+        }
+    });
+
+    // Sort by vote count descending
+    const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const topEntry = sorted[0];
+
+    if (!topEntry) {
+        return { success: false, message: "Could not determine a winning movie (no votes counted)." };
+    }
+
+    const [topMovieId, topVotes] = topEntry;
+
+    // Handle tiebreaks
+    const tiedEntries = sorted.filter(([_, votes]) => votes === topVotes);
+    let winningId = topMovieId;
+    let tieBreak = false;
+
+    if (tiedEntries.length > 1) {
+        tieBreak = true;
+        const randomIndex = Math.floor(Math.random() * tiedEntries.length);
+        const chosen = tiedEntries[randomIndex];
+        if (chosen) {
+            winningId = chosen[0];
+        }
+        console.log(`[MoviePoll] Tie detected! ${tiedEntries.length} movies had ${topVotes} votes. Randomly selected one.`);
+    }
+
+    const winningMovie = pollData.options.find((m) => m.id === winningId);
+    if (!winningMovie) {
+        return { success: false, message: "Could not find the winning movie in poll options." };
+    }
+
+    // Mark poll inactive
+    pollData.isActive = false;
+    fs.writeFileSync(pollPath, JSON.stringify(pollData, null, 2));
+
+    saveCurrentMovie(winningMovie);
+
+    const baseMessage = tieBreak
+        ? `Poll closed successfully. After a tie with ${topVotes} votes, BustinBot chose ${winningMovie.title}`
+        : `Poll closed successfully. ${winningMovie.title} won with ${topVotes} votes.`;
+
+    console.log(`[MoviePoll] Poll closed by ${closedBy}. Winner: ${winningMovie.title}${tieBreak ? " (tie-breaker)" : ""}`);
+
+    return {
+        success: true,
+        message: baseMessage,
+        winner: winningMovie,
+        winningVotes: topVotes,
+        tieBreak,
+    };
 }

@@ -81,7 +81,7 @@ const pickmovie: Command = {
 
                     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
                         new ButtonBuilder()
-                            .setCustomId('confirm_random_movie')
+                            .setCustomId(`confirm_random_movie_${selectedMovie.id}`)
                             .setLabel('🎥 Lock this in')
                             .setStyle(ButtonStyle.Success),
 

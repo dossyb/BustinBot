@@ -12,6 +12,16 @@ import { pollMovieRandom, pollMovieWithList } from "./MoviePolls";
 
 const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
 const pollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
+const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
+
+export function saveCurrentMovie(movie: Movie) {
+    try {
+        fs.writeFileSync(currentMoviePath, JSON.stringify(movie, null, 2));
+        console.log(`[MovieStorage] Saved current movie: ${movie.title}`);
+    } catch (error) {
+        console.error('[MovieStorage] Failed to save current movie:', error);
+    }
+}
 
 function getPollSession(poll: MoviePoll): PollSession<Movie> {
     const voteCounts = new Map<string, number>();
@@ -75,6 +85,7 @@ export async function handleMoviePickChooseModalSubmit(interaction: ModalSubmitI
         await interaction.reply({ content: 'No matching movie found.', flags: 1 << 6 });
         return;
     }
+    saveCurrentMovie(selectedMovie);
 
     const embed = createMovieEmbed(selectedMovie);
     const existingDescription = embed.data.description ?? '';
@@ -104,8 +115,39 @@ export async function handleRandomPollCountSelect(interaction: StringSelectMenuI
 export async function handleConfirmRandomMovie(interaction: ButtonInteraction) {
     const message = interaction.message as Message;
     const embed = message.embeds[0];
-
     const channel = interaction.channel as TextChannel;
+
+    // Extract movie ID from button customId
+    const parts = interaction.customId.split('_');
+    const movieId = parts[3];
+
+    if (!movieId) {
+        await interaction.reply({
+            content: "Could not identify movie ID.", flags: 1 << 6
+        });
+        return;
+    }
+
+    // Load movie list
+    if (!fs.existsSync(movieFilePath)) {
+        await interaction.reply({
+            content: "Movie list not found.", flags: 1 << 6
+        });
+        return;
+    }
+
+    const movies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
+    const selectedMovie = movies.find((m) => m.id === movieId);
+
+    if (!selectedMovie) {
+        await interaction.reply({
+            content: "Could not find the selected movie in list.",
+            flags: 1 << 6
+        });
+        return;
+    }
+
+    saveCurrentMovie(selectedMovie);
 
     if (!embed) {
         await channel.send({
@@ -150,7 +192,7 @@ export async function handleRerollRandomMovie(interaction: ButtonInteraction) {
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-            .setCustomId('confirm_random_movie')
+            .setCustomId(`confirm_random_movie_${newMovie.id}`)
             .setLabel('🎥 Lock this in')
             .setStyle(ButtonStyle.Success),
 

@@ -70,7 +70,7 @@ export function createMovieNightEmbed(
     let embed: EmbedBuilder;
 
     if (movie) {
-        const titleText = `We are watching: ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
+        const titleText = `Now showing: ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
 
         // Conditionally append the "Added by" line
         let description = movie.overview || "No description available.";
@@ -82,6 +82,7 @@ export function createMovieNightEmbed(
         embed = createMovieEmbed(movie)
             .setTitle(titleText)
             .setDescription(description)
+            .setColor(0xE91E63)
             .addFields(
                 {
                     name: '🎥 Start Time',
@@ -101,4 +102,37 @@ export function createMovieNightEmbed(
             .setFooter({ text: `Scheduled by ${scheduledBy}` });
     }
     return embed;
+}
+
+export function createMoviePollClosedEmbed(
+    movie: Movie,
+    closedBy: string,
+    winningVotes: number,
+    tieBreak = false
+): EmbedBuilder {
+    const titleText = `🏆 Movie poll closed!`;
+    const release = movie.releaseDate ? ` (${movie.releaseDate})` : "";
+
+    let description = `The poll has concluded, and the winner is:\n\n**${movie.title}${release}**\n\n`;
+
+    if (movie.addedBy) {
+        const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+        description += `_Added by ${addedByText}_\n\n`;
+    }
+
+    description += `Received **${winningVotes}** vote${winningVotes !== 1 ? "s" : ""}. `;
+
+    if (tieBreak) {
+        description += `*It was a tie! BustinBot made the final call.*`;
+    }
+
+    description += `\n\nThis movie is now set as the next movie for movie night.`;
+
+    return new EmbedBuilder()
+        .setTitle(titleText)
+        .setDescription(description)
+        .setThumbnail(movie.posterUrl ?? null)
+        .setColor(0xE91E63)
+        .setFooter({ text: `Closed by ${closedBy} • Powered by TMDb` })
+        .setTimestamp();
 }

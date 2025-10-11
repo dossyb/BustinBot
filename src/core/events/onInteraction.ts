@@ -70,7 +70,7 @@ export async function handleInteraction(
         const { customId } = interaction;
         const uid = interaction.user.id;
 
-        if (customId === 'confirm_random_movie') {
+        if (customId.startsWith('confirm_random_movie')) {
             return handleConfirmRandomMovie(interaction);
         }
         if (customId === 'reroll_random_movie') {
