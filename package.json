@@ -13,6 +13,7 @@
     "fuse.js": "^7.1.0",
     "lodash": "^4.17.21",
     "lodash.snakecase": "^4.1.1",
+    "luxon": "^3.7.2",
     "magic-bytes.js": "^1.10.0",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.47",
@@ -45,6 +46,7 @@
   },
   "homepage": "https://github.com/dossyb/BustinBot#readme",
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.20.5"
   }
