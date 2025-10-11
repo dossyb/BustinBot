@@ -31,7 +31,7 @@ const addmovie: Command = {
 
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: 1 << 6 });
 
         const query = interaction.options.getString('title', true);
         const yearRaw = interaction.options.getInteger('year', false);
