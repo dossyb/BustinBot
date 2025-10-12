@@ -8,6 +8,7 @@ import { loadCommands } from './core/services/CommandService';
 import { BotStatsService } from './core/services/BotStatsService';
 import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
+import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -80,8 +81,9 @@ console.log('Loading commands...');
     });
 
     // Ready event
-    client.once('clientReady', () => {
+    client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
+        await scheduleActivePollClosure();
     });
 
     // Login to Discord with bot token

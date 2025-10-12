@@ -34,6 +34,26 @@ export async function scheduleActivePollClosure() {
         try {
             const result = await closeActiveMoviePoll("Scheduler");
             console.log(`[MoviePollScheduler] Poll auto-closed: ${result.message}`);
+
+            // Attempt to schedule auto-end AFTER poll is closed and movie is selected
+            const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
+            const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
+
+            if (fs.existsSync(currentMoviePath) && fs.existsSync(movieNightPath)) {
+                const movie = JSON.parse(fs.readFileSync(currentMoviePath, 'utf-8'));
+                const movieNightData = JSON.parse(fs.readFileSync(movieNightPath, 'utf-8'));
+
+                if (movie?.runtime && movieNightData?.storedUTC) {
+                    const { scheduleMovieAutoEnd } = await import('./MovieLifecycle'); // avoid circular import at top
+                    console.log("[MoviePollScheduler] Scheduling auto-end post-poll with selected movie.");
+                    scheduleMovieAutoEnd(movieNightData.storedUTC, movie.runtime);
+                } else {
+                    console.warn("[MoviePollScheduler] Cannot schedule auto-end: missing runtime or scheduled start time.");
+                }
+            } else {
+                console.warn("[MoviePollScheduler] Cannot schedule auto-end: movie or movie night data missing.");
+            }
+
         } catch (error) {
             console.error("[MoviePollScheduler] Failed to auto-close poll:", error);
         } finally {

@@ -6,6 +6,7 @@ import { createMovieNightEmbed } from "./MovieEmbeds";
 import type { Movie } from "../../models/Movie";
 import { scheduleActivePollClosure } from "./MoviePollScheduler";
 import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
+import { scheduleMovieAutoEnd } from "./MovieLifecycle";
 
 const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
 const activeMoviePollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
@@ -129,6 +130,24 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction) 
         stateMessage = `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`;
     } else if (!movie) {
         stateMessage = `No movie has been selected yet.`;
+    }
+
+    // Schedule auto-end if we have both data (after loading movie)
+    if (movieNightData.storedUTC && movie?.runtime) {
+        const startTime = DateTime.fromISO(movieNightData.storedUTC);
+        const bufferMinutes = 30;
+        const endTime = startTime.plus({ minutes: movie.runtime + bufferMinutes });
+
+        console.log(`[MovieScheduler] Scheduling auto-end for movie "${movie.title}"`);
+        console.log(`[MovieScheduler] Start time: ${startTime.toISO()}`);
+        console.log(`[MovieScheduler] Runtime: ${movie.runtime} minutes (+${bufferMinutes} min buffer)`);
+        console.log(`[MovieScheduler] Auto-end time: ${endTime.toISO()}`);
+
+        scheduleMovieAutoEnd(movieNightData.storedUTC, movie.runtime);
+    } else {
+        console.warn(
+            "[MovieScheduler] Skipping auto-end scheduling — missing start time or movie runtime."
+        );
     }
 
     const readableDate = localDateTime.toFormat("cccc, dd LLLL yyyy");

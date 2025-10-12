@@ -4,6 +4,9 @@ import path from 'path';
 import type { Reminder } from "../../models/Reminder";
 import type { Client, TextChannel } from 'discord.js';
 
+const movieFilePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
+const activePollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
+
 export function getPendingReminders(movieStart: DateTime, now: DateTime = DateTime.utc()): Reminder[] {
     const reminderOffsets = [
         { label: '2 hours before', offset: { hours: 2 } },
@@ -64,11 +67,46 @@ export async function scheduleMovieReminders(movieStart: DateTime, client: Clien
         }
 
         setTimeout(async () => {
-            const relativeTime = sendAt.toRelative({ base: now }) ?? label;
-            const msg =
-                label === 'start time'
-                    ? `${mention} Movie night is starting now! Join us in <#${voiceChannelId}> 🎬`
-                    : `${mention} Movie night starts <t:${Math.floor(movieStart.toSeconds())}:R>! Get ready 🍿`;
+            const totalMinutes = Math.max(Math.round(movieStart.diffNow('minutes').minutes), 0);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+
+            let timeString = '';
+            if (hours > 0) {
+                timeString = `${hours} hour${hours > 1 ? 's' : ''}`;
+                if (minutes > 0) timeString += ` and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+            } else {
+                timeString = `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+            }
+
+            const absoluteTime = `<t:${Math.floor(movieStart.toSeconds())}:t>`;
+
+            // Determine current movie state
+            let stateLine = '';
+            const movieSelected = fs.existsSync(movieFilePath)
+                ? JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'))
+                : null;
+            const activePoll = fs.existsSync(activePollPath)
+                ? JSON.parse(fs.readFileSync(activePollPath, 'utf-8'))
+                : null;
+
+            if (activePoll?.isActive) {
+                stateLine = `A movie poll is currently running! Go cast your vote before it closes.`;
+            } else if (movieSelected?.title) {
+                stateLine = `We will be watching **${movieSelected.title}**!`;
+            } else {
+                stateLine = `No movie has been selected yet — stay tuned!`;
+            }
+
+            // Build reminder message
+            let msg = '';
+
+            if (label === 'start time') {
+                msg = `${mention} Movie night is starting **now**! Join us in <#${voiceChannelId}> 🎬\n${stateLine}`;
+            } else {
+                msg = `${mention} Movie night starts in **${timeString}** (at ${absoluteTime})! ${stateLine}`;
+            }
+
             try {
                 await channel.send(msg);
                 console.log(`[MovieReminders] Sent "${label}" reminder at ${sendAt.toISO()}`);
