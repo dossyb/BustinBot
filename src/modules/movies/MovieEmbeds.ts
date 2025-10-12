@@ -72,8 +72,10 @@ export function createMovieNightEmbed(
     if (movie) {
         const titleText = `Now showing: ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
 
-        // Conditionally append the "Added by" line
+        // Build the base description
         let description = movie.overview || "No description available.";
+
+        // Add "Added by" line if applicable
         if (movie.addedBy) {
             const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
             description += `\n\n_Added by ${addedByText}_`;
@@ -83,16 +85,14 @@ export function createMovieNightEmbed(
             .setTitle(titleText)
             .setDescription(description)
             .setColor(0xE91E63)
-            .addFields(
-                {
-                    name: '🎥 Start Time',
-                    value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`,
-                    inline: false,
-                }
-            )
+            .addFields({
+                name: '🎥 Start Time',
+                value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)${stateMessage ? `\n${stateMessage}` : ''}`,
+                inline: false,
+            })
             .setFooter({ text: `Scheduled by ${scheduledBy} • Powered by TMDb` });
     } else {
-        // Fallback if no movie is locked in yet
+        // No movie selected yet
         embed = new EmbedBuilder()
             .setTitle('🎞️ Upcoming Movie Night!')
             .setDescription(
@@ -101,6 +101,7 @@ export function createMovieNightEmbed(
             .setColor(0xE91E63)
             .setFooter({ text: `Scheduled by ${scheduledBy}` });
     }
+
     return embed;
 }
 

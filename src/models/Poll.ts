@@ -11,6 +11,8 @@ export interface Poll<T> {
     // Discord message ID where the poll is taking place
     messageId: string;
 
+    channelId: string | null;
+
     // When the poll was created
     createdAt: Date;
 

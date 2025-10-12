@@ -8,10 +8,11 @@ import type { MoviePoll } from "../../models/MoviePoll";
 import { injectMockUsers } from "./MovieMockUtils";
 import { createLocalMoviePreviewEmbed } from "./MovieEmbeds";
 import { saveCurrentMovie } from "./PickMovieInteractions";
+import { DateTime } from "luxon";
+import { scheduleActivePollClosure } from "./MoviePollScheduler";
 
 const movieFilePath = path.resolve(process.cwd(), "src/data/movies.json");
 const pollPath = path.resolve(process.cwd(), "src/data/activeMoviePoll.json");
-const POLL_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_CHOICES = 5;
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
 
@@ -21,16 +22,42 @@ async function createAndSendMoviePoll(
     movies: Movie[]
 ) {
     const pollId = uuidv4();
-    const now = new Date();
-    const ends = new Date(now.getTime() + POLL_DURATION_MS);
+    const now = DateTime.utc();
+
+    let endsAt = now.plus({ hours: 24 });
+
+    // Check for scheduled movie night
+    const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
+    if (fs.existsSync(movieNightPath)) {
+        try {
+            const movieNightData = JSON.parse(fs.readFileSync(movieNightPath, 'utf-8'));
+            if (movieNightData?.storedUTC) {
+                const movieStart = DateTime.fromISO(movieNightData.storedUTC);
+                if (movieStart.isValid) {
+                    const oneHourBefore = movieStart.minus({ hours: 1 });
+
+                    // Choose whichever comes first
+                    if (oneHourBefore < endsAt) {
+                        endsAt = oneHourBefore;
+                        console.log(
+                            `[MoviePoll] Adjusted poll close time to 1 hour before movie night (${oneHourBefore.toISO()})`
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn("[MoviePoll] Could not parse movieNight.json", error);
+        }
+    }
 
     const poll: MoviePoll = {
         id: pollId,
         type: "movie",
         options: movies,
         messageId: "",
-        createdAt: now,
-        endsAt: ends,
+        channelId: interaction.channelId,
+        createdAt: now.toJSDate(),
+        endsAt: endsAt.toJSDate(),
         isActive: true,
         votes: {},
     };
@@ -70,14 +97,19 @@ async function createAndSendMoviePoll(
 
     const channel = interaction.channel as TextChannel;
     await channel.send(`${mention}`);
+
+    const pollCloseUnix = Math.floor(endsAt.toSeconds());
+
     const message = await channel.send({
-        content: `📊 **Vote for the next movie night pick!**\n Poll ends in 24 hours.`,
+        content: `📊 **Vote for the next movie night pick!**\n Poll ends <t:${pollCloseUnix}:R> (<t:${pollCloseUnix}:F>).`,
         embeds,
         components: [row],
     }) as Message;
 
     poll.messageId = message.id;
     fs.writeFileSync(pollPath, JSON.stringify(poll, null, 2));
+
+    await scheduleActivePollClosure();
 }
 
 export async function pollMovieRandom(interaction: RepliableInteraction, count: number | null) {

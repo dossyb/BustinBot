@@ -4,6 +4,8 @@ import path from 'path';
 import { DateTime } from 'luxon';
 import { createMovieNightEmbed } from "./MovieEmbeds";
 import type { Movie } from "../../models/Movie";
+import { scheduleActivePollClosure } from "./MoviePollScheduler";
+import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
 
 const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
 const activeMoviePollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
@@ -63,6 +65,49 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction) 
 
     fs.writeFileSync(movieNightPath, JSON.stringify(movieNightData, null, 2));
 
+    // Schedule movie night reminders
+    await scheduleMovieReminders(utcDateTime, interaction.client);
+    console.log(`[MovieScheduler] Movie night reminders scheduled for ${utcDateTime.toISO()}`);
+
+    // Adjust existing active poll if needed
+    const activePollPath = path.resolve(process.cwd(), "src/data/activeMoviePoll.json");
+
+    if (fs.existsSync(activePollPath)) {
+        try {
+            const pollData = JSON.parse(fs.readFileSync(activePollPath, "utf-8"));
+
+            if (pollData?.isActive && pollData.endsAt) {
+                const movieStart = DateTime.fromISO(movieNightData.storedUTC ?? "");
+                const pollEnd = DateTime.fromISO(pollData.endsAt);
+                const adjustedEnd = movieStart.minus({ hours: 1 });
+
+                if (movieStart.isValid && pollEnd.isValid && adjustedEnd < pollEnd) {
+                    pollData.endsAt = adjustedEnd.toISO();
+                    fs.writeFileSync(activePollPath, JSON.stringify(pollData, null, 2));
+
+                    await scheduleActivePollClosure();
+
+                    console.log(
+                        `[MovieScheduler] Active poll end time adjusted to 1 hour before movie night (${adjustedEnd.toISO()})`
+                    );
+
+                    const guild = interaction.guild;
+                    const pollChannel = guild?.channels.cache.get(pollData.channelId) as TextChannel;
+
+                    if (pollChannel) {
+                        await pollChannel.send({
+                            content: `⚠️ The active movie poll has been adjusted to close <t:${Math.floor(
+                                adjustedEnd.toSeconds()
+                            )}:R> due to the upcoming movie night schedule.`,
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("[MovieScheduler] Failed to adjust active poll timing:", err);
+        }
+    }
+
     // Determine movie state
     let stateMessage = "";
     let movie: Movie | null = null;
@@ -80,21 +125,26 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction) 
         }
     }
 
-    if (movie) {
-        stateMessage = `🎞️ We will be watching **${movie.title}**!`;
-    } else if (pollChannelId) {
+    if (pollChannelId && !movie) {
         stateMessage = `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`;
-    } else {
+    } else if (!movie) {
         stateMessage = `No movie has been selected yet.`;
     }
 
     const readableDate = localDateTime.toFormat("cccc, dd LLLL yyyy");
     const utcUnix = Math.floor(utcDateTime.toSeconds());
 
+    const pendingReminders = getPendingReminders(utcDateTime);
+    const visibleReminders = pendingReminders.filter(r => r.label !== 'start time');
+
+    const reminderLine = visibleReminders.length
+        ? `_Reminders will be sent at ${visibleReminders.map(r => `<t:${Math.floor(r.sendAt.toSeconds())}:t>`).join(' and ')} that day._`
+        : '';
+
     const embed = createMovieNightEmbed(
         movie,
         utcUnix,
-        stateMessage,
+        `${stateMessage}\n\n${reminderLine}`,
         interaction.user.username
     );
 
