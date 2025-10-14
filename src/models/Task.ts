@@ -1,10 +1,3 @@
-// Legacy verification logic
-export enum TaskInstruction {
-    ScreenshotsRequired = 1,
-    ProgressionBased = 2,
-    ExperienceBased = 3
-}
-
 // Broad categories for variety
 export enum TaskCategory {
     Skilling = 'Skilling',
@@ -19,21 +12,43 @@ export enum TaskType {
     XP = 'XP',
     KC = 'KC',
     Drop = 'Drop',
+    Inventory = 'Inventory',
+    Points = 'Points',
+    Materials = 'Materials',
     Other = 'Other'
+}
+
+export enum Skill {
+    Agility = 'Agility',
+    Prayer = 'Prayer',
+    Magic = 'Magic',
+    Runecraft = 'Runecraft',
+    Crafting = 'Crafting',
+    Mining = 'Mining',
+    Smithing = 'Smithing',
+    Fishing = 'Fishing',
+    Cooking = 'Cooking',
+    Firemaking = 'Firemaking',
+    Woodcutting = 'Woodcutting',
+    Herblore = 'Herblore',
+    Thieving = 'Thieving',
+    Fletching = 'Fletching',
+    Slayer = 'Slayer',
+    Farming = 'Farming',
+    Construction = 'Construction',
+    Hunter = 'Hunter',
+    Sailing = 'Sailing'
 }
 
 export interface Task {
     // Unique identifier for the task
-    id: number;
+    id: string;
 
     // The task description, may contain {amount} placeholder(s)
     taskName: string;
 
-    // Optional list of possible amounts (e.g. [25, 50, 100])
+    // Legacy amounts
     amounts?: number[];
-
-    // Instruction code (legacy logic decides how to handle/verify the task)
-    instruction: TaskInstruction;
 
     // Category of the task
     category: TaskCategory;
@@ -41,9 +56,32 @@ export interface Task {
     // Type of task
     type: TaskType;
 
+    // Skill category (if relevant to task)
+    skill?: Skill;
+
+    // New three-tier amounts for bronze, silver, and gold completions
+    amtBronze: number;
+    amtSilver: number;
+    amtGold: number;
+
     // Weighting based on user feedback
     weight?: number;
 
     // Short hand name for quick reference (e.g. task poll buttons)
     shortName?: string;
+
+    // XP per action for skilling tasks
+    xpPerAction?: number;
+
+    // Minimum XP gained for each tier of completion - to assist admins in verification
+    minXPBronze?: number;
+    minXPSilver?: number;
+    minXPGold?: number;
+
+    // Flag to dynamically display skull next to task name
+    wildernessReq?: boolean;
+
+    // Data for user-suggested tasks
+    addedBy?: string;
+    approvedBy?: string;
 }

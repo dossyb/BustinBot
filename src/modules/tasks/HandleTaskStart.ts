@@ -10,7 +10,7 @@ import { selectKeyword } from './KeywordSelector';
 const pollPath = path.resolve(process.cwd(), 'src/data/activePoll.json');
 const taskPath = path.resolve(process.cwd(), 'src/data/tasks.json');
 
-function generateTaskEventId(taskId: number): string {
+function generateTaskEventId(taskId: string): string {
     const now = new Date();
     const yyyy = now.getUTCFullYear();
     const mm = String(now.getUTCMonth() + 1).padStart(2, '0');

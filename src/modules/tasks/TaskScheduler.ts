@@ -17,7 +17,10 @@ const defaultSchedule = {
 };
 
 // Test config
-const testMode = true;
+let testMode = false;
+if (process.env.BOT_MODE = 'dev') {
+    testMode = true;
+}
 const testIntervalMinutes = 7;
 
 let pollJob: ScheduledTask;
