@@ -2,7 +2,7 @@ import type { Task } from "./Task";
 import type { TaskSubmission } from "./TaskSubmission";
 
 export interface TaskEvent {
-    taskEventId: string;
+    id: string;
 
     // Base task template
     task: Task;

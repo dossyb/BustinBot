@@ -57,7 +57,7 @@ export async function startTaskEvent(client: Client): Promise<void> {
     const taskEventId = generateTaskEventId(task.id);
 
     const baseEvent = {
-        taskEventId,
+        id: taskEventId,
         task,
         keyword: selectKeyword(),
         startTime: new Date(),
