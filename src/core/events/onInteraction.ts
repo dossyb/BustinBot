@@ -9,7 +9,8 @@ import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies
 
 export async function handleInteraction(
     interaction: Interaction,
-    commands: Map<string, Command>
+    commands: Map<string, Command>,
+    services: { botStats: any }
 ) {
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
@@ -46,7 +47,7 @@ export async function handleInteraction(
         }
 
         try {
-            await command.execute({ interaction });
+            await command.execute({ interaction, services });
         } catch (error) {
             console.error(`[Slash Command Error]: ${command.name}`, error);
             await interaction.reply({ content: 'There was an error executing that command.', flags: 1 << 6 });

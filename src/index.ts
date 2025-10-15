@@ -9,6 +9,7 @@ import { BotStatsService } from './core/services/BotStatsService';
 import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
 import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
+import { BotRepository } from './core/database/BotRepo';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +19,14 @@ const __dirname = path.dirname(__filename);
 config();
 
 // Initialize bot statistics
-BotStatsService.init();
+const botRepo = new BotRepository;
+const botStatsService = new BotStatsService(botRepo);
+await botStatsService.init();
+
+// Inline service container
+const services = {
+    botStats: botStatsService,
+};
 
 // Create Discord client with required intents
 const client = new Client({
@@ -65,7 +73,7 @@ console.log('Loading commands...');
             await handleDirectMessage(message, client);
         }
         try {
-            await handleMessage(message, commands);
+            await handleMessage(message, commands, services);
         } catch (error) {
             console.error('Error handling message:', error);
         }
@@ -74,7 +82,7 @@ console.log('Loading commands...');
     // Register interaction handler
     client.on('interactionCreate', async (interaction) => {
         try {
-            await handleInteraction(interaction, commands);
+            await handleInteraction(interaction, commands, services);
         } catch (error) {
             console.error('Error handling interaction:', error);
         }

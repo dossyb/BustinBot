@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, Message, SlashCommandBuilder, type SlashCommandOptionsOnlyBuilder, type SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
+import type { BotStatsService } from '../core/services/BotStatsService';
 
 export enum CommandRole {
     Everyone = 'Everyone',
@@ -35,6 +36,9 @@ export interface Command {
         message?: Message;
         interaction?: ChatInputCommandInteraction;
         args?: string[];
+        services?: {
+            botStats: BotStatsService;
+        };
     }) => Promise<void>;
 
     // Optional method to return a SlashCommandBuilder for registering slash commands

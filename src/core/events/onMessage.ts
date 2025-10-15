@@ -6,7 +6,7 @@ import { loadCommands } from '../services/CommandService';
 const PREFIX = '!'; // Handle ! as the command prefix
 const commands = loadCommands('./src/modules/commands');
 
-export async function handleMessage(message: Message, commands: Map<string, Command>) {
+export async function handleMessage(message: Message, commands: Map<string, Command>, services: { botStats: any }) {
     if (!message.content.startsWith(PREFIX) || message.author.bot) return;
 
     const [commandNameRaw, ...args] = message.content.slice(PREFIX.length).trim().split(/\s+/);
@@ -49,7 +49,7 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
     }
 
     try {
-        await command.execute({ message, args });
+        await command.execute({ message, args, services });
     } catch (err) {
         console.error(`[Command Error]: ${commandName}`, err);
         message.reply('There was an error executing that command.');

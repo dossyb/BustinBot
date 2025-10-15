@@ -1,83 +1,82 @@
 // Temporary service to handle persistent bot stats before Firestore integration
 import path from 'path';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, promises } from 'fs';
 import type { BotStats } from '../../models/BotStats';
-import { get } from 'http';
+import type { IBotRepository } from '../database/interfaces/IBotRepo';
 
-const filePath = path.join(process.cwd(), 'src/data', 'botStats.json');
+export class BotStatsService {
+    private stats: BotStats | null = null;
 
-let stats: BotStats;
+    constructor(private repo: IBotRepository) { }
 
-function loadStats(): BotStats {
-    if (existsSync(filePath)) {
-        const raw = readFileSync(filePath, 'utf-8');
-        const parsed = JSON.parse(raw);
-        return {
-            ...parsed,
-            funStats: parsed.funStats ?? {
-                bustinCount: 0,
-                goodbotCount: 0,
-                badbotCount: 0,
-            }
+    async init(): Promise<void> {
+        const existing = await this.repo.getBotStats();
+        if (existing) {
+            this.stats = existing;
+        } else {
+            const defaults: BotStats = {
+                startedAt: new Date(),
+                commandsRun: 0,
+                commandsByName: {},
+                messagesSeen: 0,
+                guildCount: 0,
+                channelCount: 0,
+                userCount: 0,
+                moviesAdded: 0,
+                moviesWatched: 0,
+                moviePollsRun: 0,
+                tasksAdded: 0,
+                taskPollsRun: 0,
+                tasksCompleted: 0,
+                errorCount: 0,
+                lastUpdatedAt: new Date(),
+                funStats: {
+                    bustinCount: 0,
+                    goodbotCount: 0,
+                    badbotCount: 0
+                }
+            };
+            await this.repo.initBotStats(defaults);
+            this.stats = defaults;
         }
-    } else {
-        return {
-            startedAt: new Date(),
-            commandsRun: 0,
-            commandsByName: {},
-            messagesSeen: 0,
-            guildCount: 0,
-            channelCount: 0,
-            userCount: 0,
-            moviesAdded: 0,
-            moviesWatched: 0,
-            moviePollsRun: 0,
-            tasksAdded: 0,
-            taskPollsRun: 0,
-            tasksCompleted: 0,
-            errorCount: 0,
-            lastUpdatedAt: new Date(),
-            funStats: {
-                bustinCount: 0,
-                goodbotCount: 0,
-                badbotCount: 0,
-            }
-        };
+    }
+
+    async incrementBustin(): Promise<void> {
+        await this.repo.incrementFunStat('bustinCount');
+        if (this.stats) {
+            this.stats.funStats.bustinCount++;
+            this.stats.lastUpdatedAt = new Date();
+        }
+        await this.repo.updateLastUpdated();
+    }
+
+    async incrementGoodBot(): Promise<void> {
+        await this.repo.incrementFunStat('goodbotCount');
+        if (this.stats) {
+            this.stats.funStats.goodbotCount++;
+            this.stats.lastUpdatedAt = new Date();
+        }
+        await this.repo.updateLastUpdated();
+    }
+
+    async incrementBadBot(): Promise<void> {
+        await this.repo.incrementFunStat('badbotCount');
+        if (this.stats) {
+            this.stats.funStats.badbotCount++;
+            this.stats.lastUpdatedAt = new Date();
+        }
+        await this.repo.updateLastUpdated();
+    }
+
+    getStats(): BotStats | null {
+        return this.stats;
+    }
+
+    getGoodBotCount(): number {
+        return this.stats?.funStats.goodbotCount ?? 0;
+    }
+
+    getBadBotCount(): number {
+        return this.stats?.funStats.badbotCount ?? 0;
     }
 }
-
-function saveStats() {
-    writeFileSync(filePath, JSON.stringify(stats, null, 2));
-}
-
-export const BotStatsService = {
-    init() {
-        stats = loadStats();
-    },
-    incrementBustin() {
-        stats.funStats.bustinCount = (stats.funStats.bustinCount || 0) + 1;
-        stats.lastUpdatedAt = new Date();
-        saveStats();
-    },
-    incrementGoodBot() {
-        stats.funStats = stats.funStats || {};
-        stats.funStats.goodbotCount = (stats.funStats.goodbotCount || 0) + 1;
-        stats.lastUpdatedAt = new Date();
-        saveStats();
-    },
-    incrementBadBot() {
-        stats.funStats = stats.funStats || {};
-        stats.funStats.badbotCount = (stats.funStats.badbotCount || 0) + 1;
-        stats.lastUpdatedAt = new Date();
-        saveStats();
-    },
-    getStats(): BotStats {
-        return stats;
-    },
-    getGoodBotCount() {
-        return stats.funStats?.goodbotCount || 0;
-    },
-    getBadBotCount() {
-        return stats.funStats?.badbotCount || 0;
-    }
-};

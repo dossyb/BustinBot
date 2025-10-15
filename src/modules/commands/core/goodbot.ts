@@ -1,7 +1,6 @@
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { SlashCommandBuilder, TextChannel } from 'discord.js';
-import { BotStatsService } from '../../../core/services/BotStatsService.js';
 
 const goodbot: Command = {
     name: 'goodbot',
@@ -12,10 +11,10 @@ const goodbot: Command = {
         .setName('goodbot')
         .setDescription('Praise BustinBot.'),
 
-    async execute({ interaction, message }) {
+    async execute({ interaction, message, services }) {
         const emoji = '🥹';
-        BotStatsService.incrementGoodBot();
-        const count = BotStatsService.getGoodBotCount();
+        await services?.botStats.incrementGoodBot();
+        const count = services?.botStats.getGoodBotCount();
 
         const reply = `*BustinBot has been called a good bot ${count} time${count !== 1 ? 's' : ''}!*`;
 
