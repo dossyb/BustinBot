@@ -1,12 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Message } from "discord.js";
-import fs from 'fs';
-import path from 'path';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from "../../../models/Command";
 import type { Movie } from "../../../models/Movie";
-import { createMovieEmbed, createMovieListEmbeds } from "../../movies/MovieEmbeds";
+import { createMovieListEmbeds } from "../../movies/MovieEmbeds";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
 const MOVIES_PER_PAGE = 3;
 
 function paginateMovies(movies: Movie[], page: number): Movie[] {
@@ -51,19 +49,19 @@ const listmovies: Command = {
         .setName('listmovies')
         .setDescription('View the current movie list with pagination.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
         // Load movies from file
-        if (!fs.existsSync(movieFilePath)) {
-            await interaction.editReply('No movies found.');
+        const movieRepo = services.repos.movieRepo;
+        if (!movieRepo) {
+            await interaction.editReply("Movie repository not available.");
             return;
         }
 
-        const rawData = fs.readFileSync(movieFilePath, 'utf-8');
-        const movies: Movie[] = JSON.parse(rawData);
-
+        const movies: Movie[] = await movieRepo.getAllMovies();
+        
         if (!movies.length) {
             await interaction.editReply('The movie list is currently empty.');
             return;

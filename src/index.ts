@@ -58,8 +58,6 @@ console.log('Loading commands...');
     console.log(`Loaded ${commands.size} commands.`);
     await registerSlashCommands(commands);
 
-
-
     // Register message handler
     client.on('messageCreate', async (message) => {
         if (message.channel.type === 1) {
@@ -85,7 +83,7 @@ console.log('Loading commands...');
     // Ready event
     client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
-        await scheduleActivePollClosure();
+        await scheduleActivePollClosure(services);
     });
 
     // Login to Discord with bot token

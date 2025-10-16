@@ -1,64 +1,60 @@
-import fs from 'fs';
-import path from 'path';
 import type { Movie } from '../../models/Movie';
 import { DateTime } from 'luxon';
-
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
-const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
-const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
-const historyPath = path.resolve(process.cwd(), 'src/data/movieHistory.json');
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
 // Marks the current movie night as completed and archives it
-export async function finishMovieNight(endedBy: string): Promise<{ success: boolean; message: string; finishedMovie?: Movie }> {
-    if (!fs.existsSync(currentMoviePath)) {
-        return { success: false, message: "No active movie found to end." };
+export async function finishMovieNight(endedBy: string, services: ServiceContainer): Promise<{ success: boolean; message: string; finishedMovie?: Movie }> {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error('[MovieLifecycle] Movie repository not found.');
+        return { success: false, message: 'Internal error: repository missing.' };
     }
 
-    const currentMovie: Movie = JSON.parse(fs.readFileSync(currentMoviePath, 'utf-8'));
-    const movieNightData = fs.existsSync(movieNightPath)
-        ? JSON.parse(fs.readFileSync(movieNightPath, 'utf-8'))
-        : null;
+    try {
+        // Retrieve latest active event
+        const latestEvent = await movieRepo.getLatestEvent();
+        if (!latestEvent) {
+            return { success: false, message: 'No active movie event found to end.' };
+        }
 
-    // Load or initialise movie history
-    const history: any[] = fs.existsSync(historyPath)
-        ? JSON.parse(fs.readFileSync(historyPath, 'utf-8'))
-        : [];
+        const currentMovie = latestEvent.movie;
+        if (!currentMovie) {
+            return { success: false, message: 'No movie is currently active.' };
+        }
 
-    const completedEntry = {
-        ...currentMovie,
-        finishedAt: new Date().toISOString(),
-        scheduledFor: movieNightData?.storedUTC || null,
-        endedBy,
-    };
+        // Mark movie as watched in Firestore
+        const finishedMovie: Movie = {
+            ...currentMovie,
+            watched: true,
+            watchedAt: new Date(),
+        };
+        await movieRepo.upsertMovie(finishedMovie);
 
-    history.push(completedEntry);
+        // Update event as completed
+        await movieRepo.createMovieEvent({
+            ...latestEvent,
+            completed: true,
+            completedAt: new Date(),
+            hostedBy: latestEvent.hostedBy,
+            movie: finishedMovie,
+        });
 
-    // Persist updated history
-    fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+        console.log(`[MovieLifecycle] Movie night ended by ${endedBy}: ${finishedMovie.title}`);
 
-    // Remove movie from active list if it exists there
-    if (fs.existsSync(movieFilePath)) {
-        const allMovies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
-        const updatedMovies = allMovies.filter((m) => m.id !== currentMovie.id);
-        fs.writeFileSync(movieFilePath, JSON.stringify(updatedMovies, null, 2));
+        return {
+            success: true,
+            message: `The movie night for **${finishedMovie.title}** has ended.`,
+            finishedMovie,
+        };
+    } catch (error) {
+        console.error('[MovieLifecycle] Failed to finish movie night:', error);
+        return { success: false, message: 'Failed to end movie night.' };
     }
-
-    // Clear current and scheduled movie data
-    if (fs.existsSync(currentMoviePath)) fs.unlinkSync(currentMoviePath);
-    if (fs.existsSync(movieNightPath)) fs.unlinkSync(movieNightPath);
-
-    console.log(`[MovieLifecycle] Movie night ended by ${endedBy}: ${currentMovie.title}`);
-
-    return {
-        success: true,
-        message: `The movie night for **${currentMovie.title}** has ended.`,
-        finishedMovie: currentMovie,
-    };
 }
 
-export function scheduleMovieAutoEnd(startTimeISO: string, runtimeMinutes: number) {
+export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: string, runtimeMinutes: number) {
     const bufferMinutes = 30;
     const endTime = DateTime.fromISO(startTimeISO).plus({ minutes: runtimeMinutes + bufferMinutes });
     const now = DateTime.utc();
@@ -75,7 +71,7 @@ export function scheduleMovieAutoEnd(startTimeISO: string, runtimeMinutes: numbe
 
     autoEndTimeout = setTimeout(async () => {
         console.log("[MovieLifecycle] Auto-ending movie night based on runtime.");
-        await finishMovieNight('auto');
+        await finishMovieNight('auto', services);
     }, msUntilEnd);
 
     console.log(`[MovieLifecycle] Auto-end scheduled in ${Math.round(msUntilEnd / 1000)}s at ${endTime.toISO()}`);

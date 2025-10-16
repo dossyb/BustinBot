@@ -60,11 +60,11 @@ export async function handleInteraction(
     if (interaction.isModalSubmit()) {
         switch (interaction.customId) {
             case 'movie_pick_choose_modal':
-                return handleMoviePickChooseModalSubmit(interaction);
+                return handleMoviePickChooseModalSubmit(services, interaction);
         }
 
         if (interaction.customId.startsWith('movienight-time-')) {
-            return handleMovieNightTime(interaction);
+            return handleMovieNightTime(interaction, services);
         }
     }
 
@@ -73,19 +73,19 @@ export async function handleInteraction(
         const uid = interaction.user.id;
 
         if (customId.startsWith('confirm_random_movie')) {
-            return handleConfirmRandomMovie(interaction);
+            return handleConfirmRandomMovie(services, interaction);
         }
         if (customId === 'reroll_random_movie') {
-            return handleRerollRandomMovie(interaction);
+            return handleRerollRandomMovie(services, interaction);
         }
         if (customId.startsWith('movie_vote_')) {
             const { handleMoviePollVote } = await import('../../modules/movies/PickMovieInteractions');
-            return handleMoviePollVote(interaction);
+            return handleMoviePollVote(services, interaction);
         }
 
         if (customId.startsWith('movie_poll_manual_')) {
             const { handleManualPollInteraction } = await import('../../modules/movies/PickMovieInteractions');
-            return handleManualPollInteraction(interaction);
+            return handleManualPollInteraction(services, interaction);
         };
     }
 
@@ -93,15 +93,15 @@ export async function handleInteraction(
         switch (interaction.customId) {
             case 'movie_poll_random_count': {
                 const { handleRandomPollCountSelect } = await import('../../modules/movies/PickMovieInteractions');
-                return handleRandomPollCountSelect(interaction);
+                return handleRandomPollCountSelect(services, interaction);
             }
             case 'movie_poll_manual_select': {
                 const { updateManualPollSelection } = await import('../../modules/movies/MovieManualPoll');
                 updateManualPollSelection(interaction.user.id, interaction.values);
-                return showMovieManualPollMenu(interaction);
+                return showMovieManualPollMenu(services, interaction);
             }
             case 'movienight-select-date':
-                return handleMovieNightDate(interaction);
+                return handleMovieNightDate(interaction, services);
         }
     }
 

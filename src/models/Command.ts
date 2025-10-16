@@ -36,7 +36,7 @@ export interface Command {
         message?: Message;
         interaction?: ChatInputCommandInteraction;
         args?: string[];
-        services?: ServiceContainer;
+        services: ServiceContainer;
     }) => Promise<void>;
 
     // Optional method to return a SlashCommandBuilder for registering slash commands

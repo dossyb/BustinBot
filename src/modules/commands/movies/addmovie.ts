@@ -1,14 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import fs from 'fs';
-import path from 'path';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from "../../../models/Command";
 import { fetchMovieDetailsById } from "../../movies/MovieService";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import { presentMovieSelection } from "../../movies/MovieSelector";
 import type { Movie } from "../../../models/Movie";
-
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
+import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const addmovie: Command = {
     name: 'addmovie',
@@ -29,19 +26,29 @@ const addmovie: Command = {
                 .setRequired(false)
         ),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: {
+        interaction?: ChatInputCommandInteraction;
+        services: ServiceContainer;
+    }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const query = interaction.options.getString('title', true);
-        const yearRaw = interaction.options.getInteger('year', false);
+        const movieRepo = services.repos.movieRepo;
+        if (!movieRepo) {
+            await interaction.editReply("Movie repository not available.");
+            return;
+        }
+
+        const query = interaction.options.getString("title", true);
+        const yearRaw = interaction.options.getInteger("year", false);
         const year = yearRaw ?? undefined;
+
         try {
-            // Present top results and wait for user selection
+            // Present top search results from TMDb and let user choose one
             const selected = await presentMovieSelection(interaction, query, year);
             if (!selected) return;
 
-            // Fetch full details from TMDb
+            // Fetch full metadata from TMDb
             const movieMetadata = await fetchMovieDetailsById(selected.id);
             if (!movieMetadata) {
                 await interaction.editReply(`Could not fetch details for ${selected.title}.`);
@@ -60,19 +67,15 @@ const addmovie: Command = {
                 runtime: movieMetadata.runtime,
                 genres: movieMetadata.genres,
                 rating: movieMetadata.rating,
+                director: movieMetadata.director,
+                cast: movieMetadata.cast,
                 watched: false,
                 addedBy: interaction.user.id,
                 addedAt: new Date(),
             };
 
-            // Persist to file
-            let movies: Movie[] = [];
-            if (fs.existsSync(movieFilePath)) {
-                const data = fs.readFileSync(movieFilePath, 'utf-8');
-                movies = data ? JSON.parse(data) : [];
-            }
-            movies.push(newMovie);
-            fs.writeFileSync(movieFilePath, JSON.stringify(movies, null, 2));
+            // Save to Firestore
+            await movieRepo.upsertMovie(newMovie);
 
             // Confirm addition
             const embed = createMovieEmbed(newMovie)
@@ -80,11 +83,14 @@ const addmovie: Command = {
                 .setFooter({ text: `Added by ${interaction.user.username}` });
 
             await interaction.editReply({ embeds: [embed], components: [] });
+            console.log(`[AddMovie] Added "${newMovie.title}" by ${interaction.user.username}`);
         } catch (error) {
-            console.error('[AddMovie Command Error]', error);
-            await interaction.editReply('An error occurred while adding the movie. Check console for details.');
+            console.error("[AddMovie Command Error]", error);
+            await interaction.editReply(
+                "An error occurred while adding the movie. Check console for details."
+            );
         }
-    }
+    },
 };
 
 export default addmovie;

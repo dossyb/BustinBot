@@ -1,10 +1,8 @@
-import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, Message, TextChannel } from "discord.js";
+import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import type { RepliableInteraction } from "discord.js";
-import fs from 'fs';
-import path from 'path';
 import type { Movie } from "../../models/Movie";
+import type { ServiceContainer } from "../../core/services/ServiceContainer";
 
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
 const PAGE_SIZE = 25;
 const sessions = new Map<string, { selected: Set<string>; page: number }>();
 
@@ -19,13 +17,25 @@ function normalizeLabel(title: string): string {
 }
 
 
-export async function showMovieManualPollMenu(interaction: RepliableInteraction) {
-    if (!fs.existsSync(movieFilePath)) {
-        await interaction.followUp({ content: 'Movie list not found.', flags: 1 << 6 });
+export async function showMovieManualPollMenu(services: ServiceContainer, interaction: RepliableInteraction) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        await interaction.followUp({
+            content: "Movie repository unavailable.",
+            flags: 1 << 6,
+        });
         return;
     }
 
-    const allMovies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
+    const allMovies: Movie[] = await movieRepo.getAllMovies();
+    if (!allMovies.length) {
+        await interaction.followUp({
+            content: "No movies found.",
+            flags: 1 << 6,
+        });
+        return;
+    }
+
     const userId = interaction.user.id;
     const session = sessions.get(userId) ?? { selected: new Set<string>(), page: 0 };
     sessions.set(userId, session);
@@ -33,9 +43,9 @@ export async function showMovieManualPollMenu(interaction: RepliableInteraction)
     const pageMovies = getPaginatedMovies(session.page, allMovies);
 
     const options = pageMovies.map((movie) => {
-        const fullIndex = allMovies.findIndex(m => m.id === movie.id);
-        const indexStr = fullIndex !== -1 ? `${fullIndex + 1}. ` : '';
-        const year = movie.releaseDate ? ` (${movie.releaseDate})` : '';
+        const fullIndex = allMovies.findIndex((m) => m.id === movie.id);
+        const indexStr = fullIndex !== -1 ? `${fullIndex + 1}. ` : "";
+        const year = movie.releaseDate ? ` (${movie.releaseDate})` : "";
         return {
             label: normalizeLabel(`${indexStr}${movie.title}${year}`),
             value: movie.id,
@@ -46,7 +56,7 @@ export async function showMovieManualPollMenu(interaction: RepliableInteraction)
     const remaining = Math.max(0, 5 - alreadySelected);
 
     const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('movie_poll_manual_select')
+        .setCustomId("movie_poll_manual_select")
         .setPlaceholder(
             remaining > 0
                 ? `Pick up to ${remaining} more movie${remaining > 1 ? "s" : ""}`
@@ -57,18 +67,33 @@ export async function showMovieManualPollMenu(interaction: RepliableInteraction)
         .setMaxValues(Math.min(remaining, options.length));
 
     const controlRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId('movie_poll_manual_prev').setLabel('◀️').setStyle(ButtonStyle.Primary).setDisabled(session.page === 0),
-        new ButtonBuilder().setCustomId('movie_poll_manual_next').setLabel('▶️').setStyle(ButtonStyle.Primary).setDisabled((session.page + 1) * PAGE_SIZE >= allMovies.length),
-        new ButtonBuilder().setCustomId('movie_poll_manual_confirm').setLabel('Confirm').setStyle(ButtonStyle.Success).setDisabled(session.selected.size < 2),
-        new ButtonBuilder().setCustomId('movie_poll_manual_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
+        new ButtonBuilder()
+            .setCustomId("movie_poll_manual_prev")
+            .setLabel("◀️")
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(session.page === 0),
+        new ButtonBuilder()
+            .setCustomId("movie_poll_manual_next")
+            .setLabel("▶️")
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled((session.page + 1) * PAGE_SIZE >= allMovies.length),
+        new ButtonBuilder()
+            .setCustomId("movie_poll_manual_confirm")
+            .setLabel("Confirm")
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(session.selected.size < 2),
+        new ButtonBuilder()
+            .setCustomId("movie_poll_manual_cancel")
+            .setLabel("Cancel")
+            .setStyle(ButtonStyle.Danger)
     );
 
     const selectedTitles = allMovies
         .filter((movie) => session.selected.has(movie.id))
         .map((movie) => {
-            const index = allMovies.findIndex(m => m.id === movie.id);
-            const number = index !== -1 ? `${index + 1}. ` : '';
-            const year = movie.releaseDate ? ` (${movie.releaseDate})` : '';
+            const index = allMovies.findIndex((m) => m.id === movie.id);
+            const number = index !== -1 ? `${index + 1}. ` : "";
+            const year = movie.releaseDate ? ` (${movie.releaseDate})` : "";
             return `• ${number}${movie.title}${year}`;
         })
         .join("\n");
@@ -87,7 +112,7 @@ export async function showMovieManualPollMenu(interaction: RepliableInteraction)
 
     if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content, components });
-    } else if ('update' in interaction) {
+    } else if ("update" in interaction) {
         await interaction.update({ content, components });
     } else {
         await interaction.reply({ content, components, flags: 1 << 6 });
@@ -114,12 +139,20 @@ export function updateManualPollSelection(userId: string, selectedIds: string[])
     }
 }
 
-export function changeManualPollPage(userId: string, delta: number) {
+export async function changeManualPollPage(
+    services: ServiceContainer,
+    userId: string,
+    delta: number
+) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) return;
+
+    const allMovies: Movie[] = await movieRepo.getAllMovies();
+    if (!allMovies.length) return;
+
     const session = sessions.get(userId);
     if (session) {
-        const allMovies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
         const totalPages = Math.ceil(allMovies.length / PAGE_SIZE);
-
         session.page = Math.max(0, Math.min(session.page + delta, totalPages - 1));
     }
 }

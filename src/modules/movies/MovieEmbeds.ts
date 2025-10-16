@@ -13,8 +13,11 @@ export function createMovieEmbed(movie: Partial<Movie>): EmbedBuilder {
         .setThumbnail(movie.posterUrl || null)
         .addFields(
             { name: 'Runtime', value: movie.runtime ? `${movie.runtime} mins` : 'Unknown', inline: true },
-            { name: 'Rating', value: movie.rating ? `${movie.rating}/10` : 'Unrated', inline: true },
-            { name: 'Genres', value: movie.genres?.join(', ') || 'Unknown', inline: false },
+            { name: 'Director', value: movie.director ?? 'Unknown', inline: true },
+            // spacer field — invisible but forces new row
+            { name: "\u200B", value: "\u200B", inline: true },
+            { name: 'Genres', value: movie.genres?.join(', ') || 'Unknown', inline: true },
+            { name: 'Starring', value: movie.cast?.join(', ') || 'Unknown', inline: true },
         )
         .setURL(movie.infoUrl || 'https://www.themoviedb.org/')
         .setFooter({ text: 'Powered by TMDb ' });

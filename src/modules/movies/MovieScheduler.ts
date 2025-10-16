@@ -1,18 +1,13 @@
 import { StringSelectMenuInteraction, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, TextChannel } from "discord.js";
-import fs from 'fs';
-import path from 'path';
 import { DateTime } from 'luxon';
 import { createMovieNightEmbed } from "./MovieEmbeds";
 import type { Movie } from "../../models/Movie";
 import { scheduleActivePollClosure } from "./MoviePollScheduler";
 import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
 import { scheduleMovieAutoEnd } from "./MovieLifecycle";
+import type { ServiceContainer } from "../../core/services/ServiceContainer";
 
-const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
-const activeMoviePollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
-const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
-
-export async function handleMovieNightDate(interaction: StringSelectMenuInteraction) {
+export async function handleMovieNightDate(interaction: StringSelectMenuInteraction, services: ServiceContainer) {
     const selectedDate = interaction.values[0];
     const BOT_TIMEZONE = process.env.BOT_TIMEZONE || "UTC";
 
@@ -38,7 +33,14 @@ export async function handleMovieNightDate(interaction: StringSelectMenuInteract
     await interaction.showModal(modal);
 }
 
-export async function handleMovieNightTime(interaction: ModalSubmitInteraction) {
+export async function handleMovieNightTime(interaction: ModalSubmitInteraction, services: ServiceContainer) {
+    const { repos } = services;
+    const movieRepo = repos.movieRepo;
+    if (!movieRepo) {
+        console.error("[MovieScheduler] No movie repository found in services.");
+        return interaction.reply({ content: "Internal error: missing movie repository.", flags: 1 << 6 });
+    }
+
     const parts = interaction.customId.split('-');
     const selectedDate = `${parts[2]}-${parts[3]}-${parts[4]}`;
     const time = interaction.fields.getTextInputValue('start-time');
@@ -55,121 +57,69 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction) 
     const localDateTime = DateTime.fromISO(`${selectedDate}T${time}`, { zone: BOT_TIMEZONE });
     const utcDateTime = localDateTime.toUTC();
 
-    const movieNightData = {
-        date: selectedDate,
-        time,
-        timezone: BOT_TIMEZONE,
-        storedUTC: utcDateTime.toISO(),
-        createdBy: interaction.user.id,
-        createdAt: new Date().toISOString()
-    };
-
-    fs.writeFileSync(movieNightPath, JSON.stringify(movieNightData, null, 2));
-
-    // Schedule movie night reminders
-    await scheduleMovieReminders(utcDateTime, interaction.client);
-    console.log(`[MovieScheduler] Movie night reminders scheduled for ${utcDateTime.toISO()}`);
-
-    // Adjust existing active poll if needed
-    const activePollPath = path.resolve(process.cwd(), "src/data/activeMoviePoll.json");
-
-    if (fs.existsSync(activePollPath)) {
-        try {
-            const pollData = JSON.parse(fs.readFileSync(activePollPath, "utf-8"));
-
-            if (pollData?.isActive && pollData.endsAt) {
-                const movieStart = DateTime.fromISO(movieNightData.storedUTC ?? "");
-                const pollEnd = DateTime.fromISO(pollData.endsAt);
-                const adjustedEnd = movieStart.minus({ hours: 1 });
-
-                if (movieStart.isValid && pollEnd.isValid && adjustedEnd < pollEnd) {
-                    pollData.endsAt = adjustedEnd.toISO();
-                    fs.writeFileSync(activePollPath, JSON.stringify(pollData, null, 2));
-
-                    await scheduleActivePollClosure();
-
-                    console.log(
-                        `[MovieScheduler] Active poll end time adjusted to 1 hour before movie night (${adjustedEnd.toISO()})`
-                    );
-
-                    const guild = interaction.guild;
-                    const pollChannel = guild?.channels.cache.get(pollData.channelId) as TextChannel;
-
-                    if (pollChannel) {
-                        await pollChannel.send({
-                            content: `⚠️ The active movie poll has been adjusted to close <t:${Math.floor(
-                                adjustedEnd.toSeconds()
-                            )}:R> due to the upcoming movie night schedule.`,
-                        });
-                    }
-                }
-            }
-        } catch (err) {
-            console.warn("[MovieScheduler] Failed to adjust active poll timing:", err);
-        }
-    }
-
-    // Determine movie state
-    let stateMessage = "";
+    const activePoll = await movieRepo.getActivePoll();
     let movie: Movie | null = null;
     let pollChannelId: string | undefined;
 
-    if (fs.existsSync(currentMoviePath)) {
-        const data = JSON.parse(fs.readFileSync(currentMoviePath, 'utf-8'));
-        if (data && !data.watched) movie = data;
+    if (activePoll && activePoll.isActive) {
+        pollChannelId = activePoll.channelId || undefined;
     }
 
-    if (fs.existsSync(activeMoviePollPath)) {
-        const poll = JSON.parse(fs.readFileSync(activeMoviePollPath, 'utf-8'));
-        if (poll && poll.isActive) {
-            pollChannelId = poll.channelId;
+    // Optionally, find the most recent unwatched movie
+    const movies = await movieRepo.getAllMovies();
+    movie = movies.find(m => !m.watched) ?? null;
+
+    // Adjust poll end time if needed
+    if (activePoll?.isActive && activePoll.endsAt) {
+        const movieStart = utcDateTime;
+        const pollEnd = DateTime.fromJSDate(activePoll.endsAt);
+        const adjustedEnd = movieStart.minus({ hours: 1 });
+
+        if (adjustedEnd < pollEnd) {
+            await movieRepo.createPoll({
+                ...activePoll,
+                endsAt: adjustedEnd.toJSDate()
+            });
+            await scheduleActivePollClosure(services);
         }
     }
 
-    if (pollChannelId && !movie) {
-        stateMessage = `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`;
-    } else if (!movie) {
-        stateMessage = `No movie has been selected yet.`;
+    // Create movie event record
+    const event = {
+        id: `event-${Date.now()}`,
+        startTime: utcDateTime.toJSDate(),
+        movie: movie ?? { id: "TBD", title: "TBD", addedBy: interaction.user.id, addedAt: new Date(), watched: false },
+        channelId: pollChannelId || "",
+        hostedBy: interaction.user.id,
+        completed: false,
+    };
+    await movieRepo.createMovieEvent(event);
+
+    // Schedule reminders
+    await scheduleMovieReminders(services, utcDateTime, interaction.client);
+
+    // Auto-end scheduling (if runtime known)
+    if (movie?.runtime) {
+        scheduleMovieAutoEnd(services, utcDateTime.toISO()!, movie.runtime);
     }
 
-    // Schedule auto-end if we have both data (after loading movie)
-    if (movieNightData.storedUTC && movie?.runtime) {
-        const startTime = DateTime.fromISO(movieNightData.storedUTC);
-        const bufferMinutes = 30;
-        const endTime = startTime.plus({ minutes: movie.runtime + bufferMinutes });
-
-        console.log(`[MovieScheduler] Scheduling auto-end for movie "${movie.title}"`);
-        console.log(`[MovieScheduler] Start time: ${startTime.toISO()}`);
-        console.log(`[MovieScheduler] Runtime: ${movie.runtime} minutes (+${bufferMinutes} min buffer)`);
-        console.log(`[MovieScheduler] Auto-end time: ${endTime.toISO()}`);
-
-        scheduleMovieAutoEnd(movieNightData.storedUTC, movie.runtime);
-    } else {
-        console.warn(
-            "[MovieScheduler] Skipping auto-end scheduling — missing start time or movie runtime."
-        );
-    }
-
+    // Build embed
     const readableDate = localDateTime.toFormat("cccc, dd LLLL yyyy");
     const utcUnix = Math.floor(utcDateTime.toSeconds());
-
     const pendingReminders = getPendingReminders(utcDateTime);
     const visibleReminders = pendingReminders.filter(r => r.label !== 'start time');
-
     const reminderLine = visibleReminders.length
         ? `_Reminders will be sent at ${visibleReminders.map(r => `<t:${Math.floor(r.sendAt.toSeconds())}:t>`).join(' and ')} that day._`
         : '';
 
-    const embed = createMovieNightEmbed(
-        movie,
-        utcUnix,
-        `${stateMessage}\n\n${reminderLine}`,
-        interaction.user.username
-    );
+    const stateMessage = pollChannelId
+        ? `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`
+        : `No movie has been selected yet.`;
+
+    const embed = createMovieNightEmbed(movie, utcUnix, `${stateMessage}\n\n${reminderLine}`, interaction.user.username);
 
     const guild = interaction.guild;
     if (!guild) {
-        console.warn("[MovieScheduler] No guild found in interaction context.");
         return interaction.reply({
             content: "Could not identify the guild. Please try again in a server channel.",
             flags: 1 << 6,
@@ -181,24 +131,11 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction) 
     ) as TextChannel | undefined;
 
     const roleName = process.env.MOVIE_USER_ROLE_NAME;
-    let mention = '';
-
-    if (roleName) {
-        const role = guild.roles.cache.find(r => r.name === roleName);
-        if (role) {
-            mention = `<@&${role.id}>`;
-        } else {
-            console.warn(`[MovieScheduler] Could not find role named "${roleName}". Proceeding without mention.`);
-        }
-    }
+    const role = roleName ? guild.roles.cache.find(r => r.name === roleName) : null;
+    const mention = role ? `<@&${role.id}>` : '';
 
     if (movieChannel) {
-        await movieChannel.send({
-            content: mention || '',
-            embeds: [embed],
-        });
-    } else {
-        console.warn('[MovieScheduler] Movie night channel not found.');
+        await movieChannel.send({ content: mention, embeds: [embed] });
     }
 
     await interaction.reply({

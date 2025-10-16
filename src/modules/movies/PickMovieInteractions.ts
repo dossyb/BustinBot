@@ -1,25 +1,25 @@
 import { ButtonInteraction, ModalSubmitInteraction, ActionRowBuilder, Message, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, StringSelectMenuInteraction } from "discord.js";
-import fs from 'fs';
-import path from 'path';
 import Fuse from 'fuse.js';
 import type { Movie } from "../../models/Movie";
-import { createMovieEmbed } from "./MovieEmbeds";
-import { pickRandomMovie, buildMovieEmbedWithMeta } from "./MovieLocalSelector";
 import type { MoviePoll } from "../../models/MoviePoll";
 import type { PollSession } from "../../models/PollSession";
+import { createMovieEmbed } from "./MovieEmbeds";
+import { pickRandomMovie, buildMovieEmbedWithMeta } from "./MovieLocalSelector";
 import { getManualPollSession, changeManualPollPage, clearManualPollSession, updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll";
 import { pollMovieRandom, pollMovieWithList } from "./MoviePolls";
+import type { ServiceContainer } from "../../core/services/ServiceContainer";
 
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
-const pollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
-const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
-
-export function saveCurrentMovie(movie: Movie) {
+export async function saveCurrentMovie(services: ServiceContainer, movie: Movie) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error("[MovieStorage] Movie repository not found in services.");
+        return;
+    }
     try {
-        fs.writeFileSync(currentMoviePath, JSON.stringify(movie, null, 2));
+        await movieRepo.upsertMovie(movie);
         console.log(`[MovieStorage] Saved current movie: ${movie.title}`);
     } catch (error) {
-        console.error('[MovieStorage] Failed to save current movie:', error);
+        console.error("[MovieStorage] Failed to save current movie:", error);
     }
 }
 
@@ -41,19 +41,21 @@ function getPollSession(poll: MoviePoll): PollSession<Movie> {
     };
 }
 
-export async function handleMoviePickChooseModalSubmit(interaction: ModalSubmitInteraction) {
-    const input = interaction.fields.getTextInputValue('movie_input').trim();
-
-    if (!fs.existsSync(movieFilePath)) {
-        await interaction.reply({ content: 'Movie list not found.', flags: 1 << 6 });
+export async function handleMoviePickChooseModalSubmit(services: ServiceContainer, interaction: ModalSubmitInteraction) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        await interaction.reply({
+            content: "Movie repository unavailable.",
+            flags: 1 << 6,
+        });
         return;
     }
 
-    const rawData = fs.readFileSync(movieFilePath, 'utf-8');
-    const movies: Movie[] = JSON.parse(rawData);
+    const input = interaction.fields.getTextInputValue("movie_input").trim();
+    const movies: Movie[] = await movieRepo.getAllMovies();
 
     if (!movies.length) {
-        await interaction.reply({ content: 'Movie list is empty.', flags: 1 << 6 });
+        await interaction.reply({ content: "Movie list is empty.", flags: 1 << 6 });
         return;
     }
 
@@ -70,7 +72,7 @@ export async function handleMoviePickChooseModalSubmit(interaction: ModalSubmitI
     // Case 2: Title fuzzy match using Fuse.js
     if (!selectedMovie) {
         const fuse = new Fuse(movies, {
-            keys: ['title'],
+            keys: ["title"],
             threshold: 0.4,
             includeScore: true,
         });
@@ -82,22 +84,26 @@ export async function handleMoviePickChooseModalSubmit(interaction: ModalSubmitI
     }
 
     if (!selectedMovie) {
-        await interaction.reply({ content: 'No matching movie found.', flags: 1 << 6 });
+        await interaction.reply({ content: "No matching movie found.", flags: 1 << 6 });
         return;
     }
-    saveCurrentMovie(selectedMovie);
+
+    await saveCurrentMovie(services, selectedMovie);
 
     const embed = createMovieEmbed(selectedMovie);
-    const existingDescription = embed.data.description ?? '';
+    const existingDescription = embed.data.description ?? "";
     const addedByLine = `\n\n_Added by <@${selectedMovie.addedBy}>_`;
 
-    embed.setTitle(`🎯  ${selectedMovie.title} ${selectedMovie.releaseDate ? `(${selectedMovie.releaseDate})` : ''}`);
+    embed.setTitle(
+        `🎯  ${selectedMovie.title} ${selectedMovie.releaseDate ? `(${selectedMovie.releaseDate})` : ""
+        }`
+    );
     embed.setDescription(`${existingDescription}${addedByLine}`);
 
     const channel = interaction.channel as TextChannel;
     await interaction.reply({
         content: `**${selectedMovie.title}** has been selected and posted!`,
-        flags: 1 << 6
+        flags: 1 << 6,
     });
 
     await channel.send({
@@ -106,48 +112,44 @@ export async function handleMoviePickChooseModalSubmit(interaction: ModalSubmitI
     });
 }
 
-export async function handleRandomPollCountSelect(interaction: StringSelectMenuInteraction) {
+export async function handleRandomPollCountSelect(services: ServiceContainer, interaction: StringSelectMenuInteraction) {
     const selectedCount = parseInt(interaction.values[0]!, 10);
     await interaction.deferUpdate();
-    await pollMovieRandom(interaction, selectedCount);
+    await pollMovieRandom(services, interaction, selectedCount);
 }
 
-export async function handleConfirmRandomMovie(interaction: ButtonInteraction) {
+export async function handleConfirmRandomMovie(services: ServiceContainer, interaction: ButtonInteraction) {
     const message = interaction.message as Message;
     const embed = message.embeds[0];
     const channel = interaction.channel as TextChannel;
 
-    // Extract movie ID from button customId
-    const parts = interaction.customId.split('_');
+    const parts = interaction.customId.split("_");
     const movieId = parts[3];
-
     if (!movieId) {
+        await interaction.reply({ content: "Could not identify movie ID.", flags: 1 << 6 });
+        return;
+    }
+
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
         await interaction.reply({
-            content: "Could not identify movie ID.", flags: 1 << 6
+            content: "Movie repository unavailable.",
+            flags: 1 << 6,
         });
         return;
     }
 
-    // Load movie list
-    if (!fs.existsSync(movieFilePath)) {
-        await interaction.reply({
-            content: "Movie list not found.", flags: 1 << 6
-        });
-        return;
-    }
-
-    const movies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
+    const movies = await movieRepo.getAllMovies();
     const selectedMovie = movies.find((m) => m.id === movieId);
-
     if (!selectedMovie) {
         await interaction.reply({
             content: "Could not find the selected movie in list.",
-            flags: 1 << 6
+            flags: 1 << 6,
         });
         return;
     }
 
-    saveCurrentMovie(selectedMovie);
+    await saveCurrentMovie(services, selectedMovie);
 
     if (!embed) {
         await channel.send({
@@ -164,20 +166,19 @@ export async function handleConfirmRandomMovie(interaction: ButtonInteraction) {
     });
 
     await interaction.deferUpdate();
-
     try {
         await interaction.editReply({
-            content: 'Movie selected and posted!',
+            content: "Movie selected and posted!",
             embeds: [],
-            components: []
+            components: [],
         });
     } catch (error) {
-        console.warn(`[MovieConfirm] Failed to clean up ephemeral message:`, error);
+        console.warn("[MovieConfirm] Failed to clean up ephemeral message:", error);
     }
 }
 
-export async function handleRerollRandomMovie(interaction: ButtonInteraction) {
-    const newMovie = await pickRandomMovie();
+export async function handleRerollRandomMovie(services: ServiceContainer, interaction: ButtonInteraction) {
+    const newMovie = await pickRandomMovie(services);
 
     if (!newMovie) {
         await interaction.update({
@@ -209,63 +210,60 @@ export async function handleRerollRandomMovie(interaction: ButtonInteraction) {
     });
 }
 
-export async function handleMoviePollVote(interaction: ButtonInteraction) {
-
-    if (!fs.existsSync(pollPath)) {
-        await interaction.reply({ content: 'Poll data not found.', flags: 1 << 6 });
+export async function handleMoviePollVote(services: ServiceContainer, interaction: ButtonInteraction) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        await interaction.reply({ content: "Movie repository unavailable.", flags: 1 << 6 });
         return;
     }
 
-    const raw = fs.readFileSync(pollPath, 'utf-8');
-    const poll: MoviePoll = JSON.parse(raw);
-
-    if (!poll.isActive || interaction.message.id !== poll.messageId) {
-        await interaction.reply({ content: 'This poll is no longer active.', flags: 1 << 6 });
+    const activePoll = await movieRepo.getActivePoll();
+    if (!activePoll || !activePoll.isActive) {
+        await interaction.reply({ content: "This poll is no longer active.", flags: 1 << 6 });
         return;
     }
 
-    const selectedIndex = parseInt(interaction.customId.replace('movie_vote_', ''), 10);
-    const selectedMovie = poll.options[selectedIndex];
+    if (interaction.message.id !== activePoll.messageId) {
+        await interaction.reply({ content: "This poll message is outdated.", flags: 1 << 6 });
+        return;
+    }
+
+    const selectedIndex = parseInt(interaction.customId.replace("movie_vote_", ""), 10);
+    const selectedMovie = activePoll.options[selectedIndex];
     if (!selectedMovie) {
-        await interaction.reply({ content: 'Invalid vote option.', flags: 1 << 6 });
+        await interaction.reply({ content: "Invalid vote option.", flags: 1 << 6 });
         return;
     }
 
-    // Update vote map
-    poll.votes[interaction.user.id] = selectedMovie.id;
-    fs.writeFileSync(pollPath, JSON.stringify(poll, null, 2));
+    activePoll.votes[interaction.user.id] = selectedMovie.id;
+    await movieRepo.createPoll(activePoll); // overwrite poll with updated votes
 
-    // Calculate tallies
-    const pollSession = getPollSession(poll);
-
+    const pollSession = getPollSession(activePoll);
     const updatedEmbeds: EmbedBuilder[] = interaction.message.embeds.map((embedData, i) => {
         const embed = EmbedBuilder.from(embedData);
-        const movie = poll.options[i]!;
+        const movie = activePoll.options[i]!;
         const count = pollSession.optionVoteCounts.get(movie.id) ?? 0;
-        const runtimeText = movie.runtime ? ` | ⏱️ ${movie.runtime} mins` : '';
-        embed.setFooter({ text: `🗳️ ${count} vote${count !== 1 ? 's' : ''}${runtimeText} | Option ${i + 1}` });
+        const runtimeText = movie.runtime ? ` | ⏱️ ${movie.runtime} mins` : "";
+        embed.setFooter({
+            text: `🗳️ ${count} vote${count !== 1 ? "s" : ""}${runtimeText} | Option ${i + 1}`,
+        });
         return embed;
     });
 
-    const message = interaction.message as Message;
-    await message.edit({ embeds: updatedEmbeds });
-
-    await interaction.reply({
-        content: `Thank you for your vote!`,
-        flags: 1 << 6
-    });
+    await (interaction.message as Message).edit({ embeds: updatedEmbeds });
+    await interaction.reply({ content: "Thank you for your vote!", flags: 1 << 6 });
 }
 
-export async function handleManualPollInteraction(interaction: ButtonInteraction) {
+export async function handleManualPollInteraction(services: ServiceContainer, interaction: ButtonInteraction) {
     const uid = interaction.user.id;
 
     switch (interaction.customId) {
         case 'movie_poll_manual_prev':
-            changeManualPollPage(uid, -1);
-            return showMovieManualPollMenu(interaction);
+            changeManualPollPage(services, uid, -1);
+            return showMovieManualPollMenu(services, interaction);
         case 'movie_poll_manual_next':
-            changeManualPollPage(uid, 1);
-            return showMovieManualPollMenu(interaction);
+            changeManualPollPage(services, uid, 1);
+            return showMovieManualPollMenu(services, interaction);
         case 'movie_poll_manual_cancel':
             clearManualPollSession(uid);
             return interaction.update({ content: 'Poll creation cancelled.', embeds: [], components: [], flags: 1 << 6 });
@@ -275,13 +273,22 @@ export async function handleManualPollInteraction(interaction: ButtonInteraction
                 return interaction.reply({ content: `You must select between 2 and 5 movies.`, flags: 1 << 6 });
             }
 
-            const allMovies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
+            const movieRepo = services.repos.movieRepo;
+            if (!movieRepo) {
+                await interaction.reply({
+                    content: "Movie repository unavailable.",
+                    flags: 1 << 6,
+                });
+                return;
+            }
+
+            const allMovies: Movie[] = await movieRepo.getAllMovies();
             const selectedMovieIds = Array.from(session.selected);
             const selectedMovies = allMovies.filter(m => selectedMovieIds.includes(m.id));
 
             clearManualPollSession(uid);
 
-            return pollMovieWithList(interaction, selectedMovies);
+            return pollMovieWithList(services, interaction, selectedMovies);
         }
     }
 }

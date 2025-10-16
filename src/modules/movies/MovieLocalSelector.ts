@@ -1,24 +1,27 @@
-import fs from 'fs';
-import path from 'path';
 import { EmbedBuilder } from 'discord.js';
 import type { Movie } from '../../models/Movie';
 import { createMovieEmbed } from './MovieEmbeds';
 import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils';
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
+export async function pickRandomMovie(services: ServiceContainer): Promise<Movie | null> {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error('[MovieLocalSelector] Movie repository not found in ServiceContainer.');
+        return null;
+    }
 
-export async function pickRandomMovie(): Promise<Movie | null> {
-    if (!fs.existsSync(movieFilePath)) return null;
+    try {
+        let movies = await movieRepo.getAllMovies();
+        movies = injectMockUsers(movies);
+        if (!movies.length) return null;
 
-    const rawData = fs.readFileSync(movieFilePath, 'utf-8');
-    let movies: Movie[] = JSON.parse(rawData);
-    movies = injectMockUsers(movies);
-    if (!movies.length) return null;
-
-    const index = Math.floor(Math.random() * movies.length);
-    const randomMovie = movies[index];
-    if (!randomMovie) return null;
-    return randomMovie;
+        const index = Math.floor(Math.random() * movies.length);
+        return movies[index] ?? null;
+    } catch (error) {
+        console.error('[MovieLocalSelector] Failed to fetch movies:', error);
+        return null;
+    }
 }
 
 export async function buildMovieEmbedWithMeta(

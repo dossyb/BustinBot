@@ -1,13 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { createMovieNightEmbed } from '../../movies/MovieEmbeds';
 import type { Movie } from '../../../models/Movie';
-
-const currentMoviePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
-const movieNightPath = path.resolve(process.cwd(), 'src/data/movieNight.json');
+import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import { DateTime } from 'luxon';
 
 const currentmovie: Command = {
     name: 'currentmovie',
@@ -18,32 +15,31 @@ const currentmovie: Command = {
         .setName('currentmovie')
         .setDescription('View the currently scheduled movie night details.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        // Load current movie data
-        if (!fs.existsSync(movieNightPath)) {
+        const movieRepo = services.repos.movieRepo;
+        if (!movieRepo) {
+            await interaction.editReply("Movie repository not available.");
+            return;
+        }
+
+        // Fetch latest scheduled movie event
+        const movieEvent = await movieRepo.getLatestEvent();
+        if (!movieEvent?.startTime) {
             await interaction.editReply("No movie night is currently scheduled.");
             return;
         }
 
-        const movieNightData = JSON.parse(fs.readFileSync(movieNightPath, 'utf-8'));
-        const currentMovie: Movie | null = fs.existsSync(currentMoviePath)
-            ? JSON.parse(fs.readFileSync(currentMoviePath, 'utf-8'))
-            : null;
+        const startTime = DateTime.fromJSDate(movieEvent.startTime);
+        const readableDate = startTime.toFormat("cccc, dd LLLL yyyy");
+        const unixTimestamp = Math.floor(startTime.toSeconds());
 
+        // Fetch current movie (if any)
+        const currentMovie: Movie | null = movieEvent.movie ?? null;
 
-        const readableDate = new Date(movieNightData.storedUTC).toLocaleDateString("en-AU", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-        });
-
-        const unixTimestamp = Math.floor(new Date(movieNightData.storedUTC).getTime() / 1000);
-
-        // Determine current state message
+        // Determine state message
         let stateMessage = "";
         if (currentMovie) {
             stateMessage = `🎬 We will be watching **${currentMovie.title}**!`;
@@ -61,6 +57,8 @@ const currentmovie: Command = {
         await interaction.editReply({
             embeds: [embed],
         });
+
+        console.log(`[CurrentMovie] Displayed current movie night info.`);
     },
 };
 

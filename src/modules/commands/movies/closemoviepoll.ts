@@ -3,6 +3,7 @@ import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { closeActiveMoviePoll } from '../../movies/MoviePolls';
 import { createMoviePollClosedEmbed } from '../../movies/MovieEmbeds';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 const closemoviepoll: Command = {
     name: 'closemoviepoll',
@@ -13,11 +14,11 @@ const closemoviepoll: Command = {
         .setName('closemoviepoll')
         .setDescription('Manually close the active movie poll and announce the winner.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const result = await closeActiveMoviePoll(interaction.user.username);
+        const result = await closeActiveMoviePoll(services, interaction.user.username);
 
         if (!result.success) {
             await interaction.editReply(`${result.message}`);

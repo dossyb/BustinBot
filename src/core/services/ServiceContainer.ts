@@ -4,6 +4,7 @@ import type { TaskEventStore } from '../../modules/tasks/TaskEventStore';
 import type { KeywordSelector } from '../../modules/tasks/KeywordSelector';
 import type { ITaskRepository } from '../database/interfaces/ITaskRepo';
 import type { IPrizeDrawRepository } from '../database/interfaces/IPrizeDrawRepo';
+import type { IMovieRepository } from '../database/interfaces/IMovieRepo';
 
 export interface ServiceContainer {
     botStats: BotStatsService;
@@ -13,5 +14,6 @@ export interface ServiceContainer {
     repos: {
         taskRepo?: ITaskRepository;
         prizeRepo?: IPrizeDrawRepository;
+        movieRepo?: IMovieRepository;
     };
 }

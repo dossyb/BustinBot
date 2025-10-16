@@ -1,13 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
 import Fuse from 'fuse.js';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { createMovieEmbed } from '../../movies/MovieEmbeds';
 import type { Movie } from '../../../models/Movie';
-
-const movieFilePath = path.resolve(process.cwd(), 'src/data/movies.json');
+import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 const viewmovie: Command = {
     name: 'viewmovie',
@@ -23,41 +20,60 @@ const viewmovie: Command = {
                 .setRequired(true)
         ),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const titleQuery = interaction.options.getString('title', true);
-
-        if (!fs.existsSync(movieFilePath)) {
-            await interaction.editReply("No movie list found.");
+       const movieRepo = services.repos.movieRepo;
+        if (!movieRepo) {
+            await interaction.editReply("Movie repository not available.");
             return;
         }
 
-        const movies: Movie[] = JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'));
+        const titleQuery = interaction.options.getString("title", true);
 
-        const fuse = new Fuse(movies, {
-            keys: ['title'],
-            threshold: 0.4,
-        });
+        try {
+            // Fetch all movies
+            const movies: Movie[] = await movieRepo.getAllMovies();
 
-        const results = fuse.search(titleQuery);
-        if (results.length === 0) {
-            await interaction.editReply(`No matching movie found for **${titleQuery}**.`);
-            return;
+            if (!movies.length) {
+                await interaction.editReply("No movies are currently in the watchlist.");
+                return;
+            }
+
+            // Fuzzy match the requested title
+            const fuse = new Fuse(movies, {
+                keys: ["title"],
+                threshold: 0.4,
+            });
+
+            const results = fuse.search(titleQuery);
+            if (results.length === 0) {
+                await interaction.editReply(`No matching movie found for **${titleQuery}**.`);
+                return;
+            }
+
+            const matchedMovie = results[0]!.item;
+
+            let description = matchedMovie.overview ?? "No description available.";
+            description += `\n\n_Added by <@${matchedMovie.addedBy ?? "unknown"}>_`;
+
+            const embed = createMovieEmbed(matchedMovie)
+                .setTitle(`🎬 ${matchedMovie.title}`)
+                .setDescription(description);
+
+            await interaction.editReply({ embeds: [embed] });
+
+            console.log(
+                `[ViewMovie] ${interaction.user.username} viewed details for "${matchedMovie.title}".`
+            );
+        } catch (error) {
+            console.error("[ViewMovie Command Error]", error);
+            await interaction.editReply(
+                "An error occurred while fetching the movie details. Check console for details."
+            );
         }
-
-        const matchedMovie = results[0]!.item;
-
-        let description = matchedMovie.overview ?? "No description available.";
-        description += `\n\n_Added by <@${matchedMovie.addedBy ?? 'unknown'}>_`;
-
-        const embed = createMovieEmbed(matchedMovie)
-            .setTitle(`🎬 ${matchedMovie.title}`)
-            .setDescription(description);
-
-        await interaction.editReply({ embeds: [embed] });
-    }
+    },
 };
 
 export default viewmovie;

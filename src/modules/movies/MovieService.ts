@@ -31,6 +31,11 @@ interface TMDbDetailsResponse extends TMDbSearchResult {
     backdrop_path?: string;
 }
 
+interface TMDbCreditsResponse {
+    cast: { name: string; order: number }[];
+    crew: { job: string; name: string }[];
+}
+
 export async function fetchMovieDetails(movieName: string): Promise<Partial<Movie> | null> {
     const searchUrl = `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(movieName)}`;
 
@@ -63,14 +68,27 @@ export async function fetchMovieDetails(movieName: string): Promise<Partial<Movi
 }
 
 export async function fetchMovieDetailsById(id: number): Promise<Partial<Movie> | null> {
-    const TMDB_API_KEY = process.env.TMDB_API_KEY;
-    const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+    const detailsUrl = `${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}&language=en-US`;
+    const creditsUrl = `${TMDB_BASE_URL}/movie/${id}/credits?api_key=${TMDB_API_KEY}&language=en-US`;
 
-    const url = `${TMDB_API_KEY && TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`;
-    const res = await fetch(url);
-    const details = await res.json() as TMDbDetailsResponse;
+    const [detailsRes, creditsRes] = await Promise.all([
+        fetch(detailsUrl),
+        fetch(creditsUrl),
+    ]);
+
+    if (!detailsRes.ok) throw new Error("Failed to fetch TMDb details");
+    if (!creditsRes.ok) throw new Error("Failed to fetch TMDb credits");
+
+    const details = (await detailsRes.json()) as TMDbDetailsResponse;
+    const credits = (await creditsRes.json()) as TMDbCreditsResponse;
 
     if (!details?.id) return null;
+
+    // Extract director and top 3 billed cast
+    const director =
+        credits.crew?.find((member) => member.job === "Director")?.name ?? undefined;
+    const cast =
+        credits.cast?.slice(0, 3).map((actor) => actor.name).filter(Boolean) ?? [];
 
     return {
         tmdbId: details.id,
@@ -80,11 +98,13 @@ export async function fetchMovieDetailsById(id: number): Promise<Partial<Movie> 
             ? Number(details.release_date.slice(0, 4))
             : undefined,
         posterUrl: details.poster_path
-            ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
+            ? `${TMDB_IMAGE_BASE}${details.poster_path}`
             : undefined,
         infoUrl: `https://www.themoviedb.org/movie/${details.id}`,
         runtime: details.runtime ?? undefined,
         rating: details.vote_average ?? undefined,
-        genres: details.genres?.map((g: { name: string }) => g.name) ?? undefined,
+        genres: details.genres?.map((g) => g.name) ?? undefined,
+        director,
+        cast,
     };
 }

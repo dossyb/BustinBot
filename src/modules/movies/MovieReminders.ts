@@ -1,11 +1,7 @@
 import { DateTime } from "luxon";
-import fs from 'fs';
-import path from 'path';
 import type { Reminder } from "../../models/Reminder";
 import type { Client, TextChannel } from 'discord.js';
-
-const movieFilePath = path.resolve(process.cwd(), 'src/data/currentMovie.json');
-const activePollPath = path.resolve(process.cwd(), 'src/data/activeMoviePoll.json');
+import type { ServiceContainer } from "../../core/services/ServiceContainer";
 
 export function getPendingReminders(movieStart: DateTime, now: DateTime = DateTime.utc()): Reminder[] {
     const reminderOffsets = [
@@ -22,44 +18,56 @@ export function getPendingReminders(movieStart: DateTime, now: DateTime = DateTi
         .filter(({ sendAt }) => sendAt > now);
 }
 
-export async function restoreMovieReminders(client: Client) {
-    const movieNightPath = path.resolve(process.cwd(), "src/data/movieNight.json");
-    if (!fs.existsSync(movieNightPath)) return;
+export async function restoreMovieReminders(services: ServiceContainer, client: Client) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error("[MovieReminders] Movie repository not found in services.");
+        return;
+    }
 
-    const data = JSON.parse(fs.readFileSync(movieNightPath, "utf-8"));
-    const storedUTC = data.storedUTC;
+    const latestEvent = await movieRepo.getLatestEvent();
+    if (!latestEvent?.startTime) {
+        console.log("[MovieReminders] No upcoming movie event found.");
+        return;
+    }
 
-    if (!storedUTC) return;
-
-    const movieStart = DateTime.fromISO(storedUTC);
+    const movieStart = DateTime.fromJSDate(latestEvent.startTime);
     const reminders = getPendingReminders(movieStart);
 
-    scheduleMovieReminders(movieStart, client);
+    await scheduleMovieReminders(services, movieStart, client);
 
-    console.log(`[MovieReminders] Restored ${reminders.length} reminder(s) from movieNight.json`);
+    console.log(
+        `[MovieReminders] Restored ${reminders.length} reminder(s) from Firestore (event ${latestEvent.id})`
+    );
 }
 
-export async function scheduleMovieReminders(movieStart: DateTime, client: Client) {
+export async function scheduleMovieReminders(services: ServiceContainer, movieStart: DateTime, client: Client) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error("[MovieReminders] Movie repository not found in services.");
+        return;
+    }
+
     const reminders = getPendingReminders(movieStart);
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID!);
     const voiceChannelId = process.env.MOVIE_VOICE_CHANNEL_ID!;
     const roleName = process.env.MOVIE_USER_ROLE_NAME!;
 
     const channel = guild.channels.cache.find(
-        ch => ch.name === 'movie-night' && ch.isTextBased()
+        (ch) => ch.name === "movie-night" && ch.isTextBased()
     ) as TextChannel | undefined;
 
-    const role = guild.roles.cache.find(r => r.name === roleName);
-    const mention = role ? `<@&${role.id}>` : '';
+    const role = guild.roles.cache.find((r) => r.name === roleName);
+    const mention = role ? `<@&${role.id}>` : "";
 
     if (!channel) {
-        console.warn('[MovieReminders] Could not find movie-night channel.');
+        console.warn("[MovieReminders] Could not find movie-night channel.");
         return;
     }
 
     for (const { sendAt, label } of reminders) {
         const now = DateTime.utc();
-        const delayMs = sendAt.diff(now).as('milliseconds');
+        const delayMs = sendAt.diff(now).as("milliseconds");
 
         if (delayMs <= 0) {
             console.warn(`[MovieReminders] Skipping past reminder "${label}"`);
@@ -67,54 +75,68 @@ export async function scheduleMovieReminders(movieStart: DateTime, client: Clien
         }
 
         setTimeout(async () => {
-            const totalMinutes = Math.max(Math.round(movieStart.diffNow('minutes').minutes), 0);
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = totalMinutes % 60;
-
-            let timeString = '';
-            if (hours > 0) {
-                timeString = `${hours} hour${hours > 1 ? 's' : ''}`;
-                if (minutes > 0) timeString += ` and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
-            } else {
-                timeString = `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-            }
-
-            const absoluteTime = `<t:${Math.floor(movieStart.toSeconds())}:t>`;
-
-            // Determine current movie state
-            let stateLine = '';
-            const movieSelected = fs.existsSync(movieFilePath)
-                ? JSON.parse(fs.readFileSync(movieFilePath, 'utf-8'))
-                : null;
-            const activePoll = fs.existsSync(activePollPath)
-                ? JSON.parse(fs.readFileSync(activePollPath, 'utf-8'))
-                : null;
-
-            if (activePoll?.isActive) {
-                stateLine = `A movie poll is currently running! Go cast your vote before it closes.`;
-            } else if (movieSelected?.title) {
-                stateLine = `We will be watching **${movieSelected.title}**!`;
-            } else {
-                stateLine = `No movie has been selected yet — stay tuned!`;
-            }
-
-            // Build reminder message
-            let msg = '';
-
-            if (label === 'start time') {
-                msg = `${mention} Movie night is starting **now**! Join us in <#${voiceChannelId}> 🎬\n${stateLine}`;
-            } else {
-                msg = `${mention} Movie night starts in **${timeString}** (at ${absoluteTime})! ${stateLine}`;
-            }
-
             try {
+                // Retrieve current state from Firestore
+                const [activePoll, latestEvent] = await Promise.all([
+                    movieRepo.getActivePoll(),
+                    movieRepo.getLatestEvent(),
+                ]);
+
+                // Determine movie state line
+                let stateLine = "";
+                const movie = latestEvent?.movie;
+                if (activePoll?.isActive) {
+                    stateLine = `A movie poll is currently running! Go cast your vote before it closes.`;
+                } else if (movie?.title) {
+                    stateLine = `We will be watching **${movie.title}**!`;
+                } else {
+                    stateLine = `No movie has been selected yet — stay tuned!`;
+                }
+
+                // Format remaining time
+                const totalMinutes = Math.max(
+                    Math.round(movieStart.diffNow("minutes").minutes),
+                    0
+                );
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                let timeString = "";
+
+                if (hours > 0) {
+                    timeString = `${hours} hour${hours > 1 ? "s" : ""}`;
+                    if (minutes > 0)
+                        timeString += ` and ${minutes} minute${
+                            minutes !== 1 ? "s" : ""
+                        }`;
+                } else {
+                    timeString = `${minutes} minute${
+                        minutes !== 1 ? "s" : ""
+                    }`;
+                }
+
+                const absoluteTime = `<t:${Math.floor(
+                    movieStart.toSeconds()
+                )}:t>`;
+
+                // Build and send message
+                const msg =
+                    label === "start time"
+                        ? `${mention} Movie night is starting **now**! Join us in <#${voiceChannelId}> 🎬\n${stateLine}`
+                        : `${mention} Movie night starts in **${timeString}** (at ${absoluteTime})! ${stateLine}`;
+
                 await channel.send(msg);
-                console.log(`[MovieReminders] Sent "${label}" reminder at ${sendAt.toISO()}`);
+                console.log(
+                    `[MovieReminders] Sent "${label}" reminder at ${sendAt.toISO()}`
+                );
             } catch (err) {
                 console.error(`[MovieReminders] Failed to send reminder:`, err);
             }
         }, delayMs);
 
-        console.log(`[MovieReminders] Scheduled "${label}" in ${Math.round(delayMs / 60000)} min(s)`);
+        console.log(
+            `[MovieReminders] Scheduled "${label}" in ${Math.round(
+                delayMs / 60000
+            )} min(s)`
+        );
     }
 }

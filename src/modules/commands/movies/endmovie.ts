@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "d
 import type { Command } from "../../../models/Command";
 import { CommandRole } from "../../../models/Command";
 import { finishMovieNight } from "../../movies/MovieLifecycle";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const endmovie: Command = {
     name: 'endmovie',
@@ -12,11 +13,11 @@ const endmovie: Command = {
         .setName('endmovie')
         .setDescription('Manually end the current movie night and archive the movie.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const result = await finishMovieNight(interaction.user.username);
+        const result = await finishMovieNight(interaction.user.username, services);
 
         if (!result.success) {
             await interaction.editReply(result.message);

@@ -38,4 +38,7 @@ export interface Movie {
     genres?: string[] | undefined;
 
     rating?: number | undefined;
+
+    director?: string | undefined;
+    cast?: string[] | undefined;
 }

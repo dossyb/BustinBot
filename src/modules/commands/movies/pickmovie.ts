@@ -3,6 +3,7 @@ import type { Command } from "../../../models/Command";
 import { CommandRole } from "../../../models/Command";
 import { pickRandomMovie, buildMovieEmbedWithMeta } from "../../movies/MovieLocalSelector";
 import { showMovieManualPollMenu } from "../../movies/MovieManualPoll";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const pickmovie: Command = {
     name: 'pickmovie',
@@ -13,7 +14,7 @@ const pickmovie: Command = {
         .setName('pickmovie')
         .setDescription('Pick the movie for the next movie night (via poll, random roll, or specific movie).'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
@@ -70,7 +71,7 @@ const pickmovie: Command = {
                     break;
                 case 'movie_pick_random':
                     await btnInt.deferUpdate();
-                    const selectedMovie = await pickRandomMovie();
+                    const selectedMovie = await pickRandomMovie(services);
 
                     if (!selectedMovie) {
                         await interaction.followUp({ content: 'Movie list not found or is empty.', flags: 1 << 6 });
@@ -106,7 +107,7 @@ const pickmovie: Command = {
                             .setCustomId('movie_poll_random_count')
                             .setPlaceholder('Select how many movies to include')
                             .addOptions(
-                                [2,3,4,5].map(num => ({
+                                [2, 3, 4, 5].map(num => ({
                                     label: `${num} movies`,
                                     value: num.toString(),
                                 }))
@@ -121,7 +122,7 @@ const pickmovie: Command = {
                     break;
                 case 'movie_poll_manual':
                     await btnInt.deferUpdate();
-                    await showMovieManualPollMenu(interaction);
+                    await showMovieManualPollMenu(services, interaction);
                     break;
             }
         });
