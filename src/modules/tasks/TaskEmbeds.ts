@@ -19,7 +19,7 @@ export function buildTaskEventEmbed(event: TaskEvent) {
 
     const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-            .setCustomId(`task-submit-${event.taskEventId}`)
+            .setCustomId(`task-submit-${event.id}`)
             .setLabel('📤 Submit Screenshot')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()

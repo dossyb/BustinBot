@@ -25,4 +25,6 @@ export interface TaskEvent {
 
     // Submissions made for this task event
     submissions?: TaskSubmission[];
+
+    createdAt: Date;
 }

@@ -1,11 +1,11 @@
 import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, StringSelectMenuBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import { createSubmission, completeSubmission, getPendingSubmission, updateSubmissionStatus, setPendingTask, consumePendingTask } from './TaskService';
+import type { TaskService } from './TaskService';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { handleTaskFeedback } from './HandleTaskFeedback';
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
-export async function handleSubmitButton(interaction: ButtonInteraction) {
+export async function handleSubmitButton(interaction: ButtonInteraction, services: { tasks: TaskService }) {
     const parts = interaction.customId.split('-');
     const taskEventId = parts.slice(2).join('-');
 
@@ -27,7 +27,7 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
             });
             return;
         }
-        setPendingTask(userId, onlyTaskId);
+        services.tasks.setPendingTask(userId, onlyTaskId);
         // Directly prompt for screenshot
         await interaction.user.send(
             `Please upload your screenshot for Task ${taskEventId} and include any notes/comments in the same message.`
@@ -67,7 +67,7 @@ export async function handleSubmitButton(interaction: ButtonInteraction) {
 }
 
 // STEP 2: User confirms task from select menu
-export async function handleTaskSelect(interaction: StringSelectMenuInteraction) {
+export async function handleTaskSelect(interaction: StringSelectMenuInteraction, services: { tasks: TaskService }) {
     const [, , userId] = interaction.customId.split('-');
 
     if (!userId) {
@@ -87,7 +87,7 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction)
         return;
     }
 
-    const submission = createSubmission(userId, selectedTaskEventId);
+    await services.tasks.createSubmission(userId, selectedTaskEventId);
 
     await interaction.reply({
         content: `Thank you for confirming. Now upload your screenshot for Task ${interaction.values[0]} and include any notes/comments in the same message.`,
@@ -96,14 +96,14 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction)
 }
 
 // STEP 3: User sends screenshot + notes in DM
-export async function handleDirectMessage(message: Message, client: Client) {
+export async function handleDirectMessage(message: Message, client: Client, services: { tasks: TaskService }) {
     if (message.author.bot || message.channel.type !== 1) return;
 
-    const taskEventId = consumePendingTask(message.author.id);
-    const pending = taskEventId ? getPendingSubmission(message.author.id, taskEventId) : undefined;
+    const taskEventId = services.tasks.consumePendingTask(message.author.id);
+    const pending = taskEventId ? await services.tasks.getPendingSubmission(message.author.id, taskEventId) : undefined;
     if (!pending && !taskEventId) return;
 
-    const submission = pending ?? createSubmission(message.author.id, taskEventId!);
+    const submission = pending ?? await services.tasks.createSubmission(message.author.id, taskEventId!);
 
     const attachments = message.attachments;
 
@@ -121,12 +121,12 @@ export async function handleDirectMessage(message: Message, client: Client) {
 
     const notes = message.content.trim() || undefined;
 
-    await completeSubmission(client, submission.id, imageUrls.slice(0, 2), notes);
+    await services.tasks.completeSubmission(client, submission.id, imageUrls.slice(0, 2), notes);
     await message.reply("✅ Submission received and sent for review!");
 }
 
 // STEP 4: Admin clicks Approve/Reject
-export async function handleAdminButton(interaction: ButtonInteraction) {
+export async function handleAdminButton(interaction: ButtonInteraction, services: { tasks: TaskService }) {
     const [action, submissionId] = interaction.customId.split('_');
     if (!submissionId) {
         await interaction.reply({ content: "Submission ID missing from interaction.", flags: 1 << 6 });
@@ -137,7 +137,7 @@ export async function handleAdminButton(interaction: ButtonInteraction) {
     if (action === 'approve') {
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const submission = await updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Approved, reviewerId);
+        const submission = await services.tasks.updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Approved, reviewerId);
         await interaction.editReply({ content: "✅ Submission approved and archived." });
 
         const channel = interaction.channel as TextChannel;
@@ -162,7 +162,7 @@ export async function handleAdminButton(interaction: ButtonInteraction) {
 }
 
 // STEP 5: Modal submit for rejection reason
-export async function handleRejectionModal(interaction: ModalSubmitInteraction) {
+export async function handleRejectionModal(interaction: ModalSubmitInteraction, services: { tasks: TaskService }) {
     // Acknowledge the modal submission ephemerally
     await interaction.deferReply({ flags: 1 << 6 });
 
@@ -174,7 +174,7 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction) 
         return;
     }
 
-    const updated = await updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Rejected, reviewerId, reason);
+    const updated = await services.tasks.updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Rejected, reviewerId, reason);
 
     // Update the ephemeral reply
     await interaction.editReply({
@@ -195,31 +195,31 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction) 
 }
 
 // Main interaction router
-export async function handleTaskInteraction(interaction: Interaction, client: Client) {
+export async function handleTaskInteraction(interaction: Interaction, client: Client,  services: { tasks: TaskService }) {
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('task-feedback-')) {
-            return await handleTaskFeedback(interaction);
+            return await handleTaskFeedback(interaction, services.tasks.repository);
         }
 
         if (interaction.customId.startsWith("task-submit-")) {
-            await handleSubmitButton(interaction);
+            await handleSubmitButton(interaction, services);
         } else if (
             interaction.customId.startsWith("approve_") ||
             interaction.customId.startsWith("reject_")
         ) {
-            await handleAdminButton(interaction);
+            await handleAdminButton(interaction, services);
         }
     }
 
     if (interaction.isStringSelectMenu()) {
         if (interaction.customId.startsWith("select-task-")) {
-            await handleTaskSelect(interaction);
+            await handleTaskSelect(interaction, services);
         }
     }
 
     if (interaction.isModalSubmit()) {
         if (interaction.customId.startsWith("reject_reason_")) {
-            await handleRejectionModal(interaction);
+            await handleRejectionModal(interaction, services);
         }
     }
 }

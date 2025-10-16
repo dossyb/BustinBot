@@ -1,16 +1,17 @@
 import { ChatInputCommandInteraction, GuildMember, ButtonInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import type { Command } from '../../models/Command';
+import type { Command, ServiceContainer } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { handleTaskInteraction } from '../../modules/tasks/TaskInteractions';
 import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
 import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
 import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies/MovieScheduler';
+import type { TaskService } from '../../modules/tasks/TaskService';
 
 export async function handleInteraction(
     interaction: Interaction,
     commands: Map<string, Command>,
-    services: { botStats: any }
+    services: { botStats: any, tasks: TaskService }
 ) {
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
@@ -107,7 +108,7 @@ export async function handleInteraction(
 
     // Forward all non-slash interactions to task module
     try {
-        await handleTaskInteraction(interaction, interaction.client);
+        await handleTaskInteraction(interaction, interaction.client, services);
     } catch (error) {
         console.error(`[Task Interaction Error]:`, error);
         if (interaction.isRepliable()) {

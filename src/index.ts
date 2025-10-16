@@ -3,13 +3,20 @@ import { config } from 'dotenv';
 import path from 'path';
 import { handleMessage } from './core/events/onMessage';
 import { handleInteraction } from './core/events/onInteraction';
-import { handleDirectMessage } from './modules/tasks/TaskInteractions'
+import { handleDirectMessage, handleTaskInteraction } from './modules/tasks/TaskInteractions'
 import { loadCommands } from './core/services/CommandService';
 import { BotStatsService } from './core/services/BotStatsService';
 import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
 import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 import { BotRepository } from './core/database/BotRepo';
+import { TaskRepository } from './core/database/TaskRepo';
+import { TaskService } from './modules/tasks/TaskService';
+import { TaskEventStore } from './modules/tasks/TaskEventStore';
+import { PrizeDrawRepository } from './core/database/PrizeDrawRepo';
+import { KeywordRepository } from './core/database/KeywordRepo';
+import { KeywordSelector } from './modules/tasks/KeywordSelector';
+
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -18,14 +25,32 @@ const __dirname = path.dirname(__filename);
 // Load environment variables from .env file
 config();
 
-// Initialize bot statistics
+// Initialise bot service
 const botRepo = new BotRepository;
 const botStatsService = new BotStatsService(botRepo);
 await botStatsService.init();
 
+// Initialise task service
+const guildId = process.env.DISCORD_GUILD_ID!;
+const taskRepo = new TaskRepository(guildId);
+const taskService = new TaskService(taskRepo);
+const taskEventStore = new TaskEventStore(taskRepo);
+
+// Initialise prize + keyword modules
+const prizeRepo = new PrizeDrawRepository(guildId);
+const keywordRepo = new KeywordRepository(guildId);
+const keywordSelector = new KeywordSelector(keywordRepo);
+
 // Inline service container
 const services = {
     botStats: botStatsService,
+    tasks: taskService,
+    taskEvents: taskEventStore,
+    keywords: keywordSelector,
+    repos: {
+        taskRepo,
+        prizeRepo,
+    },
 };
 
 // Create Discord client with required intents
@@ -70,7 +95,7 @@ console.log('Loading commands...');
     // Register message handler
     client.on('messageCreate', async (message) => {
         if (message.channel.type === 1) {
-            await handleDirectMessage(message, client);
+            await handleDirectMessage(message, client, services);
         }
         try {
             await handleMessage(message, commands, services);
@@ -83,6 +108,7 @@ console.log('Loading commands...');
     client.on('interactionCreate', async (interaction) => {
         try {
             await handleInteraction(interaction, commands, services);
+            await handleTaskInteraction(interaction, client, services);
         } catch (error) {
             console.error('Error handling interaction:', error);
         }

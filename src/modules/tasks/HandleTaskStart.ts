@@ -1,14 +1,11 @@
 import { Client, TextChannel } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
 import { buildTaskEventEmbed } from './TaskEmbeds';
 import type { Task } from '../../models/Task';
 import type { TaskEvent } from '../../models/TaskEvent';
-import { storeTaskEvent } from './TaskEventStore';
-import { selectKeyword } from './KeywordSelector';
-
-const pollPath = path.resolve(process.cwd(), 'src/data/activePoll.json');
-const taskPath = path.resolve(process.cwd(), 'src/data/tasks.json');
+import type { TaskService } from './TaskService';
+import type { TaskEventStore } from './TaskEventStore';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
+import { KeywordSelector } from './KeywordSelector';
 
 function generateTaskEventId(taskId: string): string {
     const now = new Date();
@@ -18,7 +15,14 @@ function generateTaskEventId(taskId: string): string {
     return `${taskId}-${yyyy}${mm}${dd}`;
 }
 
-export async function startTaskEvent(client: Client): Promise<void> {
+interface TaskStartDeps {
+    repo: ITaskRepository;
+    taskEvents: TaskEventStore;
+    tasks: TaskService;
+    keywords: KeywordSelector;
+}
+
+export async function startTaskEvent(client: Client, services: TaskStartDeps): Promise<void> {
     const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
     if (!guildId || !channelId) return;
@@ -30,53 +34,59 @@ export async function startTaskEvent(client: Client): Promise<void> {
     const roleName = process.env.TASK_USER_ROLE_NAME;
     const role = guild.roles.cache.find(r => r.name === roleName);
 
-    // Load and validate poll data
-    if (!fs.existsSync(pollPath)) {
-        console.warn('[TaskStart] No active poll data found. Skipping task event.');
+    const pollData = await services.repo.getActiveTaskPoll();
+    if (!pollData || !pollData.options?.length) {
+        console.warn('[TaskStart] No active poll found or poll data invalid.');
         return;
     }
 
-    const pollData = JSON.parse(fs.readFileSync(pollPath, 'utf8'));
-    if (!pollData?.tasks?.length) {
-        console.warn('[TaskStart] Poll data invalid or missing tasks.');
-        return;
+    // Tally votes per option ID
+    const voteCounts: Record<string, number> = {};
+    for (const votedTaskId of Object.values(pollData.votes)) {
+        voteCounts[votedTaskId] = (voteCounts[votedTaskId] ?? 0) + 1;
     }
 
-    // Determine winning task (highest votes)
-    const winning = pollData.tasks.reduce((a: any, b: any) => a.votes > b.votes ? a : b);
+    // Pick the task option with the highest vote count
+    const winningTask = pollData.options.reduce((a, b) => {
+        const votesA = voteCounts[a.id] ?? 0;
+        const votesB = voteCounts[b.id] ?? 0;
+        return votesA >= votesB ? a : b;
+    });
 
     // Load full task data
-    const allTasks: Task[] = JSON.parse(fs.readFileSync(taskPath, 'utf8'));
-    const task = allTasks.find(t => t.id === winning.id);
+    const task = await services.repo.getTaskById(winningTask.id);
     if (!task) {
-        console.error(`[TaskStart] Could not find task with id ${winning.id}`);
+        console.error(`[TaskStart] Could not find task with id ${winningTask.id}`);
         return;
     }
 
-    const selectedAmount = task.amounts?.[0];
+    const selectedAmount = task.amounts?.[0] ?? 0;
     const taskEventId = generateTaskEventId(task.id);
 
-    const baseEvent = {
+    const event: TaskEvent = {
         id: taskEventId,
         task,
-        keyword: selectKeyword(),
+        keyword: await services.keywords.selectKeyword(taskEventId),
         startTime: new Date(),
-        endTime: new Date(Date.now() + 7 * 60 * 1000) // Testing interval
+        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week
+        selectedAmount,
+        createdAt: new Date(),
     };
-
-    const event: TaskEvent = selectedAmount !== undefined
-        ? { ...baseEvent, selectedAmount }
-        : baseEvent;
 
     const { embeds, components } = buildTaskEventEmbed(event);
 
     const mention = role ? `<@&${role.id}>` : '';
     if (!role) {
-        console.warn(`[TaskStart] Could not find role named "${roleName}. Proceeding without mention.`);
+        console.warn(`[TaskStart] Could not find role "${roleName}". Proceeding without mention.`);
     }
+
     await channel.send(`${mention}`);
     await (channel as TextChannel).send({ embeds, components });
 
     console.log(`[TaskStart] Task event posted for task ID ${taskEventId}`);
-    storeTaskEvent(event);
+
+    await services.taskEvents.storeTaskEvent(event);
+    if (pollData.id) {
+        await services.repo.closeTaskPoll(pollData.id);
+    }
 }

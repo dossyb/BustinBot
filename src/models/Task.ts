@@ -4,7 +4,7 @@ export enum TaskCategory {
     PvM = 'PvM',
     Minigame = 'Minigame',
     Misc = 'Misc',
-    Leagues = 'Leagues'
+    Leagues = 'Leagues',
 }
 
 // Distinguishes how the task is completed

@@ -1,14 +1,8 @@
 import { ButtonInteraction } from 'discord.js';
 import type { TaskFeedback } from '../../models/TaskFeedback';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-export async function handleTaskFeedback(interaction: ButtonInteraction) {
+export async function handleTaskFeedback(interaction: ButtonInteraction, repo: ITaskRepository) {
     await interaction.deferReply({ flags: 1 << 6 });
 
     try {
@@ -24,33 +18,25 @@ export async function handleTaskFeedback(interaction: ButtonInteraction) {
             return;
         }
 
-        const tasksPath = path.join(__dirname, '../../data/tasks.json');
-        const feedbackPath = path.join(__dirname, '../../data/taskFeedback.json');
-
-        const raw = fs.readFileSync(tasksPath, 'utf8');
-        const tasks = JSON.parse(raw);
-        const task = tasks.find((t: any) => t.id === taskId);
+        const userId = interaction.user.id;
+        const task = await repo.getTaskById(taskId.toString());
         if (!task) {
-            await interaction.editReply({ content: 'Task not found.', flags: 1 << 6 });
+            await interaction.editReply({ content: 'Task not found.' });
             return;
         }
 
-        let feedback: TaskFeedback[] = [];
-        if (fs.existsSync(feedbackPath)) {
-            feedback = JSON.parse(fs.readFileSync(feedbackPath, 'utf8'));
-        }
-
-        const userId = interaction.user.id;
-        const key = `${userId}:${taskId}`;
-        const existing = feedback.find(entry => entry.userId === userId && entry.taskId === taskId);
+        const allFeedback = await repo.getFeedbackForTask(taskId);
+        const existing = allFeedback.find(
+            (entry) => entry.userId === userId && entry.taskId === taskId
+        );
         const oldWeight = task.weight ?? 50;
-
         let message: string;
 
         if (!existing) {
             // First time vote
-            feedback.push({ taskId, userId, vote: direction });
-            task.weight = direction === 'up' ? Math.min(oldWeight + 1, 100) : Math.max(oldWeight - 1, 0);
+            const feedback: TaskFeedback = { id: Date.now().toString(), taskId, userId, vote: direction };
+            await repo.addFeedback(feedback);
+            await repo.incrementWeight(taskId.toString(), direction === "up" ? +1 : -1);
             message = 'Thanks for your feedback!';
         } else if (existing.vote === direction) {
             // Same vote again
@@ -58,13 +44,10 @@ export async function handleTaskFeedback(interaction: ButtonInteraction) {
         } else {
             // Changed vote
             existing.vote = direction;
-            task.weight = direction === 'up' ? Math.min(oldWeight + 2, 100) : Math.max(oldWeight - 2, 0);
-            message = `Feedback updated!`;
+            await repo.addFeedback(existing); 
+            await repo.incrementWeight(taskId.toString(), direction === "up" ? +2 : -2);
+            message = "Feedback updated!";
         }
-
-        fs.writeFileSync(feedbackPath, JSON.stringify(feedback, null, 2));
-        fs.writeFileSync(tasksPath, JSON.stringify(tasks, null, 2));
-
         await interaction.editReply({ content: message });
     } catch (err) {
         console.error('[TaskFeedback] File error:', err);

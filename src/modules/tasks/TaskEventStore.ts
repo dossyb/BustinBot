@@ -1,25 +1,14 @@
-import fs from 'fs';
-import path from 'path';
-import type { TaskEvent } from '../../models/TaskEvent';
+import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo";
+import type { TaskEvent } from "../../models/TaskEvent";
 
-const eventFilePath = path.resolve(process.cwd(), 'src/data/taskEvents.json');
+export class TaskEventStore {
+    constructor(private repo: ITaskRepository) {}
 
-let cachedEvents: TaskEvent[] = fs.existsSync(eventFilePath)
-    ? JSON.parse(fs.readFileSync(eventFilePath, 'utf-8'), (key, value) => {
-        if (key === 'startTime' || key === 'endTime' || key === 'createdAt') {
-            return new Date(value);
-        }
-        return value;
-    })
-    : [];
+    async storeTaskEvent(event: TaskEvent): Promise<void> {
+        await this.repo.createTaskEvent(event);
+    }
 
-// Save in-memory cache to disk
-function saveEvents() {
-    fs.writeFileSync(eventFilePath, JSON.stringify(cachedEvents, null, 2));
-}
-
-// Create + store new event
-export function storeTaskEvent(event: TaskEvent) {
-    cachedEvents.push(event);
-    saveEvents();
+    async getLatestTaskEvent(): Promise<TaskEvent | null> {
+        return await this.repo.getLatestTaskEvent();
+    }
 }

@@ -1,5 +1,5 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionCallback } from 'discord.js';
-import type { Command } from '../../../models/Command';
+import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import type { Command, ServiceContainer } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { initTaskScheduler, stopTaskScheduler } from '../../tasks/TaskScheduler';
 
@@ -14,19 +14,31 @@ const tasktoggle: Command = {
         .setName('tasktoggle')
         .setDescription('Toggle the task scheduler on and off.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({
+        interaction,
+        services,
+    }: {
+        interaction?: ChatInputCommandInteraction;
+        services?: ServiceContainer; // ✅ use shared type
+    }) {
         if (!interaction) return;
 
         if (schedulerRunning) {
             stopTaskScheduler();
             schedulerRunning = false;
-            await interaction.reply({ content: 'Task scheduler stopped.', flags: 1 << 6 });
+            await interaction.reply({
+                content: "Task scheduler stopped.",
+                flags: 1 << 6,
+            });
         } else {
-            initTaskScheduler(interaction.client);
+            initTaskScheduler(interaction.client, services!);
             schedulerRunning = true;
-            await interaction.reply({ content: 'Task scheduler started with current config.', flags: 1 << 6 });
+            await interaction.reply({
+                content: "Task scheduler started with current config.",
+                flags: 1 << 6,
+            });
         }
-    }
+    },
 };
 
 export default tasktoggle;

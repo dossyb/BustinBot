@@ -4,6 +4,7 @@ import { Client, TextChannel } from 'discord.js';
 import { postTaskPoll } from './HandleTaskPoll';
 import { startTaskEvent } from './HandleTaskStart';
 import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw';
+import type { ServiceContainer } from '../../models/Command';
 
 // Replace with config store (admin editable)
 const defaultSchedule = {
@@ -17,10 +18,7 @@ const defaultSchedule = {
 };
 
 // Test config
-let testMode = false;
-if (process.env.BOT_MODE = 'dev') {
-    testMode = true;
-}
+const testMode = process.env.BOT_MODE === "dev";
 const testIntervalMinutes = 7;
 
 let pollJob: ScheduledTask;
@@ -44,8 +42,20 @@ async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
     return channel?.isTextBased() ? (channel as TextChannel) : null;
 }
 
-export function initTaskScheduler(client: Client) {
+export function initTaskScheduler(client: Client, services: ServiceContainer) {
     console.log('[TaskScheduler] Initialising default task schedule...');
+
+    const { tasks, taskEvents, keywords, repos } = services;
+
+    if (!tasks || !taskEvents || !keywords || !repos?.taskRepo || !repos?.prizeRepo) {
+        throw new Error(
+            "[TaskScheduler] Missing one or more required services (tasks, taskEvents, keywords, or repos)."
+        );
+    }
+
+    // Shortcuts for readability
+    const taskRepo = repos.taskRepo;
+    const prizeRepo = repos.prizeRepo;
 
     if (testMode) {
         // ------------------------------
@@ -58,26 +68,23 @@ export function initTaskScheduler(client: Client) {
 
             if (minute % T === (T - 1)) {
                 console.log('[TaskScheduler] [TEST] Running poll...');
-                await postTaskPoll(client);
+                await postTaskPoll(client, taskRepo);
             }
 
             if (minute % T === 0) {
                 console.log('[TaskScheduler] [TEST] Starting task event...');
-                await startTaskEvent(client);
+                await startTaskEvent(client, { repo: taskRepo, taskEvents, tasks, keywords });
             }
 
             if ((minute - 1) % (2 * T) === 0) {
                 console.log('[TaskScheduler] [TEST] Running prize draw...');
-                
-                const snapshot = generatePrizeDrawSnapshot();
-                const winner = rollWinnerForSnapshot(snapshot.id);
-
+                const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
+                const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id);
                 if (winner) {
-                    await announcePrizeDrawWinner(client, snapshot.id);
+                    await announcePrizeDrawWinner(client, prizeRepo, snapshot.id);
                 } else {
-                    console.log(`[PrizeDraw] No winner - no eligible entries.`);
+                    console.log("[PrizeDraw] No winner - no eligible entries.");
                 }
-
             }
         });
     } else {
@@ -90,7 +97,7 @@ export function initTaskScheduler(client: Client) {
                 console.log('[TaskScheduler] Running weekly task poll post...');
                 const channel = await getDefaultChannel(client);
                 if (channel) {
-                    await postTaskPoll(client);
+                    await postTaskPoll(client, taskRepo);
                 }
             });
 
@@ -100,7 +107,7 @@ export function initTaskScheduler(client: Client) {
                 console.log('[TaskScheduler] Closing poll and starting task event...');
                 const channel = await getDefaultChannel(client);
                 if (channel) {
-                    await startTaskEvent(client);
+                    await startTaskEvent(client, { repo: taskRepo, taskEvents, tasks, keywords });
                 }
             }
         );

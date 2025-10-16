@@ -1,10 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client, ButtonInteraction, ComponentType } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
 import type { Task } from '../../models/Task';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
+import type { TaskPoll } from '../../models/TaskPoll';
 
-const taskFilePath = path.resolve(process.cwd(), 'src/data/tasks.json');
-const pollPath = path.resolve(process.cwd(), 'src/data/activePoll.json');
 const activeVotes = new Map<string, Map<string, number>>(); // messageId -> Map<taskId, voteCount>
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣'];
 
@@ -17,7 +15,7 @@ function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
     }).join('\n');
 }
 
-export async function postTaskPoll(client: Client) {
+export async function postTaskPoll(client: Client, repo: ITaskRepository) {
     const userVotes = new Map<string, string>(); // userId -> taskId
 
     const guildId = process.env.DISCORD_GUILD_ID;
@@ -31,7 +29,7 @@ export async function postTaskPoll(client: Client) {
     const roleName = process.env.TASK_USER_ROLE_NAME;
     const role = guild.roles.cache.find(r => r.name === roleName);
 
-    const taskData: Task[] = JSON.parse(fs.readFileSync(taskFilePath, 'utf8'));
+    const taskData: Task[] = await repo.getAllTasks();
     if (taskData.length < 3) return;
 
     // Get 3 random tasks
@@ -74,6 +72,20 @@ export async function postTaskPoll(client: Client) {
     const message = await (channel as TextChannel).send({ embeds: [embed], components: [row] });
     activeVotes.set(message.id, taskVotes);
 
+    const poll: TaskPoll = {
+        id: message.id,
+        type: "task",
+        options: selectedTasks,
+        messageId: message.id,
+        channelId: channelId,
+        createdAt: new Date(),
+        endsAt: new Date(endTime),
+        isActive: true,
+        votes: {},
+    };
+
+    await repo.createTaskPoll(poll);
+
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.Button,
         time: pollDuration
@@ -113,7 +125,8 @@ export async function postTaskPoll(client: Client) {
             }))
         };
 
-        fs.writeFileSync(pollPath, JSON.stringify(pollResult, null, 2));
+        poll.votes[userId] = voteId;
+        await repo.createTaskPoll(poll);
     });
 
     collector.on('end', async () => {
@@ -126,6 +139,7 @@ export async function postTaskPoll(client: Client) {
 
         await message.edit({ embeds: [updatedEmbed], components: [] });
         activeVotes.delete(message.id);
-        console.log('[TaskPoll] Poll closed. Final votes:', Object.fromEntries(finalVotes));
+        await repo.closeTaskPoll(poll.id);
+        console.log('[TaskPoll] Poll closed in Firestore.');
     });
 }

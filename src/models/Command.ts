@@ -1,11 +1,27 @@
 import { ChatInputCommandInteraction, Message, SlashCommandBuilder, type SlashCommandOptionsOnlyBuilder, type SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
 import type { BotStatsService } from '../core/services/BotStatsService';
+import type { TaskService } from '../modules/tasks/TaskService';
+import type { TaskEventStore } from '../modules/tasks/TaskEventStore';
+import type { KeywordSelector } from '../modules/tasks/KeywordSelector';
+import type { ITaskRepository } from '../core/database/interfaces/ITaskRepo';
+import type { IPrizeDrawRepository } from '../core/database/interfaces/IPrizeDrawRepo';
 
 export enum CommandRole {
     Everyone = 'Everyone',
     TaskAdmin = 'TaskAdmin',
     MovieAdmin = 'MovieAdmin',
     BotAdmin = 'BotAdmin'
+}
+
+export interface ServiceContainer {
+    botStats: BotStatsService;
+    tasks?: TaskService;
+    taskEvents?: TaskEventStore;
+    keywords?: KeywordSelector;
+    repos?: {
+        taskRepo?: ITaskRepository;
+        prizeRepo?: IPrizeDrawRepository;
+    };
 }
 
 export interface Command {
@@ -36,9 +52,7 @@ export interface Command {
         message?: Message;
         interaction?: ChatInputCommandInteraction;
         args?: string[];
-        services?: {
-            botStats: BotStatsService;
-        };
+        services?: ServiceContainer;
     }) => Promise<void>;
 
     // Optional method to return a SlashCommandBuilder for registering slash commands

@@ -1,21 +1,12 @@
+import type { IPrizeDrawRepository } from '../../core/database/interfaces/IPrizeDrawRepo';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
 import type { PrizeDraw } from '../../models/PrizeDraw';
 import type { TaskEvent } from '../../models/TaskEvent';
-import fs from 'fs';
-import path from 'path';
-import type { TaskSubmission } from '../../models/TaskSubmission';
+import { TaskCategory } from '../../models/Task';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { buildPrizeDrawEmbed } from './TaskEmbeds';
 import { Client, TextChannel } from 'discord.js';
 import { isTextChannel } from '../../utils/ChannelUtils';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const submissionsPath = resolve(__dirname, '../../data/submissions.json');
-const drawsPath = resolve(__dirname, '../../data/prizeDraws.json');
-const eventsPath = resolve(__dirname, '../../data/taskEvents.json');
 
 const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
 
@@ -28,28 +19,19 @@ function getPeriodRange(endDate: Date, days: number): [Date, Date] {
     return [start, end];
 }
 
-export function generatePrizeDrawSnapshot(): PrizeDraw {
-    const allSubmissions: TaskSubmission[] = fs.existsSync(submissionsPath)
-        ? JSON.parse(fs.readFileSync(submissionsPath, 'utf-8'))
-        : [];
-
-    const allEvents: TaskEvent[] = fs.existsSync(eventsPath)
-        ? JSON.parse(fs.readFileSync(eventsPath, 'utf-8'))
-        : [];
-
+export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository, taskRepo: ITaskRepository): Promise<PrizeDraw> {
     const now = new Date();
     const [start, end] = getPeriodRange(now, DEFAULT_PERIOD_DAYS);
 
-    const qualifyingEvents = allEvents.filter(e => {
-        const eventStart = new Date(e.startTime);
-        return eventStart >= start && eventStart <= end;
-    });
+    const allEvents = await taskRepo.getLatestTaskEvent();
+    const qualifyingEvents: TaskEvent[] = [];
 
-    const includedEventIds = new Set(qualifyingEvents.map(e => e.taskEventId));
+    const allSubmissions = await Promise.all(
+        qualifyingEvents.map((e) => taskRepo.getSubmissionsForTask(e.id))
+    ).then((arr) => arr.flat());
 
-    const filtered = allSubmissions.filter((s) =>
-        s.status === SubmissionStatus.Approved &&
-        includedEventIds.has(s.taskEventId)
+    const filtered = allSubmissions.filter(
+        (s) => s.status === SubmissionStatus.Approved
     );
 
     const participants: Record<string, number> = {};
@@ -63,28 +45,18 @@ export function generatePrizeDrawSnapshot(): PrizeDraw {
         end: end.toISOString(),
         snapshotTakenAt: new Date().toISOString(),
         participants,
+        entries: [],
         totalEntries: filtered.length
     }
 
     // Persist snapshot
-    let allDraws: PrizeDraw[] = [];
-    if (fs.existsSync(drawsPath)) {
-        allDraws = JSON.parse(fs.readFileSync(drawsPath, 'utf-8'));
-    }
-    // Remove older snapshots with same ID
-    const updatedDraws = allDraws.filter(d => d.id !== snapshot.id);
-    updatedDraws.push(snapshot);
-    fs.writeFileSync(drawsPath, JSON.stringify(updatedDraws, null, 2));
-
+    await prizeRepo.createPrizeDraw(snapshot);
     console.log(`[PrizeDraw] Snapshot created for ${snapshot.id}`);
     return snapshot;
 }
 
-export function rollWinnerForSnapshot(snapshotId: string): string | null {
-    const allDraws: PrizeDraw[] = JSON.parse(fs.readFileSync(drawsPath, 'utf-8'));
-    const snapshot = allDraws
-        .filter(d => d.id === snapshotId)
-        .sort((a, b) => new Date(b.snapshotTakenAt).getTime() - new Date(a.snapshotTakenAt).getTime())[0];
+export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, snapshotId: string): Promise<string | null> {
+    const snapshot = await prizeRepo.getPrizeDrawById(snapshotId);
 
     if (!snapshot) throw new Error(`Snapshot ${snapshotId} not found.`);
     // Check if already rolled
@@ -105,18 +77,14 @@ export function rollWinnerForSnapshot(snapshotId: string): string | null {
     snapshot.winnerId = winnerId || '';
     snapshot.rolledAt = new Date().toISOString();
 
-    fs.writeFileSync(drawsPath, JSON.stringify(allDraws, null, 2));
+    await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>);
     console.log(`[PrizeDraw] Winner for ${snapshotId}: ${winnerId}`);
 
     return winnerId;
 }
 
-export async function announcePrizeDrawWinner(client: Client, snapshotId: string) {
-    const allDraws: PrizeDraw[] = fs.existsSync(drawsPath)
-        ? JSON.parse(fs.readFileSync(drawsPath, 'utf-8'))
-        : [];
-
-    const snapshot = allDraws.find(d => d.id === snapshotId);
+export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeDrawRepository, snapshotId: string) {
+    const snapshot = await prizeRepo.getPrizeDrawById(snapshotId);
     if (!snapshot || !snapshot.winnerId) {
         console.warn(`[PrizeDraw] Cannot announce winner - snapshot or winner not found.`);
         return;

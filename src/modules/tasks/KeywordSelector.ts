@@ -1,47 +1,38 @@
-import fs from 'fs';
-import path from 'path';
-import { Pool } from 'undici';
+import type { IKeywordRepository } from "../../core/database/interfaces/IKeywordRepo";
+import type { Keyword } from "../../models/Keyword";
 
-const keywordsPath = path.resolve(process.cwd(), 'src/data/keywords.json');
-const usedPath = path.resolve(process.cwd(), 'src/data/usedKeywords.json');
 const HISTORY_LIMIT = 26;
 
-function loadKeywords(): string[] {
-    if (!fs.existsSync(keywordsPath)) {
-        throw new Error('Keywords file not found.');
+export class KeywordSelector {
+    constructor(private repo: IKeywordRepository) { }
+
+    async selectKeyword(currentEventId: string): Promise<string> {
+        const allKeywords: Keyword[] = await this.repo.getAllKeywords();
+        if (allKeywords.length === 0) {
+            console.warn("[KeywordSelector] No keywords found in Firestore.");
+            return "keyword";
+        }
+
+        // Sort by lastUsedAt descending to exclude recent keywords
+        const sorted = [...allKeywords].sort((a, b) => {
+            const timeA = a.lastUsedAt?.toMillis?.() ?? 0;
+            const timeB = b.lastUsedAt?.toMillis?.() ?? 0;
+            return timeB - timeA;
+        });
+
+        const excludeCount = Math.min(HISTORY_LIMIT, sorted.length);
+        const recent = sorted.slice(0, excludeCount).map(k => k.id);
+        const available = allKeywords.filter(k => !recent.includes(k.id));
+
+        // If all recently used, use full pool
+        const pool = available.length > 0 ? available : allKeywords;
+        const chosen = pool[Math.floor(Math.random() * pool.length)]!;
+
+        // Mark as used
+        await this.repo.markKeywordUsed(chosen.id, currentEventId);
+
+        console.log(`[KeywordSelector] Selected keyword: ${chosen.word}`);
+        return chosen.word;
     }
-    return JSON.parse(fs.readFileSync(keywordsPath, 'utf-8'));
 }
 
-function loadUsedKeywords(): string[] {
-    if (!fs.existsSync(usedPath)) return [];
-    return JSON.parse(fs.readFileSync(usedPath, 'utf-8'));
-}
-
-function saveUsedKeywords(updated: string[]) {
-    fs.writeFileSync(usedPath, JSON.stringify(updated.slice(0, HISTORY_LIMIT), null, 2));
-}
-
-export function selectKeyword(): string {
-    const all = loadKeywords();
-    const used = loadUsedKeywords();
-
-    const available = all.filter(k => !used.includes(k));
-
-    // If all keywords used recently, reset history
-    const pool = available.length > 0 ? available : all;
-
-    if (pool.length === 0) {
-        console.warn('[KeywordSelector] No keywords available. Returning fallback.');
-        return 'keyword';
-    }
-
-    const chosen = pool[Math.floor(Math.random() * pool.length)]!;
-
-    // Update history
-    const updatedHistory: string[] = [chosen, ...used.filter(k => k !== chosen)];
-    saveUsedKeywords(updatedHistory);
-
-    console.log(`[KeywordSelector] Selected keyword: ${chosen}`);
-    return chosen;
-}
