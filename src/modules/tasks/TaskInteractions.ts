@@ -1,11 +1,11 @@
 import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, StringSelectMenuBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import type { TaskService } from './TaskService';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { handleTaskFeedback } from './HandleTaskFeedback';
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
-export async function handleSubmitButton(interaction: ButtonInteraction, services: { tasks: TaskService }) {
+export async function handleSubmitButton(interaction: ButtonInteraction, services: ServiceContainer) {
     const parts = interaction.customId.split('-');
     const taskEventId = parts.slice(2).join('-');
 
@@ -67,7 +67,7 @@ export async function handleSubmitButton(interaction: ButtonInteraction, service
 }
 
 // STEP 2: User confirms task from select menu
-export async function handleTaskSelect(interaction: StringSelectMenuInteraction, services: { tasks: TaskService }) {
+export async function handleTaskSelect(interaction: StringSelectMenuInteraction, services: ServiceContainer) {
     const [, , userId] = interaction.customId.split('-');
 
     if (!userId) {
@@ -96,7 +96,7 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction,
 }
 
 // STEP 3: User sends screenshot + notes in DM
-export async function handleDirectMessage(message: Message, client: Client, services: { tasks: TaskService }) {
+export async function handleDirectMessage(message: Message, client: Client, services: ServiceContainer) {
     if (message.author.bot || message.channel.type !== 1) return;
 
     const taskEventId = services.tasks.consumePendingTask(message.author.id);
@@ -126,7 +126,7 @@ export async function handleDirectMessage(message: Message, client: Client, serv
 }
 
 // STEP 4: Admin clicks Approve/Reject
-export async function handleAdminButton(interaction: ButtonInteraction, services: { tasks: TaskService }) {
+export async function handleAdminButton(interaction: ButtonInteraction, services: ServiceContainer) {
     const [action, submissionId] = interaction.customId.split('_');
     if (!submissionId) {
         await interaction.reply({ content: "Submission ID missing from interaction.", flags: 1 << 6 });
@@ -162,7 +162,7 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
 }
 
 // STEP 5: Modal submit for rejection reason
-export async function handleRejectionModal(interaction: ModalSubmitInteraction, services: { tasks: TaskService }) {
+export async function handleRejectionModal(interaction: ModalSubmitInteraction, services: ServiceContainer) {
     // Acknowledge the modal submission ephemerally
     await interaction.deferReply({ flags: 1 << 6 });
 
@@ -195,7 +195,7 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
 }
 
 // Main interaction router
-export async function handleTaskInteraction(interaction: Interaction, client: Client,  services: { tasks: TaskService }) {
+export async function handleTaskInteraction(interaction: Interaction, client: Client,  services: ServiceContainer) {
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('task-feedback-')) {
             return await handleTaskFeedback(interaction, services.tasks.repository);

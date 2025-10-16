@@ -1,7 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command, ServiceContainer } from '../../../models/Command';
+import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { initTaskScheduler, stopTaskScheduler } from '../../tasks/TaskScheduler';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 let schedulerRunning = false;
 

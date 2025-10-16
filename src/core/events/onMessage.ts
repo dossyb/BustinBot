@@ -2,11 +2,12 @@ import { Message, GuildMember } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { loadCommands } from '../services/CommandService';
+import type { ServiceContainer } from '../services/ServiceContainer';
 
 const PREFIX = '!'; // Handle ! as the command prefix
 const commands = loadCommands('./src/modules/commands');
 
-export async function handleMessage(message: Message, commands: Map<string, Command>, services: { botStats: any }) {
+export async function handleMessage(message: Message, commands: Map<string, Command>, services: ServiceContainer) {
     if (!message.content.startsWith(PREFIX) || message.author.bot) return;
 
     const [commandNameRaw, ...args] = message.content.slice(PREFIX.length).trim().split(/\s+/);

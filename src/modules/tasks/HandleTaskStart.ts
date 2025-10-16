@@ -1,11 +1,8 @@
 import { Client, TextChannel } from 'discord.js';
 import { buildTaskEventEmbed } from './TaskEmbeds';
-import type { Task } from '../../models/Task';
 import type { TaskEvent } from '../../models/TaskEvent';
-import type { TaskService } from './TaskService';
-import type { TaskEventStore } from './TaskEventStore';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
-import { KeywordSelector } from './KeywordSelector';
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
+
 
 function generateTaskEventId(taskId: string): string {
     const now = new Date();
@@ -15,14 +12,16 @@ function generateTaskEventId(taskId: string): string {
     return `${taskId}-${yyyy}${mm}${dd}`;
 }
 
-interface TaskStartDeps {
-    repo: ITaskRepository;
-    taskEvents: TaskEventStore;
-    tasks: TaskService;
-    keywords: KeywordSelector;
-}
+export async function startTaskEvent(client: Client, services: ServiceContainer): Promise<void> {
+    const { repos, taskEvents, keywords } = services;
 
-export async function startTaskEvent(client: Client, services: TaskStartDeps): Promise<void> {
+    if (!repos?.taskRepo || !taskEvents || !keywords) {
+        console.error(
+            "[TaskStart] Missing required dependencies: taskRepo, taskEvents, or keywords."
+        );
+        return;
+    }
+
     const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
     if (!guildId || !channelId) return;
@@ -34,7 +33,7 @@ export async function startTaskEvent(client: Client, services: TaskStartDeps): P
     const roleName = process.env.TASK_USER_ROLE_NAME;
     const role = guild.roles.cache.find(r => r.name === roleName);
 
-    const pollData = await services.repo.getActiveTaskPoll();
+    const pollData = await repos.taskRepo.getActiveTaskPoll();
     if (!pollData || !pollData.options?.length) {
         console.warn('[TaskStart] No active poll found or poll data invalid.');
         return;
@@ -54,7 +53,7 @@ export async function startTaskEvent(client: Client, services: TaskStartDeps): P
     });
 
     // Load full task data
-    const task = await services.repo.getTaskById(winningTask.id);
+    const task = await repos.taskRepo.getTaskById(winningTask.id);
     if (!task) {
         console.error(`[TaskStart] Could not find task with id ${winningTask.id}`);
         return;
@@ -66,7 +65,7 @@ export async function startTaskEvent(client: Client, services: TaskStartDeps): P
     const event: TaskEvent = {
         id: taskEventId,
         task,
-        keyword: await services.keywords.selectKeyword(taskEventId),
+        keyword: await keywords.selectKeyword(taskEventId),
         startTime: new Date(),
         endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week
         selectedAmount,
@@ -85,8 +84,8 @@ export async function startTaskEvent(client: Client, services: TaskStartDeps): P
 
     console.log(`[TaskStart] Task event posted for task ID ${taskEventId}`);
 
-    await services.taskEvents.storeTaskEvent(event);
+    await taskEvents.storeTaskEvent(event);
     if (pollData.id) {
-        await services.repo.closeTaskPoll(pollData.id);
+        await repos.taskRepo.closeTaskPoll(pollData.id);
     }
 }

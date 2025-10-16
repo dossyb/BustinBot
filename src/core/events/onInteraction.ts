@@ -1,17 +1,17 @@
 import { ChatInputCommandInteraction, GuildMember, ButtonInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import type { Command, ServiceContainer } from '../../models/Command';
+import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
 import { handleTaskInteraction } from '../../modules/tasks/TaskInteractions';
 import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
 import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
 import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies/MovieScheduler';
-import type { TaskService } from '../../modules/tasks/TaskService';
+import type { ServiceContainer } from '../services/ServiceContainer';
 
 export async function handleInteraction(
     interaction: Interaction,
     commands: Map<string, Command>,
-    services: { botStats: any, tasks: TaskService }
+    services: ServiceContainer
 ) {
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);

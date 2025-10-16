@@ -4,7 +4,7 @@ import { Client, TextChannel } from 'discord.js';
 import { postTaskPoll } from './HandleTaskPoll';
 import { startTaskEvent } from './HandleTaskStart';
 import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw';
-import type { ServiceContainer } from '../../models/Command';
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
 // Replace with config store (admin editable)
 const defaultSchedule = {
@@ -73,7 +73,7 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
 
             if (minute % T === 0) {
                 console.log('[TaskScheduler] [TEST] Starting task event...');
-                await startTaskEvent(client, { repo: taskRepo, taskEvents, tasks, keywords });
+                await startTaskEvent(client, services);
             }
 
             if ((minute - 1) % (2 * T) === 0) {
@@ -107,7 +107,7 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
                 console.log('[TaskScheduler] Closing poll and starting task event...');
                 const channel = await getDefaultChannel(client);
                 if (channel) {
-                    await startTaskEvent(client, { repo: taskRepo, taskEvents, tasks, keywords });
+                    await startTaskEvent(client, services);
                 }
             }
         );
