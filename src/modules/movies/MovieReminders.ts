@@ -25,7 +25,7 @@ export async function restoreMovieReminders(services: ServiceContainer, client: 
         return;
     }
 
-    const latestEvent = await movieRepo.getLatestEvent();
+    const latestEvent = await movieRepo.getActiveEvent();
     if (!latestEvent?.startTime) {
         console.log("[MovieReminders] No upcoming movie event found.");
         return;
@@ -79,7 +79,7 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
                 // Retrieve current state from Firestore
                 const [activePoll, latestEvent] = await Promise.all([
                     movieRepo.getActivePoll(),
-                    movieRepo.getLatestEvent(),
+                    movieRepo.getActiveEvent(),
                 ]);
 
                 // Determine movie state line

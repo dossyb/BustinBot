@@ -30,7 +30,7 @@ async function createAndSendMoviePoll(
     let endsAt = now.plus({ hours: 24 });
 
     // Adjust poll close time if movie night already scheduled
-    const latestEvent = await movieRepo.getLatestEvent();
+    const latestEvent = await movieRepo.getActiveEvent();
     if (latestEvent?.startTime) {
         const movieStart = DateTime.fromJSDate(latestEvent.startTime);
         if (movieStart.isValid) {
@@ -221,7 +221,7 @@ export async function closeActiveMoviePoll(services: ServiceContainer, closedBy:
     await movieRepo.closePoll(activePoll.id);
 
     // Save the selected movie as current
-    await movieRepo.upsertMovie({ ...winningMovie, watched: false });
+    await saveCurrentMovie(services, winningMovie, closedBy);
 
     const baseMessage = tieBreak
         ? `Poll closed successfully. After a tie with ${topVotes} votes, BustinBot chose ${winningMovie.title}.`

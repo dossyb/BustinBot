@@ -9,14 +9,19 @@ import { getManualPollSession, changeManualPollPage, clearManualPollSession, upd
 import { pollMovieRandom, pollMovieWithList } from "./MoviePolls";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
 
-export async function saveCurrentMovie(services: ServiceContainer, movie: Movie) {
+export async function saveCurrentMovie(services: ServiceContainer, movie: Movie, selectedBy?: string) {
     const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         console.error("[MovieStorage] Movie repository not found in services.");
         return;
     }
     try {
-        await movieRepo.upsertMovie(movie);
+        await movieRepo.upsertMovie({
+            ...movie,
+            watched: false,
+            selectedAt: new Date(),
+            selectedBy,
+        });
         console.log(`[MovieStorage] Saved current movie: ${movie.title}`);
     } catch (error) {
         console.error("[MovieStorage] Failed to save current movie:", error);
@@ -88,7 +93,7 @@ export async function handleMoviePickChooseModalSubmit(services: ServiceContaine
         return;
     }
 
-    await saveCurrentMovie(services, selectedMovie);
+    await saveCurrentMovie(services, selectedMovie, interaction.user.id);
 
     const embed = createMovieEmbed(selectedMovie);
     const existingDescription = embed.data.description ?? "";
@@ -149,7 +154,7 @@ export async function handleConfirmRandomMovie(services: ServiceContainer, inter
         return;
     }
 
-    await saveCurrentMovie(services, selectedMovie);
+    await saveCurrentMovie(services, selectedMovie, interaction.user.id);
 
     if (!embed) {
         await channel.send({

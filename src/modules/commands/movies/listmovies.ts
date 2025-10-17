@@ -60,18 +60,39 @@ const listmovies: Command = {
             return;
         }
 
+        const toMillis = (value: unknown): number => {
+            if (!value) return 0;
+            if (value instanceof Date) return value.getTime();
+
+            const maybeTimestamp = value as { toDate?: () => Date };
+            if (maybeTimestamp && typeof maybeTimestamp.toDate === "function") {
+                return maybeTimestamp.toDate().getTime();
+            }
+
+            if (typeof value === "number") return value;
+            if (typeof value === "string") {
+                const parsed = Date.parse(value);
+                return Number.isNaN(parsed) ? 0 : parsed;
+            }
+
+            return 0;
+        };
+
         const movies: Movie[] = await movieRepo.getAllMovies();
+        const unwatchedMovies = movies
+            .filter(movie => !movie.watched)
+            .sort((a, b) => toMillis(a.addedAt) - toMillis(b.addedAt));
         
-        if (!movies.length) {
-            await interaction.editReply('The movie list is currently empty.');
+        if (!unwatchedMovies.length) {
+            await interaction.editReply('No unwatched movies are currently queued. Add a new one with `/addmovie`!');
             return;
         }
 
         let currentPage = 0;
-        const totalPages = Math.ceil(movies.length / MOVIES_PER_PAGE);
+        const totalPages = Math.ceil(unwatchedMovies.length / MOVIES_PER_PAGE);
 
         const getPageEmbeds = (page: number) => {
-            const pageMovies = paginateMovies(movies, page);
+            const pageMovies = paginateMovies(unwatchedMovies, page);
             return createMovieListEmbeds(pageMovies, page, MOVIES_PER_PAGE);
         }
 

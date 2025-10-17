@@ -46,7 +46,7 @@ export async function scheduleActivePollClosure(services: ServiceContainer) {
             console.log(`[MoviePollScheduler] Poll auto-closed: ${result.message}`);
 
             // Fetch latest movie event to determine next steps
-            const latestEvent = await movieRepo.getLatestEvent();
+            const latestEvent = await movieRepo.getActiveEvent();
             if (!latestEvent || !latestEvent.movie) {
                 console.warn('[MoviePollScheduler] No movie event found post-poll.');
                 return;

@@ -39,7 +39,7 @@ const cancelmovie: Command = {
             }
 
             // Mark latest movie event as cancelled
-            const latestEvent = await movieRepo.getLatestEvent();
+            const latestEvent = await movieRepo.getActiveEvent();
             if (latestEvent && !latestEvent.completed) {
                 await movieRepo.createMovieEvent({
                     ...latestEvent,

@@ -14,6 +14,7 @@ export interface IMovieRepository {
     clearPolls(): Promise<void>;
 
     createMovieEvent(event: MovieEvent): Promise<void>;
+    getActiveEvent(): Promise<MovieEvent | null>;
     getLatestEvent(): Promise<MovieEvent | null>;
     getAllEvents(): Promise<MovieEvent[]>;
     clearEvents(): Promise<void>;

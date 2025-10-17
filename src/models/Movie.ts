@@ -41,4 +41,10 @@ export interface Movie {
 
     director?: string | undefined;
     cast?: string[] | undefined;
+
+    // Timestamp indicating when the movie was selected for movie night
+    selectedAt?: Date | undefined;
+
+    // Discord user ID of the person who selected the movie
+    selectedBy?: string | undefined;
 }

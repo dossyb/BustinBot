@@ -61,13 +61,32 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     let movie: Movie | null = null;
     let pollChannelId: string | undefined;
 
+    const toDate = (value: unknown): Date | null => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        const maybeTimestamp = value as { toDate?: () => Date };
+        if (maybeTimestamp && typeof maybeTimestamp.toDate === "function") {
+            return maybeTimestamp.toDate();
+        }
+        return null;
+    };
+
     if (activePoll && activePoll.isActive) {
         pollChannelId = activePoll.channelId || undefined;
     }
 
-    // Optionally, find the most recent unwatched movie
+    // Prefer the most recently selected, unwatched movie
     const movies = await movieRepo.getAllMovies();
-    movie = movies.find(m => !m.watched) ?? null;
+    const selectedMovies = movies
+        .filter((m) => !m.watched && m.selectedAt)
+        .map((m) => {
+            const selectedAtDate = toDate(m.selectedAt);
+            return selectedAtDate ? { movie: m, selectedAt: selectedAtDate } : null;
+        })
+        .filter((entry): entry is { movie: Movie; selectedAt: Date } => entry !== null)
+        .sort((a, b) => b.selectedAt.getTime() - a.selectedAt.getTime());
+
+    movie = selectedMovies[0]?.movie ?? null;
 
     // Adjust poll end time if needed
     if (activePoll?.isActive && activePoll.endsAt) {
@@ -87,6 +106,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     // Create movie event record
     const event = {
         id: `event-${Date.now()}`,
+        createdAt: new Date(),
         startTime: utcDateTime.toJSDate(),
         movie: movie ?? { id: "TBD", title: "TBD", addedBy: interaction.user.id, addedAt: new Date(), watched: false },
         channelId: pollChannelId || "",
@@ -112,9 +132,14 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         ? `_Reminders will be sent at ${visibleReminders.map(r => `<t:${Math.floor(r.sendAt.toSeconds())}:t>`).join(' and ')} that day._`
         : '';
 
-    const stateMessage = pollChannelId
-        ? `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`
-        : `No movie has been selected yet.`;
+    let stateMessage = '';
+    if (movie) {
+        stateMessage = `🎬 We will be watching **${movie.title}**!`;
+    } else if (pollChannelId) {
+        stateMessage = `🗳️ A poll is currently running in <#${pollChannelId}> to decide which movie we will watch. Go vote!`;
+    } else {
+        stateMessage = `No movie has been selected yet.`;
+    }
 
     const embed = createMovieNightEmbed(movie, utcUnix, `${stateMessage}\n\n${reminderLine}`, interaction.user.username);
 

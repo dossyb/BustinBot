@@ -26,13 +26,25 @@ const currentmovie: Command = {
         }
 
         // Fetch latest scheduled movie event
-        const movieEvent = await movieRepo.getLatestEvent();
-        if (!movieEvent?.startTime) {
+        const movieEvent = await movieRepo.getActiveEvent();
+        if (!movieEvent || movieEvent.completed || !movieEvent.startTime) {
             await interaction.editReply("No movie night is currently scheduled.");
             return;
         }
 
-        const startTime = DateTime.fromJSDate(movieEvent.startTime);
+        const startDate =
+            movieEvent.startTime instanceof Date
+                ? movieEvent.startTime
+                : typeof (movieEvent.startTime as { toDate?: () => Date })?.toDate === "function"
+                    ? (movieEvent.startTime as { toDate: () => Date }).toDate()
+                    : null;
+
+        if (!startDate) {
+            await interaction.editReply("No movie night is currently scheduled.");
+            return;
+        }
+
+        const startTime = DateTime.fromJSDate(startDate);
         const readableDate = startTime.toFormat("cccc, dd LLLL yyyy");
         const unixTimestamp = Math.floor(startTime.toSeconds());
 

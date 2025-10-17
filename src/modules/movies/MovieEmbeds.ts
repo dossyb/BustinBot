@@ -14,8 +14,7 @@ export function createMovieEmbed(movie: Partial<Movie>): EmbedBuilder {
         .addFields(
             { name: 'Runtime', value: movie.runtime ? `${movie.runtime} mins` : 'Unknown', inline: true },
             { name: 'Director', value: movie.director ?? 'Unknown', inline: true },
-            // spacer field — invisible but forces new row
-            { name: "\u200B", value: "\u200B", inline: true },
+            { name: 'Rating', value: movie.rating ? `${movie.rating}/10` : 'Unrated', inline: true },
             { name: 'Genres', value: movie.genres?.join(', ') || 'Unknown', inline: true },
             { name: 'Starring', value: movie.cast?.join(', ') || 'Unknown', inline: true },
         )
@@ -90,7 +89,7 @@ export function createMovieNightEmbed(
             .setColor(0xE91E63)
             .addFields({
                 name: '🎥 Start Time',
-                value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)${stateMessage ? `\n${stateMessage}` : ''}`,
+                value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`,
                 inline: false,
             })
             .setFooter({ text: `Scheduled by ${scheduledBy} • Powered by TMDb` });

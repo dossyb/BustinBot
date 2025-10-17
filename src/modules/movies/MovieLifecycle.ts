@@ -14,7 +14,7 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
 
     try {
         // Retrieve latest active event
-        const latestEvent = await movieRepo.getLatestEvent();
+        const latestEvent = await movieRepo.getActiveEvent();
         if (!latestEvent) {
             return { success: false, message: 'No active movie event found to end.' };
         }

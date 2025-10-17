@@ -4,6 +4,9 @@ export interface MovieEvent {
     // Unique identifier for the event
     id: string;
 
+    // Timestamp when the event record was created
+    createdAt: Date;
+
     // The scheduled start time for the movie event (UTC)
     startTime: Date;
 

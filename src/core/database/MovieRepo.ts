@@ -63,7 +63,43 @@ export class MovieRepository extends GuildScopedRepository<Movie> implements IMo
     }
 
     async createMovieEvent(event: MovieEvent): Promise<void> {
-        await this.eventsCollection.doc(event.id).set(event);
+        const payload: MovieEvent = {
+            ...event,
+            createdAt: event.createdAt ?? new Date(),
+        };
+        await this.eventsCollection.doc(payload.id).set(payload);
+    }
+
+    async getActiveEvent(): Promise<MovieEvent | null> {
+        const snapshot = await this.eventsCollection
+            .where('completed', '==', false)
+            .get();
+
+        if (snapshot.empty) return null;
+
+        const toMillis = (value: unknown): number => {
+            if (!value) return 0;
+            if (value instanceof Date) return value.getTime();
+            if (typeof (value as { toDate?: () => Date })?.toDate === "function") {
+                return (value as { toDate: () => Date }).toDate().getTime();
+            }
+            if (typeof value === "number") return value;
+            if (typeof value === "string") {
+                const parsed = Date.parse(value);
+                return Number.isNaN(parsed) ? 0 : parsed;
+            }
+            return 0;
+        };
+
+        const events = snapshot.docs
+            .map(doc => doc.data() as MovieEvent)
+            .sort((a, b) => {
+                const aTime = toMillis(a.startTime);
+                const bTime = toMillis(b.startTime);
+                return bTime - aTime;
+            });
+
+        return events[0] ?? null;
     }
 
     async getLatestEvent(): Promise<MovieEvent | null> {
