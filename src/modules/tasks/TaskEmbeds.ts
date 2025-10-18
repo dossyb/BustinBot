@@ -1,15 +1,21 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, embedLength } from "discord.js";
 import type { APIEmbed } from "discord.js";
 import type { TaskEvent } from "../../models/TaskEvent";
+import type { Task } from "../../models/Task";
+
+export function getTaskDisplayName(task: Task, selectedAmount?: number): string {
+    if (selectedAmount !== undefined && task.taskName.includes("{amount}")) {
+        return task.taskName.replace(/\{amount\}/g, String(selectedAmount));
+    }
+    return task.taskName;
+}
 
 // Embed shown for each task event post
 export function buildTaskEventEmbed(event: TaskEvent) {
+    const taskTitle = getTaskDisplayName(event.task, event.selectedAmount);
     const embed: APIEmbed = {
         title: '**This Week\'s Task**',
-        description: `**${event.task.taskName.replace(
-            "{amount}",
-            String(event.selectedAmount ?? "")
-        )}**\n\n**Submission instructions:**\n
+        description: `**${taskTitle}**\n\n**Submission instructions:**\n
         <insert instructions here>\n\n
         🔑 Keyword: **${event.keyword}** 🔑\n
         Click the **Submit Screenshot** button below to make your submission.`,

@@ -1,8 +1,11 @@
-import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, StringSelectMenuBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel } from 'discord.js';
+import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel, ActionRowBuilder } from 'discord.js';
 import type { Interaction } from 'discord.js';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { handleTaskFeedback } from './HandleTaskFeedback';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
+import { getTaskDisplayName } from './TaskEmbeds';
+
+const MAX_SCREENSHOTS = 10;
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction, services: ServiceContainer) {
@@ -14,56 +17,40 @@ export async function handleSubmitButton(interaction: ButtonInteraction, service
         return;
     }
 
-    // TODO: Fetch active tasks from database
-    const activeTasks = [taskEventId];
-    const userId = interaction.user.id;
-
-    if (activeTasks.length === 1) {
-        const onlyTaskId = activeTasks[0];
-        if (!onlyTaskId) {
-            await interaction.reply({
-                content: "Could not identify the active task.",
-                flags: 1 << 6
-            });
-            return;
-        }
-        services.tasks.setPendingTask(userId, onlyTaskId);
-        // Directly prompt for screenshot
-        await interaction.user.send(
-            `Please upload your screenshot for Task ${taskEventId} and include any notes/comments in the same message.`
-        );
-
-        await interaction.reply({
-            content: 'Check your DMs to submit your screenshot!',
-            flags: 1 << 6
-        });
-
+    const taskRepo = services.repos.taskRepo;
+    if (!taskRepo) {
+        await interaction.reply({ content: "Task repository unavailable.", flags: 1 << 6 });
         return;
     }
 
-    // Multiple active tasks -> show dropdown
-    const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`select-task-${taskEventId}-${interaction.user.id}`)
-        .setPlaceholder('Select the active task')
-        .addOptions(
-            activeTasks.map(eventId => ({
-                label: `Task ${eventId}`,
-                value: eventId,
-                description: 'Active weekly task'
-            }))
+    const taskEvent = await taskRepo.getTaskEventById(taskEventId);
+    if (!taskEvent) {
+        await interaction.reply({
+            content: "That task is no longer active. Please check the latest task announcement.",
+            flags: 1 << 6
+        });
+        return;
+    }
+
+    const taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+    const userId = interaction.user.id;
+
+    services.tasks.setPendingTask(userId, taskEventId);
+    try {
+        await interaction.user.send(
+            `Please upload your screenshot for **${taskName}** and include any notes/comments in the same message.`
         );
-
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
-
-    await interaction.user.send({
-        content: 'Please confirm the task you are submitting for:',
-        components: [row]
-    });
-
-    await interaction.reply({
-        content: 'Check your DMs to submit your screenshot!',
-        flags: 1 << 6
-    });
+        await interaction.reply({
+            content: `Check your DMs to submit your screenshot for **${taskName}**!`,
+            flags: 1 << 6
+        });
+    } catch {
+        services.tasks.consumePendingTask(userId);
+        await interaction.reply({
+            content: "I couldn't send you a DM. Please enable direct messages from server members and try again.",
+            flags: 1 << 6
+        });
+    }
 }
 
 // STEP 2: User confirms task from select menu
@@ -87,12 +74,21 @@ export async function handleTaskSelect(interaction: StringSelectMenuInteraction,
         return;
     }
 
-    await services.tasks.createSubmission(userId, selectedTaskEventId);
+    services.tasks.setPendingTask(userId, selectedTaskEventId);
+    try {
+        const submission = await services.tasks.createSubmission(userId, selectedTaskEventId);
 
-    await interaction.reply({
-        content: `Thank you for confirming. Now upload your screenshot for Task ${interaction.values[0]} and include any notes/comments in the same message.`,
-        flags: 64
-    });
+        await interaction.reply({
+            content: `Thank you for confirming. Now upload your screenshot for **${submission.taskName ?? 'your task'}** and include any notes/comments in the same message.`,
+            flags: 64
+        });
+    } catch (error) {
+        console.error('[TaskSelect] Failed to create submission:', error);
+        await interaction.reply({
+            content: "There was a problem creating your submission. Please try again or contact a Task Admin.",
+            flags: 64
+        });
+    }
 }
 
 // STEP 3: User sends screenshot + notes in DM
@@ -103,7 +99,18 @@ export async function handleDirectMessage(message: Message, client: Client, serv
     const pending = taskEventId ? await services.tasks.getPendingSubmission(message.author.id, taskEventId) : undefined;
     if (!pending && !taskEventId) return;
 
-    const submission = pending ?? await services.tasks.createSubmission(message.author.id, taskEventId!);
+    let submission = pending;
+    if (!submission) {
+        try {
+            submission = await services.tasks.createSubmission(message.author.id, taskEventId!);
+        } catch (error) {
+            console.error('[TaskDM] Failed to create submission from DM:', error);
+            await message.reply("Couldn't locate the task details. Please try submitting again or contact a Task Admin.");
+            return;
+        }
+    }
+
+    if (!submission) return;
 
     const attachments = message.attachments;
 
@@ -121,8 +128,9 @@ export async function handleDirectMessage(message: Message, client: Client, serv
 
     const notes = message.content.trim() || undefined;
 
-    await services.tasks.completeSubmission(client, submission.id, imageUrls.slice(0, 2), notes);
-    await message.reply("✅ Submission received and sent for review!");
+    const limitedImages = imageUrls.slice(0, MAX_SCREENSHOTS);
+    await services.tasks.completeSubmission(client, submission.id, limitedImages, notes);
+    await message.reply(`✅ Submission for **${submission.taskName ?? 'your task'}** received with ${limitedImages.length} screenshot${limitedImages.length === 1 ? '' : 's'} and sent for review!`);
 }
 
 // STEP 4: Admin clicks Approve/Reject
@@ -141,7 +149,7 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
         await interaction.editReply({ content: "✅ Submission approved and archived." });
 
         const channel = interaction.channel as TextChannel;
-        await channel.send(`✅ <@${reviewerId}> approved submission for Task ${submission?.taskEventId} by ${interaction.message.embeds[0]?.fields[0]?.value}. Submission moved to archive channel.`);
+        await channel.send(`✅ <@${reviewerId}> approved submission for **${submission?.taskName ?? `Task ${submission?.taskEventId}`}** by ${interaction.message.embeds[0]?.fields[0]?.value}. Submission moved to archive channel.`);
     }
 
     if (action === 'reject') {
@@ -188,7 +196,7 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
 
     if (adminChannel) {
         await adminChannel.send(
-            `❌ <@${reviewerId}> rejected submission for Task ${updated?.taskEventId} by <@${updated?.userId}>. Reason: ${reason || "No reason provided"}. Submission moved to archive channel.`
+            `❌ <@${reviewerId}> rejected submission for **${updated?.taskName ?? `Task ${updated?.taskEventId}`}** by <@${updated?.userId}>. Reason: ${reason || "No reason provided"}. Submission moved to archive channel.`
         );
     }
 

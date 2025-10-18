@@ -13,7 +13,8 @@ export async function postToAdminChannel(client: Client, submission: TaskSubmiss
     const channel = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === ADMIN_CHANNEL_NAME) as TextChannel;
     if (!channel) return;
 
-    const embed = buildSubmissionEmbed(submission, `Task ${submission.taskEventId}`);
+    const taskLabel = submission.taskName ?? `Task ${submission.taskEventId}`;
+    const embed = buildSubmissionEmbed(submission, taskLabel);
 
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -32,9 +33,10 @@ export async function postToAdminChannel(client: Client, submission: TaskSubmiss
 
     // Second message: screenshots as file uploads
     if (submission.screenshotUrls?.length > 0) {
+        const filesToSend = submission.screenshotUrls.slice(0, 10);
         const sentScreens = await channel.send({
-            content: `Submission screenshots for <@${submission.userId}>:`,
-            files: submission.screenshotUrls
+            content: `Submission screenshots for <@${submission.userId}> — ${taskLabel}:`,
+            files: filesToSend
         });
         submission.screenshotMessage = sentScreens.id;
     }
@@ -45,10 +47,10 @@ export async function notifyUser(client: Client, submission: TaskSubmission) {
     if (!user) return;
 
     if (submission.status === SubmissionStatus.Approved) {
-        await user.send(`✅ Your submission for Task ${submission.taskEventId} has been approved!`);
+        await user.send(`✅ Your submission for **${submission.taskName ?? `Task ${submission.taskEventId}`}** has been approved!`);
     } else if (submission.status === SubmissionStatus.Rejected) {
         const reason = submission.rejectionReason ?? "No reason provided.";
-        await user.send(`❌ Your submission for Task ${submission.taskEventId} was rejected.\n**Reason:** ${reason}`);
+        await user.send(`❌ Your submission for **${submission.taskName ?? `Task ${submission.taskEventId}`}** was rejected.\n**Reason:** ${reason}`);
     }
 }
 
@@ -59,16 +61,17 @@ export async function archiveSubmission(client: Client, submission: TaskSubmissi
     const embed = buildArchiveEmbed(
         submission,
         submission.status,
-        `Task ${submission.taskEventId}`,
+        submission.taskName ?? `Task ${submission.taskEventId}`,
         submission.reviewedBy ?? "Unknown"
     );
 
     await archive.send({ embeds: [embed] });
 
     if (submission.screenshotUrls?.length > 0) {
+        const filesToArchive = submission.screenshotUrls.slice(0, 10);
         await archive.send({
             content: `Archived screenshots for <@${submission.userId}>:`,
-            files: submission.screenshotUrls
+            files: filesToArchive
         });
     }
 }

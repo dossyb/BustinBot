@@ -6,9 +6,11 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
     await interaction.deferReply({ flags: 1 << 6 });
 
     try {
-        const [_, __, direction, taskIdStr = ''] = interaction.customId.split('-');
-        const taskId = parseInt(taskIdStr);
-        if (isNaN(taskId)) {
+        const parts = interaction.customId.split('-');
+        const direction = parts[2];
+        const taskId = parts.slice(3).join('-');
+
+        if (!taskId) {
             await interaction.editReply({ content: 'Invalid task ID.', flags: 1 << 6 });
             return;
         }
@@ -19,7 +21,7 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         }
 
         const userId = interaction.user.id;
-        const task = await repo.getTaskById(taskId.toString());
+        const task = await repo.getTaskById(taskId);
         if (!task) {
             await interaction.editReply({ content: 'Task not found.' });
             return;
@@ -29,14 +31,13 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         const existing = allFeedback.find(
             (entry) => entry.userId === userId && entry.taskId === taskId
         );
-        const oldWeight = task.weight ?? 50;
         let message: string;
 
         if (!existing) {
             // First time vote
             const feedback: TaskFeedback = { id: Date.now().toString(), taskId, userId, vote: direction };
             await repo.addFeedback(feedback);
-            await repo.incrementWeight(taskId.toString(), direction === "up" ? +1 : -1);
+            await repo.incrementWeight(taskId, direction === "up" ? +1 : -1);
             message = 'Thanks for your feedback!';
         } else if (existing.vote === direction) {
             // Same vote again
@@ -45,7 +46,7 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             // Changed vote
             existing.vote = direction;
             await repo.addFeedback(existing); 
-            await repo.incrementWeight(taskId.toString(), direction === "up" ? +2 : -2);
+            await repo.incrementWeight(taskId, direction === "up" ? +2 : -2);
             message = "Feedback updated!";
         }
         await interaction.editReply({ content: message });

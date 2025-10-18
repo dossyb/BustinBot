@@ -81,7 +81,10 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
                 const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
                 const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id);
                 if (winner) {
-                    await announcePrizeDrawWinner(client, prizeRepo, snapshot.id);
+                    const announced = await announcePrizeDrawWinner(client, prizeRepo, snapshot.id);
+                    if (!announced) {
+                        console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
+                    }
                 } else {
                     console.log("[PrizeDraw] No winner - no eligible entries.");
                 }

@@ -23,12 +23,17 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const now = new Date();
     const [start, end] = getPeriodRange(now, DEFAULT_PERIOD_DAYS);
 
-    const allEvents = await taskRepo.getLatestTaskEvent();
-    const qualifyingEvents: TaskEvent[] = [];
+    const qualifyingEvents: TaskEvent[] = await taskRepo.getTaskEventsBetween(start, end);
 
-    const allSubmissions = await Promise.all(
-        qualifyingEvents.map((e) => taskRepo.getSubmissionsForTask(e.id))
-    ).then((arr) => arr.flat());
+    if (!qualifyingEvents.length) {
+        console.warn('[PrizeDraw] No task events found in range for snapshot.');
+    }
+
+    const submissionsPerEvent = await Promise.all(
+        qualifyingEvents.map((event) => taskRepo.getSubmissionsForTask(event.id))
+    );
+
+    const allSubmissions = submissionsPerEvent.flat();
 
     const filtered = allSubmissions.filter(
         (s) => s.status === SubmissionStatus.Approved
@@ -44,8 +49,9 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         start: start.toISOString(),
         end: end.toISOString(),
         snapshotTakenAt: new Date().toISOString(),
+        taskEventIds: Array.from(new Set(qualifyingEvents.map(event => event.id))),
         participants,
-        entries: [],
+        entries: filtered.map((submission) => submission.userId),
         totalEntries: filtered.length
     }
 
@@ -77,17 +83,17 @@ export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, sna
     snapshot.winnerId = winnerId || '';
     snapshot.rolledAt = new Date().toISOString();
 
-    await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>);
+    await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>, winnerId);
     console.log(`[PrizeDraw] Winner for ${snapshotId}: ${winnerId}`);
 
     return winnerId;
 }
 
-export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeDrawRepository, snapshotId: string) {
+export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeDrawRepository, snapshotId: string): Promise<boolean> {
     const snapshot = await prizeRepo.getPrizeDrawById(snapshotId);
     if (!snapshot || !snapshot.winnerId) {
         console.warn(`[PrizeDraw] Cannot announce winner - snapshot or winner not found.`);
-        return;
+        return false;
     }
 
     const guildId = process.env.DISCORD_GUILD_ID;
@@ -118,10 +124,11 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
 
     if (!channel) {
         console.warn(`[PrizeDraw] Announcement channel not found.`);
-        return;
+        return false;
     }
 
     await channel.send(`${mention}`);
     await channel.send({ embeds: [embed] });
     console.log(`[PrizeDraw] Winner embed sent to #${channel.name}`);
+    return true;
 }

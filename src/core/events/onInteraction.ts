@@ -2,7 +2,6 @@ import { ChatInputCommandInteraction, GuildMember, ButtonInteraction, ModalBuild
 import type { Interaction } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
-import { handleTaskInteraction } from '../../modules/tasks/TaskInteractions';
 import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
 import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
 import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies/MovieScheduler';
@@ -102,17 +101,6 @@ export async function handleInteraction(
             }
             case 'movienight-select-date':
                 return handleMovieNightDate(interaction, services);
-        }
-    }
-
-
-    // Forward all non-slash interactions to task module
-    try {
-        await handleTaskInteraction(interaction, interaction.client, services);
-    } catch (error) {
-        console.error(`[Task Interaction Error]:`, error);
-        if (interaction.isRepliable()) {
-            await interaction.reply({ content: 'There was an error processing the task interaction.', flags: 1 << 6 })
         }
     }
 }

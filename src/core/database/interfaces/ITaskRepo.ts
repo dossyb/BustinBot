@@ -20,9 +20,12 @@ export interface ITaskRepository {
     // Task events
     createTaskEvent(event: TaskEvent): Promise<void>;
     getLatestTaskEvent(): Promise<TaskEvent | null>;
+    getTaskEventById(id: string): Promise<TaskEvent | null>;
+    getTaskEventsBetween(start: Date, end: Date): Promise<TaskEvent[]>;
 
     // Submissions
     createSubmission(submission: TaskSubmission): Promise<void>;
+    getSubmissionById(submissionId: string): Promise<TaskSubmission | null>;
     getSubmissionsForTask(taskId: string): Promise<TaskSubmission[]>;
     getSubmissionsByUser(userId: string): Promise<TaskSubmission[]>;
     updateSubmissionStatus(
@@ -33,7 +36,7 @@ export interface ITaskRepository {
 
     // Feedback
     addFeedback(feedback: TaskFeedback): Promise<void>;
-    getFeedbackForTask(taskId: string | number): Promise<TaskFeedback[]>;
+    getFeedbackForTask(taskId: string): Promise<TaskFeedback[]>;
 
     // Utilities
     deleteAllTasks(): Promise<void>;

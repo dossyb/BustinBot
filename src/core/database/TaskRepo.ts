@@ -99,6 +99,12 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         await this.eventsCollection.doc(event.id).set(event as any);
     }
 
+    async getTaskEventById(id: string): Promise<TaskEvent | null> {
+        const doc = await this.eventsCollection.doc(id).get();
+        if (!doc.exists) return null;
+        return doc.data() as TaskEvent;
+    }
+
     async getLatestTaskEvent(): Promise<TaskEvent | null> {
         const snapshot = await this.eventsCollection
             .orderBy("createdAt", "desc")
@@ -110,6 +116,15 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         return data;
     }
 
+    async getTaskEventsBetween(start: Date, end: Date): Promise<TaskEvent[]> {
+        const snapshot = await this.eventsCollection
+            .where("createdAt", ">=", Timestamp.fromDate(start))
+            .where("createdAt", "<=", Timestamp.fromDate(end))
+            .get();
+
+        return snapshot.docs.map((doc) => doc.data() as TaskEvent);
+    }
+
     private get submissionsCollection() {
         return db.collection(`guilds/${this.guildId}/taskSubmissions`);
     }
@@ -118,8 +133,13 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         await this.submissionsCollection.doc(submission.id).set(submission);
     }
 
+    async getSubmissionById(submissionId: string): Promise<TaskSubmission | null> {
+        const doc = await this.submissionsCollection.doc(submissionId).get();
+        return doc.exists ? (doc.data() as TaskSubmission) : null;
+    }
+
     async getSubmissionsForTask(taskId: string): Promise<TaskSubmission[]> {
-        const snapshot = await this.submissionsCollection.where('taskId', '==', taskId).get();
+        const snapshot = await this.submissionsCollection.where('taskEventId', '==', taskId).get();
         return snapshot.docs.map(doc => doc.data() as TaskSubmission);
     }
 

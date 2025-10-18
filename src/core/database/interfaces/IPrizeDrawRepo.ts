@@ -7,7 +7,7 @@ export interface IPrizeDrawRepository {
     getPrizeDrawById(id: string): Promise<PrizeDraw | null>;
     updateParticipants(drawId: string, participants: Record<string, number>): Promise<void>;
     addEntry(drawId: string, userId: string): Promise<void>;
-    setWinners(drawId: string, winners: Record<TaskCategory, string[]>): Promise<void>;
+    setWinners(drawId: string, winners: Record<TaskCategory, string[]>, overallWinnerId?: string): Promise<void>;
     deletePrizeDraw(drawId: string): Promise<void>;
     clearPrizeDraws(): Promise<void>;
 }

@@ -43,4 +43,7 @@ export interface TaskSubmission {
 
     // Flag if submission is a duplicate of one already approved
     alreadyApproved?: boolean;
+
+    // Human-friendly task name at time of submission
+    taskName?: string;
 }

@@ -1,6 +1,6 @@
 export interface TaskFeedback {
     id: string;
-    taskId: number;
+    taskId: string;
     userId: string;
     vote: 'up' | 'down';
 }

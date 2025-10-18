@@ -5,6 +5,9 @@ import { SubmissionStatus } from '../../models/TaskSubmission';
 import { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } from './SubmissionActions';
 import { isTextChannel } from '../../utils/ChannelUtils';
 import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
+import { getTaskDisplayName } from './TaskEmbeds';
+
+const MAX_SCREENSHOTS = 10;
 
 export class TaskService {
     private pendingTaskMap = new Map<string, string>();
@@ -21,6 +24,12 @@ export class TaskService {
             s => s.userId === userId && s.taskEventId === taskEventId && s.status === SubmissionStatus.Approved
         );
 
+        const taskEvent = await this.repo.getTaskEventById(taskEventId);
+        if (!taskEvent) {
+            throw new Error(`Task event ${taskEventId} not found`);
+        }
+        const taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+
         const submission: TaskSubmission = {
             id: Date.now().toString(),
             userId,
@@ -28,7 +37,8 @@ export class TaskService {
             screenshotUrls: [],
             status: SubmissionStatus.Pending,
             createdAt: new Date(),
-            alreadyApproved: hasApproved
+            alreadyApproved: hasApproved,
+            taskName,
         };
 
         await this.repo.createSubmission(submission);
@@ -36,11 +46,10 @@ export class TaskService {
     }
 
     async completeSubmission(client: Client, submissionId: string, screenshotUrls: string[], notes?: string): Promise<TaskSubmission | null> {
-        const submissions = await this.repo.getSubmissionsForTask("");
-        const submission = submissions.find((s) => s.id === submissionId);
+        const submission = await this.repo.getSubmissionById(submissionId);
         if (!submission) return null;
 
-        submission.screenshotUrls = screenshotUrls;
+        submission.screenshotUrls = screenshotUrls.slice(0, MAX_SCREENSHOTS);
 
         if (notes !== undefined) {
             submission.notes = notes;
@@ -48,15 +57,20 @@ export class TaskService {
             delete submission.notes;
         }
 
-        await this.repo.createSubmission(submission);
+        if (!submission.taskName) {
+            const taskEvent = await this.repo.getTaskEventById(submission.taskEventId);
+            if (taskEvent) {
+                submission.taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+            }
+        }
 
         await postToAdminChannel(client, submission);
+        await this.repo.createSubmission(submission);
         return submission;
     }
 
     async updateSubmissionStatus(client: Client, submissionId: string, newStatus: SubmissionStatus.Approved | SubmissionStatus.Rejected, reviewedBy: string, rejectionReason?: string): Promise<TaskSubmission | null> {
-        const allSubs = await this.repo.getSubmissionsForTask("");
-        const submission = allSubs.find((s) => s.id === submissionId);
+        const submission = await this.repo.getSubmissionById(submissionId);
         if (!submission) return null;
 
         submission.status = newStatus;
@@ -66,7 +80,15 @@ export class TaskService {
             submission.rejectionReason = rejectionReason;
         }
 
+        if (!submission.taskName) {
+            const taskEvent = await this.repo.getTaskEventById(submission.taskEventId);
+            if (taskEvent) {
+                submission.taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+            }
+        }
+
         await this.repo.updateSubmissionStatus(submissionId, newStatus, reviewedBy);
+        await this.repo.createSubmission(submission);
 
         await notifyUser(client, submission);
         await archiveSubmission(client, submission);
@@ -101,13 +123,21 @@ export class TaskService {
         taskEventId?: string
     ): Promise<TaskSubmission | undefined> {
         const submissions = await this.repo.getSubmissionsByUser(userId);
-        return submissions.find(
+        const pending = submissions.find(
             (s) =>
                 s.userId === userId &&
                 s.status === SubmissionStatus.Pending &&
                 (!s.screenshotUrls || s.screenshotUrls.length === 0) &&
                 (taskEventId ? s.taskEventId === taskEventId : true)
         );
+        if (pending && !pending.taskName) {
+            const taskEvent = await this.repo.getTaskEventById(pending.taskEventId);
+            if (taskEvent) {
+                pending.taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+                await this.repo.createSubmission(pending);
+            }
+        }
+        return pending;
     }
 
 
