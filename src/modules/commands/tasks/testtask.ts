@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import fs from "fs";
 import path from "path";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,7 +22,7 @@ const testtask: Command = {
         .setName('testtask')
         .setDescription('Post a fake task event for testing.'),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services?: ServiceContainer }) {
         if (!interaction) return;
 
         const filePath = path.join(__dirname, '../../../data/tasks.json');
@@ -40,12 +41,15 @@ const testtask: Command = {
     
 
         // Fake task event data
+        const taskEventId = `test-${randomTask.id}-${Date.now()}`;
+
         const baseEvent = {
-            taskEventId: '9999-20251003',
+            id: taskEventId,
             task: randomTask,
             keyword: 'pineapple',
             startTime: new Date(),
             endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+            createdAt: new Date(),
         }
 
         const event: TaskEvent = selectedAmount !== undefined
@@ -56,6 +60,9 @@ const testtask: Command = {
         const { embeds, components } = buildTaskEventEmbed(event);
 
         await channel.send({ embeds, components });
+        if (services?.taskEvents) {
+            await services.taskEvents.storeTaskEvent(event);
+        }
         await interaction.reply({ content: 'Test task event posted!', flags: 1 << 6 });
     },
 };

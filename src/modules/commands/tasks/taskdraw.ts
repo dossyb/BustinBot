@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
 import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from '../../tasks/HandlePrizeDraw';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 const taskdraw: Command = {
     name: 'taskdraw',
@@ -29,8 +30,16 @@ const taskdraw: Command = {
                 .setRequired(false)
         ),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
+
+        const prizeRepo = services.repos.prizeRepo;
+        const taskRepo = services.repos.taskRepo;
+
+        if (!prizeRepo || !taskRepo) {
+            await interaction.reply({ content: 'Required repositories are unavailable.', flags: 1 << 6 });
+            return;
+        }
 
         const action = interaction.options.getString('action', true);
         const snapshotId = interaction.options.getString('snapshot_id') ?? '';
@@ -39,7 +48,7 @@ const taskdraw: Command = {
 
         try {
             if (action === 'snapshot') {
-                const snapshot = generatePrizeDrawSnapshot();
+                const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
                 await interaction.editReply({
                     content: `Snapshot created for period **${snapshot.id}** with **${snapshot.totalEntries}** entries.`
                 });
@@ -51,7 +60,7 @@ const taskdraw: Command = {
                     await interaction.editReply('You must provide a snapshot ID to roll a winner.');
                     return;
                 }
-                const winner = rollWinnerForSnapshot(snapshotId);
+                const winner = await rollWinnerForSnapshot(prizeRepo, snapshotId);
                 if (winner) {
                     await interaction.editReply(`Winner rolled for **${snapshotId}**: <@${winner}>`);
                 } else {
@@ -65,8 +74,12 @@ const taskdraw: Command = {
                     await interaction.editReply('You must provide a snapshot ID to announce a winner.');
                     return;
                 }
-                await announcePrizeDrawWinner(interaction.client, snapshotId);
-                await interaction.editReply(`Announcement sent for **${snapshotId}**.`);
+                const announced = await announcePrizeDrawWinner(interaction.client, prizeRepo, snapshotId);
+                if (announced) {
+                    await interaction.editReply(`Announcement sent for **${snapshotId}**.`);
+                } else {
+                    await interaction.editReply(`Unable to announce winner for **${snapshotId}**. Ensure a winner has been rolled and the announcement channel exists.`);
+                }
                 return;
             }
         } catch (err) {
