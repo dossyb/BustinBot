@@ -10,7 +10,7 @@
     "target": "ESNext",
     "rootDir": "src",
     "outDir": "dist",
-    "types": [],
+    "types": ["jest", "node"],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -44,5 +44,6 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "resolveJsonModule": true
-  }
+  },
+  "exclude": ["jest.config.ts"]
 }
