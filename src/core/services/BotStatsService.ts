@@ -1,6 +1,3 @@
-// Temporary service to handle persistent bot stats before Firestore integration
-import path from 'path';
-import { writeFileSync, readFileSync, existsSync, promises } from 'fs';
 import type { BotStats } from '../../models/BotStats';
 import type { IBotRepository } from '../database/interfaces/IBotRepo';
 
