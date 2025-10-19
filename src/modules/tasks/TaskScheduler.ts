@@ -18,7 +18,9 @@ const defaultSchedule = {
 };
 
 // Test config
-const testMode = process.env.BOT_MODE === "dev";
+function isTestMode() {
+    return process.env.BOT_MODE === "dev";
+}
 const testIntervalMinutes = 7;
 
 let pollJob: ScheduledTask;
@@ -26,13 +28,13 @@ let taskStartJob: ScheduledTask;
 let prizeJob: ScheduledTask;
 let testJob: ScheduledTask;
 
-function getWeekNumber(d: Date): number {
+export function getWeekNumber(d: Date): number {
     const oneJan = new Date(d.getUTCFullYear(), 0, 1);
     const millisInDay = 86400000;
     return Math.ceil(((d.getTime() - oneJan.getTime()) / millisInDay + oneJan.getUTCDay() + 1) / 7);
 }
 
-async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
+export async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
     const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
     if (!guildId || !channelId) return null;
@@ -42,7 +44,12 @@ async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
     return channel?.isTextBased() ? (channel as TextChannel) : null;
 }
 
-export function initTaskScheduler(client: Client, services: ServiceContainer) {
+export function initTaskScheduler(
+    client: Client,
+    services: ServiceContainer,
+    getChannel: typeof getDefaultChannel = getDefaultChannel,
+    getWeek: typeof getWeekNumber = getWeekNumber
+) {
     console.log('[TaskScheduler] Initialising default task schedule...');
 
     const { tasks, taskEvents, keywords, repos } = services;
@@ -57,7 +64,7 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
     const taskRepo = repos.taskRepo;
     const prizeRepo = repos.prizeRepo;
 
-    if (testMode) {
+    if (isTestMode()) {
         // ------------------------------
         // TEST MODE (minute-base cycle)
         // ------------------------------
@@ -98,7 +105,7 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
             `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`,
             async () => {
                 console.log('[TaskScheduler] Running weekly task poll post...');
-                const channel = await getDefaultChannel(client);
+                const channel = await getChannel(client);
                 if (channel) {
                     await postTaskPoll(client, taskRepo);
                 }
@@ -108,7 +115,7 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
             `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
             async () => {
                 console.log('[TaskScheduler] Closing poll and starting task event...');
-                const channel = await getDefaultChannel(client);
+                const channel = await getChannel(client);
                 if (channel) {
                     await startTaskEvent(client, services);
                 }
@@ -119,10 +126,10 @@ export function initTaskScheduler(client: Client, services: ServiceContainer) {
             `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`,
             async () => {
                 const now = new Date();
-                const isEvenWeek = Math.floor(getWeekNumber(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
+                const isEvenWeek = Math.floor(getWeek(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
                 if (!isEvenWeek) return;
                 console.log('[TaskScheduler] Running prize draw...');
-                const channel = await getDefaultChannel(client);
+                const channel = await getChannel(client);
                 if (channel) {
                     await channel.send('🏆 Running prize draw. The winner is BustinBot!');
                 }
