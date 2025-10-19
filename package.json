@@ -30,9 +30,8 @@
     "ws": "^8.18.1"
   },
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
@@ -49,13 +48,13 @@
   },
   "homepage": "https://github.com/dossyb/BustinBot#readme",
   "devDependencies": {
-    "@types/jest": "^30.0.0",
     "@types/luxon": "^3.7.1",
     "@types/node-cron": "^3.0.11",
-    "jest": "^30.2.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
     "jest-environment-node": "^30.2.0",
-    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.5"
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4"
   }
 }
