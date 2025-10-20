@@ -1,10 +1,14 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import {
+    SlashCommandBuilder,
+    ChatInputCommandInteraction
+} from 'discord.js';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
-import { initTaskScheduler, stopTaskScheduler } from '../../tasks/TaskScheduler';
+import {
+    initTaskScheduler,
+    stopTaskScheduler
+} from '../../tasks/TaskScheduler';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
-
-let schedulerRunning = false;
 
 const tasktoggle: Command = {
     name: 'tasktoggle',
@@ -20,22 +24,33 @@ const tasktoggle: Command = {
         services,
     }: {
         interaction?: ChatInputCommandInteraction;
-        services?: ServiceContainer; // ✅ use shared type
+        services?: ServiceContainer;
     }) {
-        if (!interaction) return;
+        if (!interaction || !services) return;
 
-        if (schedulerRunning) {
-            stopTaskScheduler();
-            schedulerRunning = false;
+        const guildId = interaction.guildId!;
+        const guildService = services.guilds;
+
+        // Fetch the latest guild config from Firestore
+        const guildConfig = await guildService.get(guildId);
+        const currentState = guildConfig?.toggles.taskScheduler ?? false;
+
+        const newState = !currentState;
+
+        if (newState) {
+            // Enable scheduler
+            await guildService.toggleScheduler(guildId, true, interaction.user.id);
+            initTaskScheduler(interaction.client, services);
             await interaction.reply({
-                content: "Task scheduler stopped.",
+                content: `✅ Task scheduler **enabled** and started for this guild.`,
                 flags: 1 << 6,
             });
         } else {
-            initTaskScheduler(interaction.client, services!);
-            schedulerRunning = true;
+            // Disable scheduler
+            await guildService.toggleScheduler(guildId, false, interaction.user.id);
+            stopTaskScheduler();
             await interaction.reply({
-                content: "Task scheduler started with current config.",
+                content: `⏹️ Task scheduler **disabled** and stopped for this guild.`,
                 flags: 1 << 6,
             });
         }

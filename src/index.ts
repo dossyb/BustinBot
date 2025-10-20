@@ -9,6 +9,8 @@ import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
 import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 import { createServiceContainer } from './core/services/ServiceFactory';
+import { GuildRepository } from './core/database/GuildRepo';
+import { initTaskScheduler } from './modules/tasks/TaskScheduler';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -84,6 +86,18 @@ console.log('Loading commands...');
     client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
         await scheduleActivePollClosure(services);
+
+        const guildRepo = new GuildRepository();
+        const guilds = await guildRepo.getAllGuilds();
+
+        for (const guild of guilds) {
+            if (guild.toggles?.taskScheduler) {
+                console.log(`[Startup] Starting Task Scheduler for ${guild.id}`);
+
+                const guildServices = await createServiceContainer(guild.id);
+                initTaskScheduler(client, guildServices);
+            }
+        }
     });
 
     // Login to Discord with bot token
