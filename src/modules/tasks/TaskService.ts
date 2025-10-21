@@ -118,6 +118,81 @@ export class TaskService {
         return submission;
     }
 
+    async updateSubmissionTier(
+        client: Client,
+        submissionId: string,
+        tier: 'bronze' | 'silver' | 'gold',
+        reviewedBy: string
+    ): Promise<TaskSubmission | null> {
+        const TIER_MAP = {
+            bronze: { status: SubmissionStatus.Bronze, rolls: 1 },
+            silver: { status: SubmissionStatus.Silver, rolls: 2 },
+            gold: { status: SubmissionStatus.Gold, rolls: 3 },
+        } as const;
+
+        const tierInfo = TIER_MAP[tier];
+        if (!tierInfo) return null;
+
+        const submission = await this.repo.getSubmissionById(submissionId);
+        if (!submission) return null;
+
+        // Retrieve any previous submission by the same user for this task
+        const existing = await this.repo.getSubmissionByUserAndTask(submission.userId, submission.taskEventId);
+
+        const previousRolls = existing?.prizeRolls ?? 0;
+        if (previousRolls >= tierInfo.rolls) {
+            // Already equal or higher tier
+            return null;
+        }
+
+        // Update submission details
+        submission.status = tierInfo.status;
+        submission.prizeRolls = tierInfo.rolls;
+        submission.reviewedBy = reviewedBy;
+        submission.reviewedAt = new Date();
+
+        if (!submission.taskName) {
+            const taskEvent = await this.repo.getTaskEventById(submission.taskEventId);
+            if (taskEvent) {
+                submission.taskName = getTaskDisplayName(taskEvent.task, taskEvent.selectedAmount);
+            }
+        }
+
+        // Persist updates
+        await this.repo.updateSubmissionStatus(submissionId, submission.status, reviewedBy);
+        await this.repo.createSubmission(submission);
+
+        // Notify, archive, and update counters
+        await notifyUser(client, submission);
+        await archiveSubmission(client, submission);
+        await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo);
+
+        // --- Cleanup original admin messages ---
+        const adminChannel = client.channels.cache.find(
+            (c): c is TextChannel => isTextChannel(c) && c.name === 'task-admin'
+        );
+        if (adminChannel) {
+            if (submission.message) {
+                try {
+                    const msg = await adminChannel.messages.fetch(submission.message);
+                    if (msg) await msg.delete();
+                } catch (err) {
+                    console.warn(`[Admin Embed Cleanup Error]:`, err);
+                }
+            }
+            if (submission.screenshotMessage) {
+                try {
+                    const msg = await adminChannel.messages.fetch(submission.screenshotMessage);
+                    if (msg) await msg.delete();
+                } catch (err) {
+                    console.warn(`[Screenshot Message Cleanup Error]:`, err);
+                }
+            }
+        }
+
+        return submission;
+    }
+
     async getPendingSubmission(
         userId: string,
         taskEventId?: string

@@ -181,9 +181,24 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         return snapshot.docs.map(doc => doc.data() as TaskSubmission);
     }
 
+    async getSubmissionByUserAndTask(userId: string, taskEventId: string): Promise<TaskSubmission | null> {
+        const snapshot = await this.submissionsCollection
+            .where('userId', '==', userId)
+            .where('taskEventId', '==', taskEventId)
+            .orderBy('reviewedAt', 'desc')
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) return null;
+
+        const doc = snapshot.docs[0];
+        if (!doc || !doc.exists) return null;
+        return doc.data() as TaskSubmission;
+    }
+
     async updateSubmissionStatus(
         submissionId: string,
-        status: "Pending" | "Approved" | "Rejected",
+        status: "pending" | "approved" | "rejected" | "bronze" | "silver" | "gold",
         reviewedBy: string
     ): Promise<void> {
         const docRef = this.submissionsCollection.doc(submissionId);

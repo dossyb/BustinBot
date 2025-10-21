@@ -35,5 +35,11 @@ export interface TaskEvent {
     // Submissions made for this task event
     submissions?: TaskSubmission[];
 
+    completionCount?: number;
+    completedUserIds?: string[];
+
+    messageId?: string;
+    channelId?: string;
+
     createdAt: Date;
 }

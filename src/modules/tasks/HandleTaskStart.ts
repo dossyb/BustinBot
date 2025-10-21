@@ -116,17 +116,23 @@ export async function startTaskEventForCategory(client: Client, services: Servic
             silver: task.amtSilver,
             gold: task.amtGold,
         },
+        completionCount: 0,
+        completedUserIds: [],
         createdAt: new Date(),
     };
 
     const { embeds, components, files } = buildTaskEventEmbed(event);
 
-    await (channel as TextChannel).send({ embeds, components, files });
+    const sentMessage = await (channel as TextChannel).send({ embeds, components, files });
 
-    console.log(`[TaskStart] Task event posted for task ID ${taskEventId}`);
+    event.messageId = sentMessage.id;
+    event.channelId = (channel as TextChannel).id;
 
     await taskEvents.storeTaskEvent(event);
+    
     if (pollData.id) {
         await repos.taskRepo.closeTaskPoll(pollData.id);
     }
+
+    console.log(`[TaskStart] Task event posted for ${category} (${taskEventId})`);
 }

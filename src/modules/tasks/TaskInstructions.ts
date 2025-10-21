@@ -10,7 +10,7 @@ export const TaskInstructions: Record<TaskType, string> = {
     [TaskType.Inventory]:
         'Submit a **screenshot** showing your inventory with the required amount of items with the **keyword** visible. The XP gained from completing the task should be visible, such as via an XP overlay or a before and after screenshot.',
     [TaskType.Points]:
-        'Submit a *before and after screenshot** of your point total for the relevant activity with the **keyword** visible. This can be done via the in-game points counter or RuneLite overlay.',
+        'Submit a **before and after screenshot** of your point total for the relevant activity with the **keyword** visible. This can be done via the in-game points counter or RuneLite overlay.',
     [TaskType.Materials]:
         'Submit a **screenshot** showing the relevant materials (can be noted) in your inventory or bank **before** starting the task, and a **second screenshot** showing the stack depleted after completion. XP gained must be shown via an XP tracker or before/after skill level. Include the **keyword** in both screenshots.',
     [TaskType.Other]:

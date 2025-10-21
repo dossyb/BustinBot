@@ -1,7 +1,10 @@
 export enum SubmissionStatus {
-    Pending = 'Pending',
-    Approved = 'Approved',
-    Rejected = 'Rejected',
+    Pending = 'pending',
+    Approved = 'approved',
+    Rejected = 'rejected',
+    Bronze = 'bronze',
+    Silver = 'silver',
+    Gold = 'gold',
 }
 
 export interface TaskSubmission {
@@ -14,12 +17,15 @@ export interface TaskSubmission {
     // ID for the associated task event
     taskEventId: string;
 
+    // Human-friendly task name at time of submission
+    taskName?: string;
+
     // URLs to the screenshot or evidence provided
     screenshotUrls: string[];
 
     // Optional submission notes
     notes?: string;
-    
+
     // Current status of the submission
     status: SubmissionStatus;
 
@@ -38,12 +44,11 @@ export interface TaskSubmission {
     // Optional storage of message ID in admin verification channel
     message?: string;
 
+    prizeRolls?: number;
+
     // Optional storage of screenshot message ID in admin verification channel
     screenshotMessage?: string;
 
     // Flag if submission is a duplicate of one already approved
     alreadyApproved?: boolean;
-
-    // Human-friendly task name at time of submission
-    taskName?: string;
 }

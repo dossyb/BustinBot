@@ -38,7 +38,7 @@ export function buildTaskEventEmbed(event: TaskEvent) {
     const embed = new EmbedBuilder()
         .setTitle(`${category} Task`)
         .setDescription(
-            `**${taskTitle}**\n\n${tierDisplay}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot** below to make your submission.`
+            `**${taskTitle}**\n\n${tierDisplay}\n\n**Completions:** ${event.completionCount ?? 0}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot** below to make your submission.`
         )
         .setColor(0xa60000)
         .setFooter({ text: `Task ends ${event.endTime.toUTCString()}` })

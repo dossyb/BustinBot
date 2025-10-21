@@ -30,9 +30,10 @@ export interface ITaskRepository {
     getSubmissionById(submissionId: string): Promise<TaskSubmission | null>;
     getSubmissionsForTask(taskId: string): Promise<TaskSubmission[]>;
     getSubmissionsByUser(userId: string): Promise<TaskSubmission[]>;
+    getSubmissionByUserAndTask(userId: string, taskEventId: string): Promise<TaskSubmission | null>;
     updateSubmissionStatus(
         submissionId: string,
-        status: "Pending" | "Approved" | "Rejected",
+        status: "pending" | "approved" | "rejected" | "bronze" | "silver" | "gold",
         reviewedBy: string
     ): Promise<void>;
 

@@ -135,22 +135,12 @@ export async function handleDirectMessage(message: Message, client: Client, serv
 
 // STEP 4: Admin clicks Approve/Reject
 export async function handleAdminButton(interaction: ButtonInteraction, services: ServiceContainer) {
-    const [action, submissionId] = interaction.customId.split('_');
+    const [action, maybeTier, submissionId] = interaction.customId.split('_');
     if (!submissionId) {
         await interaction.reply({ content: "Submission ID missing from interaction.", flags: 1 << 6 });
         return;
     }
     const reviewerId = interaction.user.id;
-
-    if (action === 'approve') {
-        await interaction.deferReply({ flags: 1 << 6 });
-
-        const submission = await services.tasks.updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Approved, reviewerId);
-        await interaction.editReply({ content: "✅ Submission approved and archived." });
-
-        const channel = interaction.channel as TextChannel;
-        await channel.send(`✅ <@${reviewerId}> approved submission for **${submission?.taskName ?? `Task ${submission?.taskEventId}`}** by ${interaction.message.embeds[0]?.fields[0]?.value}. Submission moved to archive channel.`);
-    }
 
     if (action === 'reject') {
         const modal = new ModalBuilder()
@@ -166,6 +156,44 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
                 )
             );
         await interaction.showModal(modal);
+        return;
+    }
+
+    // Handle tier approvals
+    const tier = maybeTier as 'bronze' | 'silver' | 'gold';
+    const validTiers = ['bronze', 'silver', 'gold'];
+
+    if (action === 'approve' && validTiers.includes(tier)) {
+        await interaction.deferReply({ flags: 1 << 6 });
+
+        try {
+            const result = await services.tasks.updateSubmissionTier(
+                interaction.client,
+                submissionId,
+                tier,
+                reviewerId
+            );
+
+            if (!result) {
+                await interaction.editReply({ content: "⚠️ Could not update submission. It may already be at this or a higher tier." });
+                return;
+            }
+
+            const channel = interaction.channel as TextChannel;
+            const formattedTier = tier.charAt(0).toUpperCase() + tier.slice(1);
+            await channel.send(
+                `✅ <@${reviewerId}> approved **${formattedTier} tier** for submission by <@${result.userId}> on **${result.taskName ?? `Task ${result.taskEventId}`}** (${result.prizeRolls ?? 0} roll${(result.prizeRolls ?? 0) > 1 ? 's' : ''}).`
+            );
+
+            await interaction.editReply({
+                content: `✅ Submission approved for **${formattedTier} tier** (${result.prizeRolls ?? 0} roll${(result.prizeRolls ?? 0) > 1 ? 's' : ''}) and archived.`
+            });
+        } catch (err) {
+            console.error('[TaskInteractions] Tier approval failed:', err);
+            await interaction.editReply({ content: "❌ Failed to process tier approval. Check logs for details." });
+        }
+
+        return;
     }
 }
 
@@ -178,7 +206,7 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
     const reason = interaction.fields.getTextInputValue('reason');
     const submissionId = interaction.customId.split('_')[2];
     if (!submissionId) {
-        await interaction.reply({ content: "Subbmision ID missing from interaction.", flags: 1 << 6 });
+        await interaction.reply({ content: "Submission ID missing from interaction.", flags: 1 << 6 });
         return;
     }
 
@@ -203,7 +231,7 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
 }
 
 // Main interaction router
-export async function handleTaskInteraction(interaction: Interaction, client: Client,  services: ServiceContainer) {
+export async function handleTaskInteraction(interaction: Interaction, client: Client, services: ServiceContainer) {
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('task-feedback-')) {
             return await handleTaskFeedback(interaction, services.tasks.repository);

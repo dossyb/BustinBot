@@ -26,7 +26,7 @@ function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
         const votes = voteMap.get(taskId) || 0;
         const name = task.taskName;
 
-        const tierDisplay = `🥉 ${task.amtBronze} 🥈 ${task.amtSilver} 🥇 ${task.amtGold}`;
+        const tierDisplay = `🥉 **${task.amtBronze}** 🥈 **${task.amtSilver}** 🥇 **${task.amtGold}**`;
         const voteText = `**${votes} vote${votes !== 1 ? 's' : ''}**`;
         return `${emojiNumbers[i]} ${name} - ${tierDisplay}\n${voteText}`;
     }).join('\n\n');
