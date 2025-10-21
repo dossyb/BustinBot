@@ -1,5 +1,6 @@
 import type { Task } from "./Task";
 import type { TaskSubmission } from "./TaskSubmission";
+import type { TaskCategory } from "./Task";
 
 export interface TaskEvent {
     id: string;
@@ -7,8 +8,16 @@ export interface TaskEvent {
     // Base task template
     task: Task;
 
-    // The chosen amount for this event (resolved from task.amounts, if any)
+    category: TaskCategory;
+
+    // The chosen amount for this event (legacy)
     selectedAmount?: number;
+
+    amounts: {
+        bronze: number;
+        silver: number;
+        gold: number;
+    };
 
     // Keyword chosen for screenshot verification (manual approval)
     keyword: string;

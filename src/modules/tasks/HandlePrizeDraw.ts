@@ -110,7 +110,7 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
         }
     }
 
-    const embed = buildPrizeDrawEmbed(
+    const embedData = buildPrizeDrawEmbed(
         snapshot.winnerId,
         snapshot.totalEntries,
         Object.keys(snapshot.participants).length,
@@ -128,7 +128,7 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
     }
 
     await channel.send(`${mention}`);
-    await channel.send({ embeds: [embed] });
+    await channel.send({ ...embedData });
     console.log(`[PrizeDraw] Winner embed sent to #${channel.name}`);
     return true;
 }

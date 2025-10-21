@@ -1,8 +1,8 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { Client, TextChannel } from 'discord.js';
-import { postTaskPoll } from './HandleTaskPoll';
-import { startTaskEvent } from './HandleTaskStart';
+import { postAllTaskPolls } from './HandleTaskPoll';
+import { startAllTaskEvents } from './HandleTaskStart';
 import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
@@ -16,6 +16,8 @@ const defaultSchedule = {
     prizeDay: 2, // Tuesday
     prizeHourUTC: 0,
 };
+
+const leaguesEnabled = false;
 
 // Test config
 function isTestMode() {
@@ -75,12 +77,12 @@ export function initTaskScheduler(
 
             if (minute % T === (T - 1)) {
                 console.log('[TaskScheduler] [TEST] Running poll...');
-                await postTaskPoll(client, taskRepo);
+                await postAllTaskPolls(client, taskRepo, leaguesEnabled);
             }
 
             if (minute % T === 0) {
                 console.log('[TaskScheduler] [TEST] Starting task event...');
-                await startTaskEvent(client, services);
+                await startAllTaskEvents(client, services, leaguesEnabled);
             }
 
             if ((minute - 1) % (2 * T) === 0) {
@@ -96,6 +98,8 @@ export function initTaskScheduler(
                     console.log("[PrizeDraw] No winner - no eligible entries.");
                 }
             }
+            console.log('[TaskScheduler] Test mode active (interval: every 7 minutes)');
+            return;
         });
     } else {
         // ------------------------------
@@ -107,7 +111,7 @@ export function initTaskScheduler(
                 console.log('[TaskScheduler] Running weekly task poll post...');
                 const channel = await getChannel(client);
                 if (channel) {
-                    await postTaskPoll(client, taskRepo);
+                    await postAllTaskPolls(client, taskRepo, leaguesEnabled);
                 }
             });
 
@@ -117,7 +121,7 @@ export function initTaskScheduler(
                 console.log('[TaskScheduler] Closing poll and starting task event...');
                 const channel = await getChannel(client);
                 if (channel) {
-                    await startTaskEvent(client, services);
+                    await startAllTaskEvents(client, services, leaguesEnabled);
                 }
             }
         );
@@ -136,6 +140,7 @@ export function initTaskScheduler(
             }
         );
     }
+    console.log('[TaskScheduler] Production mode schedule initialised.');
 }
 
 export function stopTaskScheduler() {

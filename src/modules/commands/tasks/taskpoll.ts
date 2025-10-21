@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../../models/Command';
 import { CommandRole } from '../../../models/Command';
-import { postTaskPoll } from '../../tasks/HandleTaskPoll';
+import { postAllTaskPolls } from '../../tasks/HandleTaskPoll';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 const taskpoll: Command = {
@@ -25,7 +25,7 @@ const taskpoll: Command = {
                 return;
             }
 
-            await postTaskPoll(interaction.client, repo);
+            await postAllTaskPolls(interaction.client, repo);
             await interaction.editReply('Task poll posted successfully.');
         } catch (error) {
             console.error('[TaskPoll Command Error]', error);

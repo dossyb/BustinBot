@@ -3,6 +3,7 @@ import type { TaskPoll } from "../../../models/TaskPoll";
 import type { TaskSubmission } from "../../../models/TaskSubmission";
 import type { TaskEvent } from "../../../models/TaskEvent";
 import type { TaskFeedback } from "../../../models/TaskFeedback";
+import type { TaskCategory } from "../../../models/Task";
 
 export interface ITaskRepository {
     getAllTasks(): Promise<Task[]>;
@@ -13,7 +14,8 @@ export interface ITaskRepository {
 
     // Task polls
     createTaskPoll(poll: TaskPoll): Promise<void>;
-    getActiveTaskPoll(): Promise<TaskPoll | null>;
+    getActiveTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null>;
+    getLatestTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null>;
     closeTaskPoll(pollId: string): Promise<void>;
     clearTaskPolls(): Promise<void>;
 

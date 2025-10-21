@@ -7,6 +7,7 @@ import type { TaskSubmission } from "../../models/TaskSubmission";
 import type { TaskEvent } from "../../models/TaskEvent";
 import type { TaskFeedback } from "../../models/TaskFeedback";
 import type { ITaskRepository } from "./interfaces/ITaskRepo";
+import type { TaskCategory } from "../../models/Task";
 
 export class TaskRepository extends GuildScopedRepository<Task> implements ITaskRepository {
     constructor(guildId: string) {
@@ -66,14 +67,46 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         await this.pollsCollection.doc(poll.id).set(poll);
     }
 
-    async getActiveTaskPoll(): Promise<TaskPoll | null> {
+    async getActiveTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null> {
         const snapshot = await this.pollsCollection
+            .where('category', '==', category)
             .where('isActive', '==', true)
             .limit(1)
             .get();
 
+        if (snapshot.empty) {
+            return null;
+        }
+
+        const doc = snapshot.docs[0];
+        if (!doc?.exists) return null;
+
+        const data = doc.data() as unknown as TaskPoll;
+
+        return {
+            ...data,
+            id: doc.id,
+        };
+    }
+
+    async getLatestTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null> {
+        const snapshot = await this.pollsCollection
+            .where('category', '==', category)
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+
         if (snapshot.empty) return null;
-        return snapshot.docs[0]?.data() as TaskPoll;
+
+        const doc = snapshot.docs[0];
+        if (!doc?.exists) return null;
+
+        const data = doc.data() as unknown as TaskPoll;
+
+        return {
+            ...data,
+            id: doc.id,
+        };
     }
 
     async closeTaskPoll(pollId: string): Promise<void> {

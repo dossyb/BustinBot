@@ -2,8 +2,7 @@
 export enum TaskCategory {
     Skilling = 'Skilling',
     PvM = 'PvM',
-    Minigame = 'Minigame',
-    Misc = 'Misc',
+    MinigameMisc = 'Minigame/Misc',
     Leagues = 'Leagues',
 }
 
@@ -80,6 +79,8 @@ export interface Task {
 
     // Flag to dynamically display skull next to task name
     wildernessReq?: boolean;
+
+    leaguesEnabled?: boolean;
 
     // Data for user-suggested tasks
     addedBy?: string;

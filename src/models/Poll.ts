@@ -5,6 +5,8 @@ export interface Poll<T> {
     // The type of poll (for logging/analytics)
     type: "movie" | "task";
 
+    category?: string;
+
     // The options being voted on
     options: T[];
 

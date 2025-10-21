@@ -32,7 +32,7 @@ describe('Repository interface contracts', () => {
         expectPromise(repo.incrementWeight('id'), 'incrementWeight');
 
         expectPromise(repo.createTaskPoll(mockTaskPoll), 'createTaskPoll');
-        expectPromise(repo.getActiveTaskPoll(), 'getActiveTaskPoll');
+        expectPromise(repo.getActiveTaskPollByCategory(), 'getActiveTaskPollByCategory');
         expectPromise(repo.closeTaskPoll('poll'), 'closeTaskPoll');
         expectPromise(repo.clearTaskPolls(), 'clearTaskPolls');
 

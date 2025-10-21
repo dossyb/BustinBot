@@ -1,7 +1,20 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, embedLength } from "discord.js";
-import type { APIEmbed } from "discord.js";
+import path from 'path';
 import type { TaskEvent } from "../../models/TaskEvent";
 import type { Task } from "../../models/Task";
+import { fileURLToPath } from "url";
+import { TaskCategory } from "../../models/Task";
+import { TaskInstructions } from "./TaskInstructions";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const categoryIcons: Record<TaskCategory, string> = {
+    [TaskCategory.PvM]: path.resolve(__dirname, '../../assets/icons/task_pvm.png'),
+    [TaskCategory.Skilling]: path.resolve(__dirname, '../../assets/icons/task_skilling.png'),
+    [TaskCategory.MinigameMisc]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'),
+    [TaskCategory.Leagues]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'), // temp
+};
 
 export function getTaskDisplayName(task: Task, selectedAmount?: number): string {
     if (selectedAmount !== undefined && task.taskName.includes("{amount}")) {
@@ -13,15 +26,23 @@ export function getTaskDisplayName(task: Task, selectedAmount?: number): string 
 // Embed shown for each task event post
 export function buildTaskEventEmbed(event: TaskEvent) {
     const taskTitle = getTaskDisplayName(event.task, event.selectedAmount);
-    const embed: APIEmbed = {
-        title: '**This Week\'s Task**',
-        description: `**${taskTitle}**\n\n**Submission instructions:**\n
-        <insert instructions here>\n\n
-        🔑 Keyword: **${event.keyword}** 🔑\n
-        Click the **Submit Screenshot** button below to make your submission.`,
-        footer: { text: `Task ends ${event.endTime.toUTCString()}` },
-        color: 0xa60000,
-    };
+    const category = event.category;
+    const iconPath = categoryIcons[category];
+
+    const instructionText =
+        TaskInstructions[event.task.type] ?? "Include proof of completion showing progress or XP change.";
+
+    const tierDisplay = `Amounts required for each tier of completion (1, 2 and 3 prize rolls respectively):\n
+🥉 **${event.amounts?.bronze ?? 0}**\u2003🥈 **${event.amounts?.silver ?? 0}**\u2003🥇 **${event.amounts?.gold ?? 0}**`;
+
+    const embed = new EmbedBuilder()
+        .setTitle(`${category} Task`)
+        .setDescription(
+            `**${taskTitle}**\n\n${tierDisplay}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot** below to make your submission.`
+        )
+        .setColor(0xa60000)
+        .setFooter({ text: `Task ends ${event.endTime.toUTCString()}` })
+        .setThumbnail("attachment://category_icon.png");
 
     const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -38,7 +59,11 @@ export function buildTaskEventEmbed(event: TaskEvent) {
             .setStyle(ButtonStyle.Secondary)
     );
 
-    return { embeds: [embed], components: [buttonRow] };
+    return {
+        embeds: [embed],
+        components: [buttonRow],
+        files: [{ attachment: iconPath, name: "category_icon.png" }],
+    };
 }
 
 // Embed shown in task verification channel when a submission is received
@@ -84,7 +109,9 @@ export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, 
     const formattedStart = new Date(start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
     const formattedEnd = new Date(end).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    return new EmbedBuilder()
+    const prizeIconPath = path.resolve(__dirname, '../../assets/icons/task_prize.png');
+
+    const embed = new EmbedBuilder()
         .setTitle("🏆 And the winner is...")
         .setColor(0x0003bd)
         .setDescription(
@@ -93,5 +120,11 @@ export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, 
             `🎉 Congratulations <@${winnerId}>!\n\n` +
             `Please message a **Task Admin** to claim your prize.`
         )
-        .setFooter({ text: `Task Period: ${formattedStart} to ${formattedEnd}`})
+        .setThumbnail("attachment://task_prize.png")
+        .setFooter({ text: `Task Period: ${formattedStart} to ${formattedEnd}` });
+
+    return {
+        embeds: [embed],
+        files: [{ attachment: prizeIconPath, name: "task_prize.png" }],
+    };
 }
