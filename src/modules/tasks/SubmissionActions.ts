@@ -104,7 +104,7 @@ export async function archiveSubmission(client: Client, submission: TaskSubmissi
     }
 }
 
-export async function updateTaskCounter(client: Client, taskEventId: string, userId?: string, repo?: ITaskRepository) {
+export async function updateTaskCounter(client: Client, taskEventId: string, userId?: string, repo?: ITaskRepository, newTier?: SubmissionStatus) {
     if (!repo) {
         console.warn(`[UpdateTaskCounter] Missing repository reference.`);
         return;
@@ -113,13 +113,31 @@ export async function updateTaskCounter(client: Client, taskEventId: string, use
     const event = await repo.getTaskEventById(taskEventId);
     if (!event) return;
 
-    const userAlreadyCounted = event.completedUserIds?.includes(userId ?? '') ?? false;
+    event.completionCounts = event.completionCounts ?? { bronze: 0, silver: 0, gold: 0 };
 
-    if (!userAlreadyCounted && userId) {
-        event.completedUserIds = [...(event.completedUserIds ?? []), userId];
-        event.completionCount = (event.completionCount ?? 0) + 1;
-        await repo.createTaskEvent(event);
+    if (!userId || !newTier) {
+        console.warn(`[UpdateTaskCounter] Missing userId or newTier for event ${event.id}`);
+        return;
     }
+
+    const submissions = await repo.getSubmissionsForTask(event.id);
+    const userSubs = submissions.filter(s => s.userId === userId);
+
+    const tierOrder = [SubmissionStatus.Bronze, SubmissionStatus.Silver, SubmissionStatus.Gold];
+    const highestTier = userSubs.reduce<SubmissionStatus | null>((acc, s) => {
+        if (!tierOrder.includes(s.status)) return acc;
+        if (!acc) return s.status;
+        return tierOrder.indexOf(s.status) > tierOrder.indexOf(acc) ? s.status : acc;
+    }, null);
+
+    const prevTier = highestTier && tierOrder.indexOf(highestTier) < tierOrder.indexOf(newTier) ? highestTier : null;
+    if (prevTier) {
+        event.completionCounts[prevTier.toLowerCase() as "bronze" | "silver" | "gold"]--;
+    }
+
+    event.completionCounts[newTier.toLowerCase() as "bronze" | "silver" | "gold"]++;
+
+    await repo.createTaskEvent(event);
 
     if (!event.channelId || !event.messageId) {
         console.warn(`[UpdateTaskCounter] No channel/message ID stored for task event ${event.id}`);
@@ -136,13 +154,6 @@ export async function updateTaskCounter(client: Client, taskEventId: string, use
             return;
         }
 
-        if (event.startTime && typeof (event.startTime as any).toDate === 'function') {
-            event.startTime = (event.startTime as any).toDate();
-        }
-        if (event.endTime && typeof (event.endTime as any).toDate === 'function') {
-            event.endTime = (event.endTime as any).toDate();
-        }
-
         const safeEvent = normaliseFirestoreDates(event);
         const updatedEmbed = buildTaskEventEmbed(safeEvent);
 
@@ -152,7 +163,7 @@ export async function updateTaskCounter(client: Client, taskEventId: string, use
             files: updatedEmbed.files,
         });
 
-        console.log(`[UpdateTaskCounter] Updated completions for ${event.task.taskName}: ${event.completionCount}`);
+        console.log(`[UpdateTaskCounter] Updated completions for ${event.task.taskName}: 🥉${event.completionCounts.bronze} 🥈${event.completionCounts.silver} 🥇${event.completionCounts.gold}`);
     } catch (err) {
         console.error(`[UpdateTaskCounter] Failed to update task embed for event ${event.id}:`, err);
     }

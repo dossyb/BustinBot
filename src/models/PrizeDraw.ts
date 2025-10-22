@@ -9,6 +9,11 @@ export interface PrizeDraw {
     participants: Record<string, number>;
     entries: string[];
     totalEntries: number;
+    tierCounts?: {
+        bronze: number;
+        silver: number;
+        gold: number;
+    }
 
     winners?: Record<TaskCategory, string[]>
 

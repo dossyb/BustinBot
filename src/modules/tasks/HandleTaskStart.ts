@@ -116,7 +116,11 @@ export async function startTaskEventForCategory(client: Client, services: Servic
             silver: task.amtSilver,
             gold: task.amtGold,
         },
-        completionCount: 0,
+        completionCounts:{
+            bronze: 0,
+            silver: 0,
+            gold: 0
+        },
         completedUserIds: [],
         createdAt: new Date(),
     };
@@ -129,7 +133,7 @@ export async function startTaskEventForCategory(client: Client, services: Servic
     event.channelId = (channel as TextChannel).id;
 
     await taskEvents.storeTaskEvent(event);
-    
+
     if (pollData.id) {
         await repos.taskRepo.closeTaskPoll(pollData.id);
     }

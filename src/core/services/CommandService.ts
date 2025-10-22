@@ -13,9 +13,10 @@ async function loadCommandFiles(dir: string): Promise<void> {
         const stats = statSync(fullPath);
 
         if (stats.isDirectory()) {
+            if (entry === '__tests__' || entry.startsWith('__')) continue;
             await loadCommandFiles(fullPath); // Recursively load commands from subdirectories
         }
-        else if (entry.endsWith('.js') || entry.endsWith('.ts')) {
+        else if ((entry.endsWith('.js') || entry.endsWith('.ts')) && !entry.endsWith('.test.js') && !entry.endsWith('.test.ts')) {
             const commandUrl = pathToFileURL(fullPath).href;
             const commandModule = await import(commandUrl);
             const command: Command = commandModule.default;

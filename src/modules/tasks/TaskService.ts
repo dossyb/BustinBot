@@ -165,7 +165,7 @@ export class TaskService {
         // Notify, archive, and update counters
         await notifyUser(client, submission);
         await archiveSubmission(client, submission);
-        await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo);
+        await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo, submission.status);
 
         // --- Cleanup original admin messages ---
         const adminChannel = client.channels.cache.find(

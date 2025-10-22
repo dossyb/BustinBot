@@ -35,7 +35,12 @@ export interface TaskEvent {
     // Submissions made for this task event
     submissions?: TaskSubmission[];
 
-    completionCount?: number;
+    completionCounts?: {
+        bronze: number;
+        silver: number;
+        gold: number;
+    }
+    
     completedUserIds?: string[];
 
     messageId?: string;

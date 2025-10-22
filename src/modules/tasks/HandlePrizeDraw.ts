@@ -47,6 +47,12 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     for (const submission of filtered) {
         participants[submission.userId] = (participants[submission.userId] || 0) + 1;
     }
+    
+    const tierCounts = {
+        bronze: filtered.filter(s => s.status === SubmissionStatus.Bronze).length,
+        silver: filtered.filter(s => s.status === SubmissionStatus.Silver).length,
+        gold: filtered.filter(s => s.status === SubmissionStatus.Gold).length,
+    };
 
     const snapshot: PrizeDraw = {
         id: `${start.toISOString().slice(0, 10)}_to_${end.toISOString().slice(0, 10)}`,
@@ -56,7 +62,8 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         taskEventIds: Array.from(new Set(qualifyingEvents.map(event => event.id))),
         participants,
         entries: filtered.map((submission) => submission.userId),
-        totalEntries: filtered.length
+        totalEntries: filtered.length,
+        tierCounts,
     }
 
     // Persist snapshot
@@ -122,7 +129,8 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
         snapshot.totalEntries,
         Object.keys(snapshot.participants).length,
         snapshot.start,
-        snapshot.end
+        snapshot.end,
+        snapshot.tierCounts
     );
 
     const channel = client.channels.cache.find(

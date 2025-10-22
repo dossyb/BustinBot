@@ -20,6 +20,11 @@ export function getTaskDisplayName(task: Task, selectedAmount?: number): string 
     if (selectedAmount !== undefined && task.taskName.includes("{amount}")) {
         return task.taskName.replace(/\{amount\}/g, String(selectedAmount));
     }
+
+    if (task.wildernessReq) {
+        task.taskName += " ☠️";
+    }
+
     return task.taskName;
 }
 
@@ -35,10 +40,13 @@ export function buildTaskEventEmbed(event: TaskEvent) {
     const tierDisplay = `Amounts required for each tier of completion (1, 2 and 3 prize rolls respectively):\n
 🥉 **${event.amounts?.bronze ?? 0}**\u2003🥈 **${event.amounts?.silver ?? 0}**\u2003🥇 **${event.amounts?.gold ?? 0}**`;
 
+    const counts = event.completionCounts ?? { bronze: 0, silver: 0, gold: 0 };
+    const completionLine = `**Completions:** 🥉${counts.bronze} 🥈${counts.silver} 🥇${counts.gold}`;
+
     const embed = new EmbedBuilder()
         .setTitle(`${category} Task`)
         .setDescription(
-            `**${taskTitle}**\n\n${tierDisplay}\n\n**Completions:** ${event.completionCount ?? 0}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot** below to make your submission.`
+            `**${taskTitle}**\n\n${tierDisplay}\n\n${completionLine}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot** below to make your submission.`
         )
         .setColor(0xa60000)
         .setFooter({ text: `Ends ${event.endTime.toUTCString()} • ${event.id}` })
@@ -105,17 +113,22 @@ export function buildArchiveEmbed(submission: any, status: string, taskName: str
 }
 
 // Embed shown when a prize draw winner is announced
-export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, totalParticipants: number, start: string, end: string) {
+export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, totalParticipants: number, start: string, end: string, tierCounts?: { bronze: number; silver: number; gold: number }) {
     const formattedStart = new Date(start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
     const formattedEnd = new Date(end).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 
     const prizeIconPath = path.resolve(__dirname, '../../assets/icons/task_prize.png');
+
+    const tierDisplay = tierCounts
+        ? `🥉 ${tierCounts.bronze} 🥈 ${tierCounts.silver} 🥇 ${tierCounts.gold}`
+        : '';
 
     const embed = new EmbedBuilder()
         .setTitle("🏆 And the winner is...")
         .setColor(0x0003bd)
         .setDescription(
             'During this task period, there were...\n\n' +
+            `${tierDisplay}\n\n` +
             `**${totalSubmissions}** submissions from **${totalParticipants}** participants!\n\n` +
             `🎉 Congratulations <@${winnerId}>!\n\n` +
             `Please message a **Task Admin** to claim your prize.`
