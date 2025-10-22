@@ -7,6 +7,7 @@ import type { IPrizeDrawRepository } from '../database/interfaces/IPrizeDrawRepo
 import type { IMovieRepository } from '../database/interfaces/IMovieRepo';
 import type { GuildService } from './GuildService';
 import type { IGuildRepository } from 'core/database/interfaces/IGuildRepo';
+import type { IKeywordRepository } from 'core/database/interfaces/IKeywordRepo';
 
 export interface ServiceContainer {
     botStats: BotStatsService;
@@ -19,5 +20,6 @@ export interface ServiceContainer {
         taskRepo?: ITaskRepository;
         prizeRepo?: IPrizeDrawRepository;
         movieRepo?: IMovieRepository;
+        keywordRepo?: IKeywordRepository;
     };
 }
