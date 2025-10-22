@@ -4,6 +4,7 @@ import { SubmissionStatus } from '../../models/TaskSubmission';
 import { handleTaskFeedback } from './HandleTaskFeedback';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { getTaskDisplayName } from './TaskEmbeds';
+import { handleUpdateTaskModal } from './HandleUpdateTaskModal';
 
 const MAX_SCREENSHOTS = 10;
 
@@ -256,6 +257,9 @@ export async function handleTaskInteraction(interaction: Interaction, client: Cl
     if (interaction.isModalSubmit()) {
         if (interaction.customId.startsWith("reject_reason_")) {
             await handleRejectionModal(interaction, services);
+        }
+        if (interaction.customId.startsWith('update_task_modal_')) {
+            return await handleUpdateTaskModal(interaction, services);
         }
     }
 }

@@ -5,6 +5,7 @@ import { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } from './
 import { isTextChannel } from '../../utils/ChannelUtils';
 import type { TaskEvent } from 'models/TaskEvent';
 import type { ITaskRepository } from 'core/database/interfaces/ITaskRepo';
+import { normaliseFirestoreDates } from 'utils/DateUtils';
 
 // Configurable constants (replace with environment variable later)
 const ADMIN_CHANNEL_NAME = 'task-admin';
@@ -142,7 +143,8 @@ export async function updateTaskCounter(client: Client, taskEventId: string, use
             event.endTime = (event.endTime as any).toDate();
         }
 
-        const updatedEmbed = buildTaskEventEmbed(event);
+        const safeEvent = normaliseFirestoreDates(event);
+        const updatedEmbed = buildTaskEventEmbed(safeEvent);
 
         await message.edit({
             embeds: updatedEmbed.embeds,
