@@ -36,7 +36,11 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const allSubmissions = submissionsPerEvent.flat();
 
     const filtered = allSubmissions.filter(
-        (s) => s.status === SubmissionStatus.Approved
+        (s) =>
+            s.status === SubmissionStatus.Approved ||
+            s.status === SubmissionStatus.Bronze ||
+            s.status === SubmissionStatus.Silver ||
+            s.status === SubmissionStatus.Gold
     );
 
     const participants: Record<string, number> = {};
@@ -100,8 +104,11 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
     const roleName = process.env.TASK_USER_ROLE_NAME;
 
     let mention = '';
+    let guildName = 'this server';
+
     if (guildId && roleName) {
         const guild = await client.guilds.fetch(guildId);
+        guildName = guild.name;
         const role = guild.roles.cache.find(r => r.name === roleName);
         if (role) {
             mention = `<@&${role.id}>`;
@@ -130,5 +137,21 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
     await channel.send(`${mention}`);
     await channel.send({ ...embedData });
     console.log(`[PrizeDraw] Winner embed sent to #${channel.name}`);
+
+    // Send the winner a DM
+    try {
+        const winnerUser = await client.users.fetch(snapshot.winnerId);
+
+        if (winnerUser) {
+            await winnerUser.send(`**🏆 Congratulations!** You've won the latest OSRS community tasks prize draw in **${guildName}**! Please contact a **Task Admin** to claim your prize.`);
+
+            console.log(`[PrizeDraw] DM set to winner ${winnerUser.tag}`);
+        } else {
+            console.warn(`[PrizeDraw] Could not fetch user for winner ID: ${snapshot.winnerId}`);
+        }
+    } catch (err) {
+        console.warn(`[PrizeDraw] Failed to DM winner ${snapshot.winnerId}:`, err);
+    }
+
     return true;
 }
