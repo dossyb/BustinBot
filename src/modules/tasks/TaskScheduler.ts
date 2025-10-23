@@ -17,8 +17,6 @@ const defaultSchedule = {
     prizeHourUTC: 0,
 };
 
-const leaguesEnabled = false;
-
 // Test config
 function isTestMode() {
     return process.env.BOT_MODE === "dev";
@@ -77,12 +75,12 @@ export function initTaskScheduler(
 
             if (minute % T === (T - 1)) {
                 console.log('[TaskScheduler] [TEST] Running poll...');
-                await postAllTaskPolls(client, taskRepo, leaguesEnabled);
+                await postAllTaskPolls(client, services);
             }
 
             if (minute % T === 0) {
                 console.log('[TaskScheduler] [TEST] Starting task event...');
-                await startAllTaskEvents(client, services, leaguesEnabled);
+                await startAllTaskEvents(client, services);
             }
 
             if ((minute - 1) % (2 * T) === 0) {
@@ -111,7 +109,7 @@ export function initTaskScheduler(
                 console.log('[TaskScheduler] Running weekly task poll post...');
                 const channel = await getChannel(client);
                 if (channel) {
-                    await postAllTaskPolls(client, taskRepo, leaguesEnabled);
+                    await postAllTaskPolls(client, services);
                 }
             });
 
@@ -121,7 +119,7 @@ export function initTaskScheduler(
                 console.log('[TaskScheduler] Closing poll and starting task event...');
                 const channel = await getChannel(client);
                 if (channel) {
-                    await startAllTaskEvents(client, services, leaguesEnabled);
+                    await startAllTaskEvents(client, services,);
                 }
             }
         );

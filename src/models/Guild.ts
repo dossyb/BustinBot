@@ -3,6 +3,7 @@ export interface Guild {
 
   toggles: {
     taskScheduler: boolean;
+    leaguesEnabled: boolean;
   };
 
   roles: {

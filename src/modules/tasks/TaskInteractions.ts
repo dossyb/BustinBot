@@ -130,7 +130,7 @@ export async function handleDirectMessage(message: Message, client: Client, serv
     const notes = message.content.trim() || undefined;
 
     const limitedImages = imageUrls.slice(0, MAX_SCREENSHOTS);
-    await services.tasks.completeSubmission(client, submission.id, limitedImages, notes);
+    await services.tasks.completeSubmission(client, submission.id, limitedImages, services, notes);
     await message.reply(`✅ Submission for **${submission.taskName ?? 'your task'}** received with ${limitedImages.length} screenshot${limitedImages.length === 1 ? '' : 's'} and sent for review!`);
 }
 

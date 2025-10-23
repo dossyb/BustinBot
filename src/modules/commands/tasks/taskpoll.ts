@@ -19,13 +19,7 @@ const taskpoll: Command = {
         await interaction.deferReply({ flags: 1 << 6 });
 
         try {
-            const repo = services.repos.taskRepo;
-            if (!repo) {
-                await interaction.editReply('Task repository not available.');
-                return;
-            }
-
-            await postAllTaskPolls(interaction.client, repo);
+            await postAllTaskPolls(interaction.client, services);
             await interaction.editReply('Task poll posted successfully.');
         } catch (error) {
             console.error('[TaskPoll Command Error]', error);

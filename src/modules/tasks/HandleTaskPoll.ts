@@ -6,6 +6,7 @@ import type { TaskPoll } from '../../models/TaskPoll';
 import { TaskCategory } from '../../models/Task';
 import { fileURLToPath } from 'url';
 import { selectTasksForCategory } from './TaskSelector';
+import type { ServiceContainer } from 'core/services/ServiceContainer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,11 +29,18 @@ function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
 
         const tierDisplay = `🥉 **${task.amtBronze}** 🥈 **${task.amtSilver}** 🥇 **${task.amtGold}**`;
         const voteText = `**${votes} vote${votes !== 1 ? 's' : ''}**`;
-        return `${emojiNumbers[i]} ${name} - ${tierDisplay}\n${voteText}`;
+        return `${emojiNumbers[i]} ${name}\n${tierDisplay}\n${voteText}`;
     }).join('\n\n');
 }
 
-export async function postAllTaskPolls(client: Client, repo: ITaskRepository, leaguesEnabled = false) {
+export async function postAllTaskPolls(client: Client, services: ServiceContainer) {
+    const { repos } = services;
+
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (!guildId) return;
+    const guildConfig = await repos.guildRepo?.getGuild(guildId);
+    const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
+    
     const categories: TaskCategory[] = [
         TaskCategory.PvM,
         TaskCategory.Skilling,
@@ -43,9 +51,8 @@ export async function postAllTaskPolls(client: Client, repo: ITaskRepository, le
         categories.push(TaskCategory.Leagues);
     }
 
-    const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
-    if (!guildId || !channelId) return;
+    if (!channelId) return;
 
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(channelId);
@@ -61,11 +68,11 @@ export async function postAllTaskPolls(client: Client, repo: ITaskRepository, le
     await channel.send(`${mention} **New task polls are live!** Cast your votes for each category below:`);
 
     for (const category of categories) {
-        await postTaskPollForCategory(client, repo, category);
+        await postTaskPollForCategory(client, services, category);
     }
 }
 
-export async function postTaskPollForCategory(client: Client, repo: ITaskRepository, category: TaskCategory) {
+export async function postTaskPollForCategory(client: Client, services: ServiceContainer, category: TaskCategory) {
     const userVotes = new Map<string, string>(); // userId -> taskId
 
     const guildId = process.env.DISCORD_GUILD_ID;
@@ -78,6 +85,8 @@ export async function postTaskPollForCategory(client: Client, repo: ITaskReposit
 
     const roleName = process.env.TASK_USER_ROLE_NAME;
     const role = guild.roles.cache.find(r => r.name === roleName);
+    const repo = services.repos.taskRepo;
+    if (!repo) return;
 
     const allTasks: Task[] = await repo.getAllTasks();
     const taskData = allTasks.filter(t => t.category === category);

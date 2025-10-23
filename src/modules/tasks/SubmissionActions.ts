@@ -3,20 +3,23 @@ import type { TaskSubmission } from '../../models/TaskSubmission';
 import { SubmissionStatus } from '../../models/TaskSubmission';
 import { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } from './TaskEmbeds';
 import { isTextChannel } from '../../utils/ChannelUtils';
-import type { TaskEvent } from 'models/TaskEvent';
 import type { ITaskRepository } from 'core/database/interfaces/ITaskRepo';
 import { normaliseFirestoreDates } from 'utils/DateUtils';
+import type { ServiceContainer } from 'core/services/ServiceContainer';
 
 // Configurable constants (replace with environment variable later)
 const ADMIN_CHANNEL_NAME = 'task-admin';
 const ARCHIVE_CHANNEL_NAME = 'bot-archive';
 
-export async function postToAdminChannel(client: Client, submission: TaskSubmission) {
+export async function postToAdminChannel(client: Client, submission: TaskSubmission, services: ServiceContainer) {
     const channel = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === ADMIN_CHANNEL_NAME) as TextChannel;
     if (!channel) return;
 
+    const taskEvent = await services.repos.taskRepo?.getTaskEventById(submission.taskEventId);
+    if (!taskEvent) return;
+
     const taskLabel = submission.taskName ?? `Task ${submission.taskEventId}`;
-    const embed = buildSubmissionEmbed(submission, taskLabel);
+    const embed = buildSubmissionEmbed(submission, taskLabel, taskEvent);
 
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()

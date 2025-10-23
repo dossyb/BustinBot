@@ -6,6 +6,7 @@ import { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } 
 import { isTextChannel } from '../../utils/ChannelUtils';
 import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
 import { getTaskDisplayName } from './TaskEmbeds';
+import type { ServiceContainer } from 'core/services/ServiceContainer';
 
 const MAX_SCREENSHOTS = 10;
 
@@ -45,7 +46,7 @@ export class TaskService {
         return submission;
     }
 
-    async completeSubmission(client: Client, submissionId: string, screenshotUrls: string[], notes?: string): Promise<TaskSubmission | null> {
+    async completeSubmission(client: Client, submissionId: string, screenshotUrls: string[], services: ServiceContainer, notes?: string): Promise<TaskSubmission | null> {
         const submission = await this.repo.getSubmissionById(submissionId);
         if (!submission) return null;
 
@@ -64,7 +65,7 @@ export class TaskService {
             }
         }
 
-        await postToAdminChannel(client, submission);
+        await postToAdminChannel(client, submission, services);
         await this.repo.createSubmission(submission);
         return submission;
     }

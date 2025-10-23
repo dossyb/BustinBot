@@ -29,15 +29,12 @@ export class GuildRepository implements IGuildRepository {
         );
     }
 
-    async toggleScheduler(guildId: string, enabled: boolean, userId: string): Promise<void> {
-        await this.collection.doc(guildId).update(
-            {
-                "toggles.taskScheduler": enabled,
-                updatedBy: userId,
-                updatedAt: FieldValue.serverTimestamp(),
-            }
-        );
-        console.log(`[GuildRepository] Task scheduler ${enabled ? "enabled" : "disabled"} for ${guildId}`);
+    async updateToggle(guildId: string, key: string, enabled: boolean, userId: string): Promise<void> {
+        await this.collection.doc(guildId).update({
+            [key]: enabled,
+            updatedBy: userId,
+            updatedAt: FieldValue.serverTimestamp(),
+        });
     }
 
     async getAllGuilds(): Promise<Guild[]> {

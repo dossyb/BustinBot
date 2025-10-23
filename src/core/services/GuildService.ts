@@ -25,7 +25,8 @@ export class GuildService {
         const mergedBase: Omit<Guild, "updatedBy" | "updatedAt"> = {
             id: guildId,
             toggles: {
-                ...(existing?.toggles ?? { taskScheduler: false }),
+                taskScheduler: existing?.toggles?.taskScheduler ?? false,
+                leaguesEnabled: existing?.toggles?.leaguesEnabled ?? false,
                 ...(data.toggles ?? {}),
             },
             roles: existing?.roles ?? {
@@ -57,22 +58,45 @@ export class GuildService {
         this.cache.set(guildId, merged);
     }
 
-    async toggleScheduler(guildId: string, enabled: boolean, userId: string): Promise<void> {
-        await this.repo.toggleScheduler(guildId, enabled, userId);
+    async updateToggle(guildId: string, key: string, enabled: boolean, userId: string): Promise<void> {
+        await this.repo.updateToggle(guildId, key, enabled, userId);
 
         const existing = this.cache.get(guildId);
 
+        const toggles = {
+            ...(existing?.toggles ?? {}),
+            // Extract last part of key if nested (e.g. "toggles.leaguesEnabled")
+            [key.split(".").pop()!]: enabled,
+        };
+
         const merged: Guild = {
             id: guildId,
-            toggles: { taskScheduler: enabled },
-            roles: existing?.roles ?? { admin: "", movieAdmin: "", movieUser: "", taskAdmin: "", taskUser: "" },
-            channels: existing?.channels ?? { taskChannel: "", taskVerification: "", movieNight: "", movieVC: "" },
+            toggles: {
+                taskScheduler: existing?.toggles?.taskScheduler ?? false,
+                leaguesEnabled: existing?.toggles?.leaguesEnabled ?? false,
+                [key.split(".").pop()!]: enabled,
+            },
+            roles: existing?.roles ?? {
+                admin: "",
+                movieAdmin: "",
+                movieUser: "",
+                taskAdmin: "",
+                taskUser: "",
+            },
+            channels: existing?.channels ?? {
+                taskChannel: "",
+                taskVerification: "",
+                movieNight: "",
+                movieVC: "",
+            },
             setupComplete: existing?.setupComplete ?? false,
             updatedBy: userId,
             updatedAt: new Date() as any,
         };
 
         this.cache.set(guildId, merged);
+
+        console.log(`[GuildService] Toggled ${key} ${enabled ? "on" : "off"} for ${guildId}`);
     }
 
     async getAll(): Promise<Guild[]> {

@@ -37,9 +37,15 @@ const tasktoggle: Command = {
 
         const newState = !currentState;
 
+        await guildService.updateToggle(
+            guildId,
+            "toggles.taskScheduler",
+            newState,
+            interaction.user.id
+        );
+
         if (newState) {
             // Enable scheduler
-            await guildService.toggleScheduler(guildId, true, interaction.user.id);
             initTaskScheduler(interaction.client, services);
             await interaction.reply({
                 content: `✅ Task scheduler **enabled** and started for this guild.`,
@@ -47,7 +53,6 @@ const tasktoggle: Command = {
             });
         } else {
             // Disable scheduler
-            await guildService.toggleScheduler(guildId, false, interaction.user.id);
             stopTaskScheduler();
             await interaction.reply({
                 content: `⏹️ Task scheduler **disabled** and stopped for this guild.`,

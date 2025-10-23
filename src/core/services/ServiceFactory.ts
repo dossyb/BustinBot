@@ -28,7 +28,7 @@ export async function createServiceContainer(guildId: string): Promise<ServiceCo
     const keywords = new KeywordSelector(keywordRepo);
 
     const services: ServiceContainer = {
-        botStats, tasks, taskEvents, keywords, guilds, repos: { taskRepo, prizeRepo, movieRepo, keywordRepo },
+        botStats, tasks, taskEvents, keywords, guilds, repos: { taskRepo, prizeRepo, movieRepo, keywordRepo, guildRepo },
     };
 
     return services;

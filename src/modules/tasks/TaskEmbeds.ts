@@ -75,13 +75,14 @@ export function buildTaskEventEmbed(event: TaskEvent) {
 }
 
 // Embed shown in task verification channel when a submission is received
-export function buildSubmissionEmbed(submission: any, taskName: string) {
+export function buildSubmissionEmbed(submission: any, taskName: string, event: TaskEvent) {
     const embed = new EmbedBuilder()
         .setTitle('Task Submission')
         .addFields(
             { name: 'User', value: `<@${submission.userId}>`, inline: true },
             { name: 'Task', value: taskName, inline: true },
-            { name: 'Message', value: submission.notes || "No message included" }
+            { name: 'Message', value: submission.notes || "No message included" },
+            { name: 'Tier Amounts', value: `🥉 **${event.amounts?.bronze ?? 0}** 🥈 **${event.amounts?.silver ?? 0}** 🥇 **${event.amounts?.gold ?? 0}**`}
         )
         .setTimestamp();
 

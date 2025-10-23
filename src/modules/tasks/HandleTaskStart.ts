@@ -12,12 +12,17 @@ function generateTaskEventId(taskId: string): string {
     return `${taskId}-${yyyy}${mm}${dd}`;
 }
 
-export async function startAllTaskEvents(client: Client, services: ServiceContainer, leaguesEnabled = false): Promise<void> {
-    const { keywords } = services;
+export async function startAllTaskEvents(client: Client, services: ServiceContainer): Promise<void> {
+    const { keywords, repos } = services;
     if (!keywords) {
         console.error('[TaskStart] Missing keywords service.');
         return;
     }
+
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (!guildId) return;
+    const guildConfig = await repos.guildRepo?.getGuild(guildId);
+    const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
 
     const categories: TaskCategory[] = [
         TaskCategory.PvM,
@@ -29,9 +34,8 @@ export async function startAllTaskEvents(client: Client, services: ServiceContai
 
     const sharedKeyword = await keywords.selectKeyword(`weekly-${Date.now()}`);
 
-    const guildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.TASK_CHANNEL_ID;
-    if (!guildId || !channelId) return;
+    if (!channelId) return;
 
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(channelId);
