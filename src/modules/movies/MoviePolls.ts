@@ -9,6 +9,7 @@ import { saveCurrentMovie } from "./PickMovieInteractions";
 import { DateTime } from "luxon";
 import { scheduleActivePollClosure } from "./MoviePollScheduler";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
+import { notifyMovieSubmitter } from "./MovieLocalSelector";
 
 const MAX_CHOICES = 5;
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
@@ -19,7 +20,7 @@ async function createAndSendMoviePoll(
     client: Client,
     movies: Movie[]
 ) {
-     const movieRepo = services.repos.movieRepo;
+    const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         console.error("[MoviePoll] Movie repository not found in services.");
         return;
@@ -98,7 +99,7 @@ async function createAndSendMoviePoll(
     poll.messageId = message.id;
     await movieRepo.createPoll(poll);
 
-    await scheduleActivePollClosure(services);
+    await scheduleActivePollClosure(services, client);
 }
 
 export async function pollMovieRandom(services: ServiceContainer, interaction: RepliableInteraction, count: number | null) {
@@ -170,8 +171,8 @@ export async function pollMovieWithList(services: ServiceContainer, interaction:
     await createAndSendMoviePoll(services, interaction, client, moviesWithUsers);
 }
 
-export async function closeActiveMoviePoll(services: ServiceContainer, closedBy: string): Promise<{ success: boolean; message: string; winner?: Movie, winningVotes?: number, tieBreak?: boolean }> {
-   const movieRepo = services.repos.movieRepo;
+export async function closeActiveMoviePoll(services: ServiceContainer, client: Client, closedBy: string): Promise<{ success: boolean; message: string; winner?: Movie, winningVotes?: number, tieBreak?: boolean }> {
+    const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         return { success: false, message: "Movie repository unavailable." };
     }
@@ -222,6 +223,7 @@ export async function closeActiveMoviePoll(services: ServiceContainer, closedBy:
 
     // Save the selected movie as current
     await saveCurrentMovie(services, winningMovie, closedBy);
+    await notifyMovieSubmitter(winningMovie, client);
 
     const baseMessage = tieBreak
         ? `Poll closed successfully. After a tie with ${topVotes} votes, BustinBot chose ${winningMovie.title}.`

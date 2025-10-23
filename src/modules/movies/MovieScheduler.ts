@@ -99,7 +99,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
                 ...activePoll,
                 endsAt: adjustedEnd.toJSDate()
             });
-            await scheduleActivePollClosure(services);
+            await scheduleActivePollClosure(services, interaction.client);
         }
     }
 
@@ -120,7 +120,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
 
     // Auto-end scheduling (if runtime known)
     if (movie?.runtime) {
-        scheduleMovieAutoEnd(services, utcDateTime.toISO()!, movie.runtime);
+        scheduleMovieAutoEnd(services, utcDateTime.toISO()!, movie.runtime, interaction.client);
     }
 
     // Build embed

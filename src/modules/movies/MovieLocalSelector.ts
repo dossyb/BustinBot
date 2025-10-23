@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { Client, EmbedBuilder } from 'discord.js';
 import type { Movie } from '../../models/Movie';
 import { createMovieEmbed } from './MovieEmbeds';
 import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils';
@@ -42,4 +42,28 @@ export async function buildMovieEmbedWithMeta(
     embed.setDescription(`${existingDescription}${addedByLine}`);
 
     return embed;
+}
+
+
+export async function notifyMovieSubmitter(selectedMovie: Movie, client: Client) {
+    if (!selectedMovie.addedBy) return;
+    const guildId = process.env.DISCORD_GUILD_ID;
+    let guildName = 'this server';
+
+    if (guildId) {
+        const guild = await client.guilds.fetch(guildId);
+        guildName = guild.name;
+    }
+
+    try {
+        const user = await client.users.fetch(selectedMovie.addedBy);
+        if (!user) return;
+
+        const message = `Hey <@${selectedMovie.addedBy}>! Your movie **${selectedMovie.title}** has been chosen for the next movie night in **${guildName}**. Check the movie night channel for session time details so you don't miss it!`;
+
+        await user.send(message);
+        console.log(`[MovieNotify] Sent DM to ${user.tag} for selected movie: ${selectedMovie.title}`);
+    } catch (err) {
+        console.warn(`[MovieNotify] Failed to DM user ${selectedMovie.addedBy}:`, err);
+    }
 }

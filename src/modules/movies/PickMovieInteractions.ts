@@ -8,6 +8,7 @@ import { pickRandomMovie, buildMovieEmbedWithMeta } from "./MovieLocalSelector";
 import { getManualPollSession, changeManualPollPage, clearManualPollSession, updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll";
 import { pollMovieRandom, pollMovieWithList } from "./MoviePolls";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
+import { notifyMovieSubmitter } from "./MovieLocalSelector";
 
 export async function saveCurrentMovie(services: ServiceContainer, movie: Movie, selectedBy?: string) {
     const movieRepo = services.repos.movieRepo;
@@ -94,6 +95,7 @@ export async function handleMoviePickChooseModalSubmit(services: ServiceContaine
     }
 
     await saveCurrentMovie(services, selectedMovie, interaction.user.id);
+    await notifyMovieSubmitter(selectedMovie, interaction.client);
 
     const embed = createMovieEmbed(selectedMovie);
     const existingDescription = embed.data.description ?? "";
@@ -155,6 +157,7 @@ export async function handleConfirmRandomMovie(services: ServiceContainer, inter
     }
 
     await saveCurrentMovie(services, selectedMovie, interaction.user.id);
+    await notifyMovieSubmitter(selectedMovie, interaction.client);
 
     if (!embed) {
         await channel.send({

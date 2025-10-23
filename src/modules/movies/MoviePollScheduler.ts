@@ -2,11 +2,12 @@ import { DateTime } from 'luxon';
 import { closeActiveMoviePoll } from './MoviePolls';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { scheduleMovieAutoEnd } from './MovieLifecycle';
+import type { Client } from 'discord.js';
 
 let pollTimeout: NodeJS.Timeout | null = null;
 
 // Schedule auto-closure of the current active poll based on endsAt field
-export async function scheduleActivePollClosure(services: ServiceContainer) {
+export async function scheduleActivePollClosure(services: ServiceContainer, client: Client) {
     const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         console.error('[MoviePollScheduler] Movie repository not found.');
@@ -43,7 +44,7 @@ export async function scheduleActivePollClosure(services: ServiceContainer) {
     pollTimeout = setTimeout(async () => {
         try {
             // Close the poll in Firestore
-            const result = await closeActiveMoviePoll(services, 'Scheduler');
+            const result = await closeActiveMoviePoll(services, client, 'Scheduler');
             console.log(`[MoviePollScheduler] Poll auto-closed: ${result.message}`);
 
             // Fetch latest movie event to determine next steps
@@ -58,7 +59,7 @@ export async function scheduleActivePollClosure(services: ServiceContainer) {
 
             if (movie?.runtime && startTimeISO) {
                 console.log('[MoviePollScheduler] Scheduling auto-end post-poll with selected movie.');
-                scheduleMovieAutoEnd(services, startTimeISO, movie.runtime);
+                scheduleMovieAutoEnd(services, startTimeISO, movie.runtime, client);
             } else {
                 console.warn('[MoviePollScheduler] Cannot schedule auto-end: missing runtime or start time.');
             }

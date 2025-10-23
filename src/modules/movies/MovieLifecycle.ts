@@ -1,11 +1,35 @@
 import type { Movie } from '../../models/Movie';
 import { DateTime } from 'luxon';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
+import { Client } from 'discord.js';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
+async function notifySubmitterMovieEnded(client: Client, addedBy: string, finishedMovie: Movie, remainingSlots: number) {
+    const guildId = process.env.DISCORD_GUILD_ID;
+    let guildName = 'this server';
+
+    if (guildId) {
+        const guild = await client.guilds.fetch(guildId);
+        guildName = guild.name;
+    }
+    try {
+        const user = await client.users.fetch(addedBy);
+        if (!user) return;
+
+        const plural = remainingSlots === 1 ? "movie" : "movies";
+        const message =
+            `Hey <@${addedBy}>, your movie **${finishedMovie.title}** has been watched as part of a movie night in **${guildName}**. You can now add **${remainingSlots} more ${plural}** to the list!`;
+
+        await user.send(message);
+        console.log(`[MovieLifecycle] Sent DM to ${user.tag} about ended movie: ${finishedMovie.title}`);
+    } catch (err) {
+        console.warn(`[MovieLifecycle] Could not DM ${addedBy} - likely has DMs disabled.`, err);
+    }
+}
+
 // Marks the current movie night as completed and archives it
-export async function finishMovieNight(endedBy: string, services: ServiceContainer): Promise<{ success: boolean; message: string; finishedMovie?: Movie }> {
+export async function finishMovieNight(endedBy: string, services: ServiceContainer, client: Client): Promise<{ success: boolean; message: string; finishedMovie?: Movie }> {
     const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         console.error('[MovieLifecycle] Movie repository not found.');
@@ -43,6 +67,18 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
 
         console.log(`[MovieLifecycle] Movie night ended by ${endedBy}: ${finishedMovie.title}`);
 
+        if (finishedMovie.addedBy) {
+            try {
+                const allMovies = await movieRepo.getAllMovies();
+                const userMovies = allMovies.filter(m => m.addedBy === finishedMovie.addedBy && !m.watched);
+                const remainingSlots = Math.max(0, 3 - userMovies.length);
+
+                await notifySubmitterMovieEnded(client, finishedMovie.addedBy, finishedMovie, remainingSlots);
+            } catch (err) {
+                console.warn(`[MovieLifecycle] Failed to calculate remaining slots or send DM:`, err);
+            }
+        }
+
         return {
             success: true,
             message: `The movie night for **${finishedMovie.title}** has ended.`,
@@ -54,7 +90,7 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
     }
 }
 
-export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: string, runtimeMinutes: number) {
+export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: string, runtimeMinutes: number, client: Client) {
     const bufferMinutes = 30;
     const endTime = DateTime.fromISO(startTimeISO).plus({ minutes: runtimeMinutes + bufferMinutes });
     const now = DateTime.utc();
@@ -71,7 +107,7 @@ export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: s
 
     autoEndTimeout = setTimeout(async () => {
         console.log("[MovieLifecycle] Auto-ending movie night based on runtime.");
-        await finishMovieNight('auto', services);
+        await finishMovieNight('auto', services, client);
     }, msUntilEnd);
 
     console.log(`[MovieLifecycle] Auto-end scheduled in ${Math.round(msUntilEnd / 1000)}s at ${endTime.toISO()}`);

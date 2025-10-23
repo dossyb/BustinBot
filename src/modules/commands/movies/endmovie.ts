@@ -17,7 +17,7 @@ const endmovie: Command = {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const result = await finishMovieNight(interaction.user.username, services);
+        const result = await finishMovieNight(interaction.user.username, services, interaction.client);
 
         if (!result.success) {
             await interaction.editReply(result.message);

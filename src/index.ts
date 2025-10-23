@@ -85,7 +85,7 @@ console.log('Loading commands...');
     // Ready event
     client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
-        await scheduleActivePollClosure(services);
+        await scheduleActivePollClosure(services, client);
 
         const guildRepo = new GuildRepository();
         const guilds = await guildRepo.getAllGuilds();
