@@ -8,6 +8,14 @@ export interface GuildChannels {
     movieVC?: string;
 }
 
+export interface GuildRoles {
+    admin?: string;
+    movieAdmin?: string;
+    movieUser?: string;
+    taskAdmin?: string;
+    taskUser?: string;
+}
+
 export interface Guild {
   id: string;
 
@@ -16,14 +24,7 @@ export interface Guild {
     leaguesEnabled: boolean;
   };
 
-  roles: {
-    admin: string;
-    movieAdmin?: string;
-    movieUser?: string;
-    taskAdmin?: string;
-    taskUser?: string;
-  };
-  
+  roles: GuildRoles;
   channels: GuildChannels;
 
   setupComplete?: boolean;

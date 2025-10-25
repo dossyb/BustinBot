@@ -68,7 +68,7 @@ const setup: Command = {
             .setStyle(ButtonStyle.Danger);
 
         await interaction.reply({
-            content: 'Select channel for each category below, then click **Confirm** to save.',
+            content: 'Select a channel for each category below, then click **Confirm** to save.',
             components: [
                 new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(announceSelect),
                 new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(logSelect),

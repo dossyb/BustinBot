@@ -8,6 +8,7 @@ import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies
 import type { ServiceContainer } from '../services/ServiceContainer';
 
 const setupSelections = new Map<string, Record<string, string>>();
+const movieSetupSelections = new Map<string, Record<string, string>>();
 
 export async function handleInteraction(
     interaction: Interaction,
@@ -111,6 +112,33 @@ export async function handleInteraction(
             await interaction.update({ content: 'Setup cancelled. No changes were made.', components: [] });
             return;
         }
+
+        if (customId === 'moviesetup_confirm') {
+            if (!selections) {
+                await interaction.reply({ content: 'Please select all channels/roles before confirming', flags: 1 << 6 });
+                return;
+            }
+
+            await services.guilds.update(interaction.guildId!, {
+                roles: {
+                    movieAdmin: selections.movieAdmin ?? '',
+                    movieUser: selections.movieUser ?? '',
+                },
+                channels: {
+                    movieNight: selections.movieNight ?? '',
+                    movieVC: selections.movieVC ?? '',
+                }
+            });
+
+            movieSetupSelections.delete(userId);
+
+            await interaction.update({ content: 'Movie module setup complete! Movie roles and channels have been saved.', components: [] });
+        }
+
+        if (interaction.customId === 'moviesetup_cancel') {
+            movieSetupSelections.delete(userId);
+            await interaction.update({ content: 'Movie setup cancelled. No changes were made.', components: [] });
+        }
     }
 
     if (interaction.isStringSelectMenu()) {
@@ -132,6 +160,7 @@ export async function handleInteraction(
     if (interaction.isChannelSelectMenu()) {
         const userId = interaction.user.id;
         const selections = setupSelections.get(userId) ?? {} as Record<string, string>;
+        const movieSelections = movieSetupSelections.get(userId) ?? {} as Record<string, string>;
 
         const channelId = interaction.values[0];
         if (!channelId) {
@@ -149,10 +178,41 @@ export async function handleInteraction(
             case 'setup_archive':
                 selections.botArchive = channelId;
                 break;
+            case 'moviesetup_channel':
+                selections.movieChannelName = channelId;
+                break;
+            case 'moviesetup_voice_channel':
+                selections.movieVC = channelId;
+                break;
         }
 
         setupSelections.set(userId, selections);
+        movieSetupSelections.set(userId, selections);
 
         await interaction.deferUpdate();
     }
+
+    if (interaction.isRoleSelectMenu()) {
+        const userId = interaction.user.id;
+        const selections = movieSetupSelections.get(userId) ?? {} as Record<string, string>;
+
+        const channelId = interaction.values[0];
+        if (!channelId) {
+            await interaction.reply({ content: 'No channel selected.', flags: 1 << 6 });
+            return;
+        }
+
+        switch (interaction.customId) {
+            case 'moviesetup_admin_role':
+                selections.movieAdmin = channelId;
+                break;
+            case 'moviesetup_notify_role':
+                selections.movieUser = channelId;
+                break;
+        }
+
+        movieSetupSelections.set(userId, selections);
+        await interaction.deferUpdate();
+    }
+
 }
