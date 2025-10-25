@@ -2,6 +2,7 @@ import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle }
 import type { RepliableInteraction } from "discord.js";
 import type { Movie } from "../../models/Movie";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
+import { normaliseFirestoreDates } from "utils/DateUtils";
 
 const PAGE_SIZE = 25;
 const sessions = new Map<string, { selected: Set<string>; page: number }>();
@@ -27,7 +28,13 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
         return;
     }
 
-    const allMovies: Movie[] = await movieRepo.getAllMovies();
+    const allMovies: Movie[] = (await movieRepo.getAllMovies())
+        .map((movie) => normaliseFirestoreDates(movie))
+        .sort((a, b) => {
+            const aTime = a.addedAt instanceof Date ? a.addedAt.getTime() : 0;
+            const bTime = b.addedAt instanceof Date ? b.addedAt.getTime() : 0;
+            return aTime - bTime;
+        });
     if (!allMovies.length) {
         await interaction.followUp({
             content: "No movies found.",
@@ -62,9 +69,20 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
                 ? `Pick up to ${remaining} more movie${remaining > 1 ? "s" : ""}`
                 : "Selection limit reached (5)"
         )
-        .addOptions(options)
-        .setMinValues(0)
-        .setMaxValues(Math.min(remaining, options.length));
+        .setMinValues(0);
+
+    if (options.length) {
+        selectMenu.addOptions(options);
+    }
+
+    if (remaining > 0 && options.length > 0) {
+        selectMenu.setMaxValues(Math.min(remaining, options.length));
+    } else {
+        // Disable further selection once the limit is reached to avoid invalid max_values payloads.
+        selectMenu
+            .setDisabled(true)
+            .setMaxValues(Math.min(1, Math.max(options.length, 1)));
+    }
 
     const controlRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()

@@ -18,7 +18,7 @@ const closemoviepoll: Command = {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const result = await closeActiveMoviePoll(services, interaction.user.username);
+        const result = await closeActiveMoviePoll(services, interaction.client, interaction.user.id);
 
         if (!result.success) {
             await interaction.editReply(`${result.message}`);

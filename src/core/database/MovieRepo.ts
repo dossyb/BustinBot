@@ -4,6 +4,7 @@ import type { IMovieRepository } from "./interfaces/IMovieRepo";
 import type { Movie } from "../../models/Movie";
 import type { MoviePoll } from "../../models/MoviePoll";
 import type { MovieEvent } from "../../models/MovieEvent";
+import { normaliseFirestoreDates } from "../../utils/DateUtils";
 
 export class MovieRepository extends GuildScopedRepository<Movie> implements IMovieRepository {
     constructor(guildId: string) {
@@ -37,13 +38,34 @@ export class MovieRepository extends GuildScopedRepository<Movie> implements IMo
     }
 
     async getActivePoll(): Promise<MoviePoll | null> {
-        const snapshot = await this.pollsCollection
-            .where('isActive', '==', true)
-            .limit(1)
-            .get();
+        const snapshot = await this.pollsCollection.where('isActive', '==', true).get();
 
         if (snapshot.empty) return null;
-        return snapshot.docs[0]?.data() as MoviePoll;
+
+        const polls = snapshot.docs
+            .map((doc) => {
+                const raw = doc.data() as MoviePoll & Record<string, unknown>;
+                const data = normaliseFirestoreDates(raw);
+                const createdAt = data.createdAt instanceof Date ? data.createdAt : new Date(0);
+                const endsAt = data.endsAt instanceof Date ? data.endsAt : null;
+                return {
+                    ...data,
+                    id: doc.id,
+                    createdAt,
+                    endsAt: endsAt ?? createdAt,
+                };
+            })
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        const activePoll = polls[0];
+        if (!activePoll) return null;
+
+        if (!activePoll.endsAt) {
+            console.warn('[MovieRepository] Active poll is missing endsAt. Using createdAt as fallback.');
+            activePoll.endsAt = activePoll.createdAt;
+        }
+
+        return activePoll;
     }
 
     async closePoll(pollId: string): Promise<void> {
@@ -77,25 +99,11 @@ export class MovieRepository extends GuildScopedRepository<Movie> implements IMo
 
         if (snapshot.empty) return null;
 
-        const toMillis = (value: unknown): number => {
-            if (!value) return 0;
-            if (value instanceof Date) return value.getTime();
-            if (typeof (value as { toDate?: () => Date })?.toDate === "function") {
-                return (value as { toDate: () => Date }).toDate().getTime();
-            }
-            if (typeof value === "number") return value;
-            if (typeof value === "string") {
-                const parsed = Date.parse(value);
-                return Number.isNaN(parsed) ? 0 : parsed;
-            }
-            return 0;
-        };
-
         const events = snapshot.docs
-            .map(doc => doc.data() as MovieEvent)
+            .map(doc => normaliseFirestoreDates(doc.data() as MovieEvent))
             .sort((a, b) => {
-                const aTime = toMillis(a.startTime);
-                const bTime = toMillis(b.startTime);
+                const aTime = a.startTime instanceof Date ? a.startTime.getTime() : 0;
+                const bTime = b.startTime instanceof Date ? b.startTime.getTime() : 0;
                 return bTime - aTime;
             });
 
@@ -109,12 +117,12 @@ export class MovieRepository extends GuildScopedRepository<Movie> implements IMo
         .get();
 
         if (snapshot.empty) return null;
-        return snapshot.docs[0]?.data() as MovieEvent;
+        return normaliseFirestoreDates(snapshot.docs[0]!.data() as MovieEvent);
     }
 
     async getAllEvents(): Promise<MovieEvent[]> {
         const snapshot = await this.eventsCollection.orderBy('createdAt', 'desc').get();
-        return snapshot.docs.map((doc) => doc.data() as MovieEvent);
+        return snapshot.docs.map((doc) => normaliseFirestoreDates(doc.data() as MovieEvent));
     }
 
     async clearEvents(): Promise<void> {

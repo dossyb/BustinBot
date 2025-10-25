@@ -6,6 +6,7 @@ import { scheduleActivePollClosure } from "./MoviePollScheduler";
 import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
 import { scheduleMovieAutoEnd } from "./MovieLifecycle";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
+import { normaliseFirestoreDates } from "../../utils/DateUtils";
 
 export async function handleMovieNightDate(interaction: StringSelectMenuInteraction, services: ServiceContainer) {
     const selectedDate = interaction.values[0];
@@ -61,26 +62,16 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     let movie: Movie | null = null;
     let pollChannelId: string | undefined;
 
-    const toDate = (value: unknown): Date | null => {
-        if (!value) return null;
-        if (value instanceof Date) return value;
-        const maybeTimestamp = value as { toDate?: () => Date };
-        if (maybeTimestamp && typeof maybeTimestamp.toDate === "function") {
-            return maybeTimestamp.toDate();
-        }
-        return null;
-    };
-
     if (activePoll && activePoll.isActive) {
         pollChannelId = activePoll.channelId || undefined;
     }
 
     // Prefer the most recently selected, unwatched movie
-    const movies = await movieRepo.getAllMovies();
+    const movies = (await movieRepo.getAllMovies()).map((movie) => normaliseFirestoreDates(movie));
     const selectedMovies = movies
         .filter((m) => !m.watched && m.selectedAt)
         .map((m) => {
-            const selectedAtDate = toDate(m.selectedAt);
+            const selectedAtDate = m.selectedAt instanceof Date ? m.selectedAt : null;
             return selectedAtDate ? { movie: m, selectedAt: selectedAtDate } : null;
         })
         .filter((entry): entry is { movie: Movie; selectedAt: Date } => entry !== null)
@@ -141,7 +132,18 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         stateMessage = `No movie has been selected yet.`;
     }
 
-    const embed = createMovieNightEmbed(movie, utcUnix, `${stateMessage}\n\n${reminderLine}`, interaction.user.username);
+    const showStateMessage = !movie;
+    const combinedMessage = [
+        showStateMessage ? stateMessage : '',
+        reminderLine
+    ].filter(Boolean).join('\n\n');
+
+    const embed = createMovieNightEmbed(
+        movie,
+        utcUnix,
+        combinedMessage,
+        interaction.user.username
+    );
 
     const guild = interaction.guild;
     if (!guild) {

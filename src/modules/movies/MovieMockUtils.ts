@@ -8,14 +8,14 @@ export function injectMockUsers(movies: Movie[]): Movie[] {
 
     return movies.map((movie, i) => ({
         ...movie,
-        addedBy: MOCK_USER_IDS[i % MOCK_USER_IDS.length]!
+        addedByDisplay: `**${MOCK_USER_NAMES[i % MOCK_USER_NAMES.length]!}**`,
+        addedByDevId: MOCK_USER_IDS[i % MOCK_USER_IDS.length]!,
     }));
 }
 
-export function getDisplayNameFromAddedBy(addedBy: string): string {
-    const index = MOCK_USER_IDS.indexOf(addedBy);
-    if (index !== -1) {
-        return `**${MOCK_USER_NAMES[index]}**`;
+export function getDisplayNameFromAddedBy(addedBy: string, addedByDisplay?: string): string {
+    if (addedByDisplay) {
+        return addedByDisplay;
     }
 
     return `<@${addedBy}>`;

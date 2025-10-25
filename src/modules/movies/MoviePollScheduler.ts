@@ -16,11 +16,22 @@ export async function scheduleActivePollClosure(services: ServiceContainer, clie
 
     const activePoll = await movieRepo.getActivePoll();
     if (!activePoll || !activePoll.isActive || !activePoll.endsAt) {
-        console.log('[MoviePollScheduler] No active poll found to schedule.');
         return;
     }
 
-    const endsAt = DateTime.fromJSDate(activePoll.endsAt);
+    const endsAtDate =
+        activePoll.endsAt instanceof Date
+            ? activePoll.endsAt
+            : typeof (activePoll.endsAt as { toDate?: () => Date })?.toDate === "function"
+                ? (activePoll.endsAt as { toDate: () => Date }).toDate()
+                : new Date(activePoll.endsAt as unknown as string | number | Date);
+
+    if (Number.isNaN(endsAtDate.getTime())) {
+        console.warn('[MoviePollScheduler] Invalid poll endsAt timestamp, skipping.');
+        return;
+    }
+
+    const endsAt = DateTime.fromJSDate(endsAtDate);
     if (!endsAt.isValid) {
         console.warn('[MoviePollScheduler] Invalid poll endsAt timestamp, skipping.');
         return;

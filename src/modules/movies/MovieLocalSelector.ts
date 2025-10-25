@@ -30,7 +30,7 @@ export async function buildMovieEmbedWithMeta(
 ): Promise<EmbedBuilder> {
     const embed = createMovieEmbed(movie);
     const existingDescription = embed.data.description ?? '';
-    const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+    const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
     const addedByLine = `\n\n_Added by ${addedByText}_`;
 
     const titlePrefix =

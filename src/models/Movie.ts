@@ -25,6 +25,12 @@ export interface Movie {
 
     // Discord user ID of the person who added the movie
     addedBy: string;
+
+    // Optional display override for the contributor (used in dev mode to mask IDs)
+    addedByDisplay?: string | undefined;
+
+    // Optional mock contributor id used in dev mode
+    addedByDevId?: string | undefined;
     
     // Timestamp when the movie was added
     addedAt: Date;

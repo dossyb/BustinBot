@@ -17,8 +17,9 @@ export async function saveCurrentMovie(services: ServiceContainer, movie: Movie,
         return;
     }
     try {
+        const { addedByDisplay, addedByDevId, ...movieData } = movie;
         await movieRepo.upsertMovie({
-            ...movie,
+            ...movieData,
             watched: false,
             selectedAt: new Date(),
             selectedBy,

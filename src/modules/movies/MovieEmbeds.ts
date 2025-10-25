@@ -40,7 +40,7 @@ export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3
     return movies.map((movie, i) => {
         const index = page * perPage + i + 1;
         const title = `${index}. ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
-        const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+        const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
         const addedByLine = `\n\n_Added by ${addedByText}_`;
 
         return new EmbedBuilder()
@@ -53,7 +53,7 @@ export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3
 
 export function createLocalMoviePreviewEmbed(movie: Movie): EmbedBuilder {
     const title = `${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
-    const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+    const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
     const addedByLine = `\n\n_Added by ${addedByText}_`;
 
     return new EmbedBuilder()
@@ -69,6 +69,13 @@ export function createMovieNightEmbed(
     stateMessage: string,
     scheduledBy: string
 ): EmbedBuilder {
+    const trimmedStateMessage = stateMessage?.trim?.() ?? "";
+    const startTimeLines = [`<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`];
+    if (trimmedStateMessage) {
+        startTimeLines.push(trimmedStateMessage);
+    }
+    const startTimeValue = startTimeLines.join('\n\n');
+
     let embed: EmbedBuilder;
 
     if (movie) {
@@ -79,7 +86,7 @@ export function createMovieNightEmbed(
 
         // Add "Added by" line if applicable
         if (movie.addedBy) {
-            const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+            const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
             description += `\n\n_Added by ${addedByText}_`;
         }
 
@@ -89,7 +96,7 @@ export function createMovieNightEmbed(
             .setColor(0xE91E63)
             .addFields({
                 name: '🎥 Start Time',
-                value: `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`,
+                value: startTimeValue,
                 inline: false,
             })
             .setFooter({ text: `Scheduled by ${scheduledBy} • Powered by TMDb` });
@@ -97,9 +104,7 @@ export function createMovieNightEmbed(
         // No movie selected yet
         embed = new EmbedBuilder()
             .setTitle('🎞️ Upcoming Movie Night!')
-            .setDescription(
-                `<t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)\n\n${stateMessage}`
-            )
+            .setDescription(startTimeValue)
             .setColor(0xE91E63)
             .setFooter({ text: `Scheduled by ${scheduledBy}` });
     }
@@ -119,7 +124,7 @@ export function createMoviePollClosedEmbed(
     let description = `The poll has concluded, and the winner is:\n\n**${movie.title}${release}**\n\n`;
 
     if (movie.addedBy) {
-        const addedByText = getDisplayNameFromAddedBy(movie.addedBy);
+        const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
         description += `_Added by ${addedByText}_\n\n`;
     }
 

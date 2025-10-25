@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "d
 import type { Command } from "../../../models/Command";
 import { CommandRole } from "../../../models/Command";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import { normaliseFirestoreDates } from "../../../utils/DateUtils";
 
 const cancelmovie: Command = {
     name: 'cancelmovie',
@@ -28,14 +29,31 @@ const cancelmovie: Command = {
             return;
         }
 
-        const deleted: string[] = [];
+        const actions: string[] = [];
 
         try {
             // Cancel active poll
             const activePoll = await movieRepo.getActivePoll();
             if (activePoll?.isActive) {
                 await movieRepo.closePoll(activePoll.id);
-                deleted.push("Active movie poll (set inactive)");
+                actions.push("Active movie poll set inactive");
+
+                if (activePoll.channelId && activePoll.messageId) {
+                    try {
+                        const pollChannel = await interaction.client.channels.fetch(activePoll.channelId);
+                        if (pollChannel?.isTextBased()) {
+                            const pollMessage = await pollChannel.messages.fetch(activePoll.messageId);
+                            await pollMessage.edit({
+                                content: `❌ This movie poll was cancelled by <@${interaction.user.id}>.`,
+                                embeds: [],
+                                components: [],
+                            });
+                            actions.push("Poll message updated to show cancellation");
+                        }
+                    } catch (err) {
+                        console.warn("[CancelMovie] Failed to update poll message:", err);
+                    }
+                }
             }
 
             // Mark latest movie event as cancelled
@@ -46,17 +64,32 @@ const cancelmovie: Command = {
                     completed: true,
                     completedAt: new Date(),
                 });
-                deleted.push("Current movie night event");
+                actions.push("Movie night event marked as cancelled");
             }
 
-            // Optionally, clean up current movie state (if any unwatched movie remains)
-            const allMovies = await movieRepo.getAllMovies();
-            const unwatched = allMovies.filter((m) => !m.watched);
-            if (unwatched.length) {
-                for (const m of unwatched) {
-                    await movieRepo.upsertMovie({ ...m, watched: false });
-                }
-                deleted.push(`${unwatched.length} movie(s) left unwatched (cleared)`);
+            // Unpick currently selected movie (if any)
+            const movies = (await movieRepo.getAllMovies()).map((movie) => normaliseFirestoreDates(movie));
+            const withSelection = movies
+                .filter((m) => !m.watched && m.selectedAt)
+                .map((movie) => {
+                    const selectedAt = movie.selectedAt instanceof Date ? movie.selectedAt : null;
+                    return selectedAt ? { movie, selectedAt } : null;
+                })
+                .filter((entry): entry is { movie: typeof movies[number]; selectedAt: Date } => entry !== null)
+                .sort((a, b) => b.selectedAt.getTime() - a.selectedAt.getTime());
+
+            const currentlySelected = withSelection[0]?.movie;
+            if (currentlySelected) {
+                const {
+                    selectedAt: _selectedAt,
+                    selectedBy: _selectedBy,
+                    addedByDisplay: _addedByDisplay,
+                    addedByDevId: _addedByDevId,
+                    ...rest
+                } = currentlySelected;
+
+                await movieRepo.upsertMovie(rest as typeof currentlySelected);
+                actions.push(`Unpicked movie "${currentlySelected.title}"`);
             }
         } catch (err) {
             console.error("[CancelMovie] Firestore update failed:", err);
@@ -75,17 +108,14 @@ const cancelmovie: Command = {
             console.warn("[CancelMovie] Could not find movie night channel.");
         }
 
-        // Private confirmation
-        const summary =
-            deleted.length > 0
-                ? `Cleared: ${deleted.join(", ")}`
-                : "No movie data was found to clear.";
-
         await interaction.editReply({
-            content: `Movie night cancelled successfully.\n${summary}`,
+            content: [
+                "Movie night cancelled successfully.",
+                actions.length ? `Actions taken:\n- ${actions.join("\n- ")}` : ""
+            ].filter(Boolean).join("\n\n"),
         });
 
-        console.log(`[CancelMovie] Cancelled movie night — ${summary}`);
+        console.log(`[CancelMovie] Cancelled movie night.`);
     },
 };
 

@@ -120,8 +120,9 @@ export async function pollMovieRandom(services: ServiceContainer, interaction: R
 
     const userMovieMap = new Map<string, Movie[]>();
     for (const movie of movies) {
-        if (!userMovieMap.has(movie.addedBy)) userMovieMap.set(movie.addedBy, []);
-        userMovieMap.get(movie.addedBy)!.push(movie);
+        const contributorKey = movie.addedByDevId ?? movie.addedBy;
+        if (!userMovieMap.has(contributorKey)) userMovieMap.set(contributorKey, []);
+        userMovieMap.get(contributorKey)!.push(movie);
     }
 
     const uniqueMovies: Movie[] = [];
@@ -182,15 +183,21 @@ export async function closeActiveMoviePoll(services: ServiceContainer, client: C
         return { success: false, message: "No active poll found." };
     }
 
-    if (!activePoll.votes || Object.keys(activePoll.votes).length === 0) {
-        return { success: false, message: "No votes were cast. Cannot determine a winner." };
+    const voteEntries = Object.entries(activePoll.votes ?? {});
+    if (!voteEntries.length) {
+        await movieRepo.closePoll(activePoll.id);
+        console.log(`[MoviePoll] Poll closed by ${closedBy}, but no votes were cast.`);
+        return {
+            success: true,
+            message: "Poll closed. No votes were cast, so no winner was selected.",
+        };
     }
 
     // Tally votes
     const voteCounts = new Map<string, number>();
     for (const option of activePoll.options) voteCounts.set(option.id, 0);
 
-    Object.values(activePoll.votes).forEach((movieId) => {
+    voteEntries.forEach(([, movieId]) => {
         if (voteCounts.has(movieId))
             voteCounts.set(movieId, (voteCounts.get(movieId) ?? 0) + 1);
     });
@@ -198,7 +205,11 @@ export async function closeActiveMoviePoll(services: ServiceContainer, client: C
     const sorted = [...voteCounts.entries()].sort((a, b) => b[1] - a[1]);
     const topEntry = sorted[0];
     if (!topEntry) {
-        return { success: false, message: "Could not determine a winning movie (no votes counted)." };
+        await movieRepo.closePoll(activePoll.id);
+        return {
+            success: true,
+            message: "Poll closed. Votes could not be tallied, so no winner was selected.",
+        };
     }
 
     const [topMovieId, topVotes] = topEntry;
