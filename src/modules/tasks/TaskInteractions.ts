@@ -1,7 +1,5 @@
 import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel, ActionRowBuilder } from 'discord.js';
-import type { Interaction } from 'discord.js';
 import { SubmissionStatus } from '../../models/TaskSubmission';
-import { handleTaskFeedback } from './HandleTaskFeedback';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { getTaskDisplayName } from './TaskEmbeds';
 import { handleUpdateTaskModal } from './HandleUpdateTaskModal';
@@ -229,37 +227,4 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
         );
     }
 
-}
-
-// Main interaction router
-export async function handleTaskInteraction(interaction: Interaction, client: Client, services: ServiceContainer) {
-    if (interaction.isButton()) {
-        if (interaction.customId.startsWith('task-feedback-')) {
-            return await handleTaskFeedback(interaction, services.tasks.repository);
-        }
-
-        if (interaction.customId.startsWith("task-submit-")) {
-            await handleSubmitButton(interaction, services);
-        } else if (
-            interaction.customId.startsWith("approve_") ||
-            interaction.customId.startsWith("reject_")
-        ) {
-            await handleAdminButton(interaction, services);
-        }
-    }
-
-    if (interaction.isStringSelectMenu()) {
-        if (interaction.customId.startsWith("select-task-")) {
-            await handleTaskSelect(interaction, services);
-        }
-    }
-
-    if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith("reject_reason_")) {
-            await handleRejectionModal(interaction, services);
-        }
-        if (interaction.customId.startsWith('update_task_modal_')) {
-            return await handleUpdateTaskModal(interaction, services);
-        }
-    }
 }

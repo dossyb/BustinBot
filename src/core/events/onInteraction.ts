@@ -1,14 +1,9 @@
-import { ChatInputCommandInteraction, GuildMember, ButtonInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { GuildMember } from 'discord.js';
 import type { Interaction } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
-import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie } from '../../modules/movies/PickMovieInteractions';
-import { showMovieManualPollMenu } from '../../modules/movies/MovieManualPoll';
-import { handleMovieNightDate, handleMovieNightTime } from '../../modules/movies/MovieScheduler';
 import type { ServiceContainer } from '../services/ServiceContainer';
-
-const setupSelections = new Map<string, Record<string, string>>();
-const movieSetupSelections = new Map<string, Record<string, string>>();
+import { setupService } from '../services/SetupService';
 
 export async function handleInteraction(
     interaction: Interaction,
@@ -58,110 +53,34 @@ export async function handleInteraction(
         return;
     }
 
-    // Route ModalSubmit interactions
-    if (interaction.isModalSubmit()) {
-        const { customId } = interaction;
-        switch (true) {
-            case customId === 'movie_pick_choose_modal':
-                return handleMoviePickChooseModalSubmit(services, interaction);
-
-            case customId.startsWith('movienight-time-'):
-                return handleMovieNightTime(interaction, services);
-        }
-    }
-
     if (interaction.isButton()) {
         const { customId } = interaction;
         const userId = interaction.user.id;
-        const selections = setupSelections.get(userId);
-
-        if (customId.startsWith('confirm_random_movie')) {
-            return handleConfirmRandomMovie(services, interaction);
-        }
-        if (customId === 'reroll_random_movie') {
-            return handleRerollRandomMovie(services, interaction);
-        }
-        if (customId.startsWith('movie_vote_')) {
-            const { handleMoviePollVote } = await import('../../modules/movies/PickMovieInteractions');
-            return handleMoviePollVote(services, interaction);
-        }
-
-        if (customId.startsWith('movie_poll_manual_')) {
-            const { handleManualPollInteraction } = await import('../../modules/movies/PickMovieInteractions');
-            return handleManualPollInteraction(services, interaction);
-        };
 
         if (customId === 'setup_confirm') {
-            if (!selections) {
-                await interaction.reply({ content: 'Please select all channels before confirming.', flags: 1 << 6 });
+            const selections = setupService.getSelections('core', userId);
+            const missing = setupService.getMissingFields('core', selections);
+            if (missing.length) {
+                await interaction.reply({ content: `Please select: ${missing.join(', ')}`, flags: 1 << 6 });
                 return;
             }
 
-            await services.guilds.update(interaction.guildId!, {
-                channels: selections, setupComplete: true,
-            });
-
-            setupSelections.delete(userId);
+            await setupService.persist('core', services.guilds, interaction.guildId!, selections!);
+            setupService.clearSelections('core', userId);
 
             await interaction.update({ content: 'Setup complete! Your general bot channels have been updated. To set up channels and roles for the movie and task modules, use `/moviesetup` and `/tasksetup` respectively.', components: [] });
             return;
         }
 
         if (customId === 'setup_cancel') {
-            setupSelections.delete(userId);
+            setupService.clearSelections('core', userId);
             await interaction.update({ content: 'Setup cancelled. No changes were made.', components: [] });
             return;
-        }
-
-        if (customId === 'moviesetup_confirm') {
-            if (!selections) {
-                await interaction.reply({ content: 'Please select all channels/roles before confirming', flags: 1 << 6 });
-                return;
-            }
-
-            await services.guilds.update(interaction.guildId!, {
-                roles: {
-                    movieAdmin: selections.movieAdmin ?? '',
-                    movieUser: selections.movieUser ?? '',
-                },
-                channels: {
-                    movieNight: selections.movieNight ?? '',
-                    movieVC: selections.movieVC ?? '',
-                }
-            });
-
-            movieSetupSelections.delete(userId);
-
-            await interaction.update({ content: 'Movie module setup complete! Movie roles and channels have been saved.', components: [] });
-        }
-
-        if (interaction.customId === 'moviesetup_cancel') {
-            movieSetupSelections.delete(userId);
-            await interaction.update({ content: 'Movie setup cancelled. No changes were made.', components: [] });
-        }
-    }
-
-    if (interaction.isStringSelectMenu()) {
-        switch (interaction.customId) {
-            case 'movie_poll_random_count': {
-                const { handleRandomPollCountSelect } = await import('../../modules/movies/PickMovieInteractions');
-                return handleRandomPollCountSelect(services, interaction);
-            }
-            case 'movie_poll_manual_select': {
-                const { updateManualPollSelection } = await import('../../modules/movies/MovieManualPoll');
-                updateManualPollSelection(interaction.user.id, interaction.values);
-                return showMovieManualPollMenu(services, interaction);
-            }
-            case 'movienight-select-date':
-                return handleMovieNightDate(interaction, services);
         }
     }
 
     if (interaction.isChannelSelectMenu()) {
         const userId = interaction.user.id;
-        const selections = setupSelections.get(userId) ?? {} as Record<string, string>;
-        const movieSelections = movieSetupSelections.get(userId) ?? {} as Record<string, string>;
-
         const channelId = interaction.values[0];
         if (!channelId) {
             await interaction.reply({ content: 'No channel selected.', flags: 1 << 6 });
@@ -170,49 +89,18 @@ export async function handleInteraction(
 
         switch (interaction.customId) {
             case 'setup_announce':
-                selections.announcements = channelId;
+                setupService.setSelection('core', userId, 'announcements', channelId);
                 break;
             case 'setup_log':
-                selections.botLog = channelId;
+                setupService.setSelection('core', userId, 'botLog', channelId);
                 break;
             case 'setup_archive':
-                selections.botArchive = channelId;
+                setupService.setSelection('core', userId, 'botArchive', channelId);
                 break;
-            case 'moviesetup_channel':
-                selections.movieChannelName = channelId;
-                break;
-            case 'moviesetup_voice_channel':
-                selections.movieVC = channelId;
-                break;
+            default:
+                return;
         }
-
-        setupSelections.set(userId, selections);
-        movieSetupSelections.set(userId, selections);
 
         await interaction.deferUpdate();
     }
-
-    if (interaction.isRoleSelectMenu()) {
-        const userId = interaction.user.id;
-        const selections = movieSetupSelections.get(userId) ?? {} as Record<string, string>;
-
-        const channelId = interaction.values[0];
-        if (!channelId) {
-            await interaction.reply({ content: 'No channel selected.', flags: 1 << 6 });
-            return;
-        }
-
-        switch (interaction.customId) {
-            case 'moviesetup_admin_role':
-                selections.movieAdmin = channelId;
-                break;
-            case 'moviesetup_notify_role':
-                selections.movieUser = channelId;
-                break;
-        }
-
-        movieSetupSelections.set(userId, selections);
-        await interaction.deferUpdate();
-    }
-
 }

@@ -3,7 +3,8 @@ import { config } from 'dotenv';
 import path from 'path';
 import { handleMessage } from './core/events/onMessage';
 import { handleInteraction } from './core/events/onInteraction';
-import { handleDirectMessage, handleTaskInteraction } from './modules/tasks/TaskInteractions'
+import { handleDirectMessage } from './modules/tasks/TaskInteractions';
+import { handleTaskInteraction } from './modules/tasks/TaskInteractionHandler';
 import { loadCommands } from './core/services/CommandService';
 import type { Command } from './models/Command';
 import { fileURLToPath } from 'url';
@@ -11,6 +12,7 @@ import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 import { createServiceContainer } from './core/services/ServiceFactory';
 import { GuildRepository } from './core/database/GuildRepo';
 import { initTaskScheduler } from './modules/tasks/TaskScheduler';
+import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +78,7 @@ console.log('Loading commands...');
     client.on('interactionCreate', async (interaction) => {
         try {
             await handleInteraction(interaction, commands, services);
+            await handleMovieInteraction(interaction, services);
             await handleTaskInteraction(interaction, client, services);
         } catch (error) {
             console.error('Error handling interaction:', error);
@@ -103,4 +106,3 @@ console.log('Loading commands...');
     // Login to Discord with bot token
     client.login(process.env.DISCORD_TOKEN_DEV);
 })();
-
