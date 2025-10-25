@@ -37,6 +37,9 @@ export class GuildService {
                 taskUser: "",
             },
             channels: existing?.channels ?? {
+                announcements: "",
+                botArchive: "",
+                botLog: "",
                 taskChannel: "",
                 taskVerification: "",
                 movieNight: "",
@@ -84,6 +87,9 @@ export class GuildService {
                 taskUser: "",
             },
             channels: existing?.channels ?? {
+                announcements: "",
+                botArchive: "",
+                botLog: "",
                 taskChannel: "",
                 taskVerification: "",
                 movieNight: "",

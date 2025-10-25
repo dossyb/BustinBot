@@ -1,3 +1,13 @@
+export interface GuildChannels {
+    announcements?: string;
+    botArchive?: string;
+    botLog?: string;
+    taskChannel?: string;
+    taskVerification?: string;
+    movieNight?: string;
+    movieVC?: string;
+}
+
 export interface Guild {
   id: string;
 
@@ -13,13 +23,8 @@ export interface Guild {
     taskAdmin?: string;
     taskUser?: string;
   };
-
-  channels: {
-    taskChannel: string;
-    taskVerification: string;
-    movieNight: string;
-    movieVC: string;
-  };
+  
+  channels: GuildChannels;
 
   setupComplete?: boolean;
   updatedBy?: string;
