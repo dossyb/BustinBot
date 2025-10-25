@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Message, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { pickRandomMovie, buildMovieEmbedWithMeta } from "../../movies/MovieLocalSelector";
 import { showMovieManualPollMenu } from "../../movies/MovieManualPoll";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
@@ -8,6 +8,7 @@ import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 const pickmovie: Command = {
     name: 'pickmovie',
     description: 'Pick the movie for the next movie night (via poll, random roll, or specific movie).',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

@@ -45,7 +45,11 @@ export class GuildService {
                 movieNight: "",
                 movieVC: "",
             },
-            setupComplete: data.setupComplete ?? existing?.setupComplete ?? false,
+            setupComplete: existing?.setupComplete ?? {
+                core: false,
+                movie: false,
+                task: false,
+            },
         };
 
         // optional fields must be *conditionally* added
@@ -95,7 +99,7 @@ export class GuildService {
                 movieNight: "",
                 movieVC: "",
             },
-            setupComplete: existing?.setupComplete ?? false,
+            setupComplete: existing?.setupComplete ?? { core: false, movie: false, task: false },
             updatedBy: userId,
             updatedAt: new Date() as any,
         };
@@ -109,5 +113,10 @@ export class GuildService {
         const guilds = await this.repo.getAllGuilds();
         for (const g of guilds) this.cache.set(g.id, g);
         return guilds;
+    }
+
+    async refresh(guildId: string): Promise<Guild | null> {
+        this.cache.delete(guildId);
+        return this.get(guildId);
     }
 }

@@ -1,11 +1,12 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { fetchMovieDetails } from '../../movies/MovieService';
-import { CommandRole, type Command } from '../../../models/Command';
+import { CommandModule, CommandRole, type Command } from '../../../models/Command';
 import { createMovieEmbed } from '../../movies/MovieEmbeds';
 
 const testmovie: Command = {
     name: 'testmovie',
     description: 'Search TMDb for a movie and preview its metadata.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

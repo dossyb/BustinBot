@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "discord.js";
 import type { Command } from '../../../models/Command';
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { fetchMovieDetailsById } from "../../movies/MovieService";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import { presentMovieSelection } from "../../movies/MovieSelector";
@@ -12,6 +12,7 @@ const MAX_ACTIVE_MOVIES_PER_USER = 3;
 const addmovie: Command = {
     name: 'addmovie',
     description: 'Add a movie to the watchlist by searching TMDb.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()

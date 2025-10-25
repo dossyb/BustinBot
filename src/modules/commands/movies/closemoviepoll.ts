@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 import { closeActiveMoviePoll } from '../../movies/MoviePolls';
 import { createMoviePollClosedEmbed } from '../../movies/MovieEmbeds';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
@@ -8,6 +8,7 @@ import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 const closemoviepoll: Command = {
     name: 'closemoviepoll',
     description: 'Manually close the active movie poll and announce the winner.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

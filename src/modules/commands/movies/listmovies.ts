@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Message } from "discord.js";
 import type { Command } from '../../../models/Command';
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import type { Movie } from "../../../models/Movie";
 import { createMovieListEmbeds } from "../../movies/MovieEmbeds";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
@@ -43,6 +43,7 @@ function buildNavButtons(currentPage: number, totalPages: number) {
 const listmovies: Command = {
     name: 'listmovies',
     description: 'Show the list of movies added for movie night.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()

@@ -1,10 +1,11 @@
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { SlashCommandBuilder } from "discord.js";
 
 const bustin: Command = {
     name: 'bustin',
     description: 'Ping the bot to see if it is responsive.',
+    module: CommandModule.Core,
     allowedRoles: [ CommandRole.Everyone ],
     slashData: new SlashCommandBuilder()
         .setName('bustin')

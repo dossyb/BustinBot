@@ -8,12 +8,21 @@ export enum CommandRole {
     BotAdmin = 'BotAdmin'
 }
 
+export enum CommandModule {
+    Core = 'core',
+    Movie = 'movie',
+    Task = 'task',
+}
+
 export interface Command {
     // Unique name of the command
     name: string;
 
     // Description of what the command does
     description: string;
+
+    // Module the command belongs to
+    module: CommandModule;
 
     // Optional list of aliases
     aliases?: string[];

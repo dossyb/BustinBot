@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { buildTaskEventEmbed } from "../../tasks/TaskEmbeds";
 import type { TaskEvent } from "../../../models/TaskEvent";
 import { TaskCategory, type Task } from "../../../models/Task";
@@ -16,6 +16,7 @@ const __dirname = dirname(__filename);
 const testtask: Command = {
     name: 'testtask',
     description: 'Post a fake task event for testing the submission flow.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

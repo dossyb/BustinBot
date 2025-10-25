@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } from "discord.js";
 import type { Command } from "models/Command";
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 
 const tasksetup: Command = {
     name: 'tasksetup',
     description: 'Configure channels and roles for the task module.',
+    module: CommandModule.Core,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

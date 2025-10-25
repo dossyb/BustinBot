@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import type { Command } from "models/Command";
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 
 const leagues: Command = {
     name: 'leagues',
     description: 'Toggle inclusion of Leagues tasks in polls and events.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.TaskAdmin],
 
     slashData: new SlashCommandBuilder()

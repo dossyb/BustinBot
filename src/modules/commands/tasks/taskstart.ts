@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { startAllTaskEvents } from "../../tasks/HandleTaskStart";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const taskstart: Command = {
     name: 'taskstart',
     description: 'Manually start a task event.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

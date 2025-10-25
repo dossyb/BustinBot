@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import Fuse from 'fuse.js';
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import type { Movie } from "../../../models/Movie";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
@@ -9,6 +9,7 @@ import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 const removemovie: Command = {
     name: 'removemovie',
     description: 'Remove a movie you have added from the list (removie).',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone, CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

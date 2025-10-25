@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 import { normaliseFirestoreDates } from "../../../utils/DateUtils";
 
 const cancelmovie: Command = {
     name: 'cancelmovie',
     description: 'Cancel the currently scheduled movie night and selected movie.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

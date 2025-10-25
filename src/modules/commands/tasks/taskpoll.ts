@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 import { postAllTaskPolls } from '../../tasks/HandleTaskPoll';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 
 const taskpoll: Command = {
     name: 'taskpoll',
     description: 'Manually trigger a task poll.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

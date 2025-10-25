@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from "discord.js";
 import type { Command } from "models/Command";
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 import { TaskCategory, TaskType } from "models/Task";
 import { buildTaskEventEmbed } from "modules/tasks/TaskEmbeds";
 import { isTextChannel } from "utils/ChannelUtils";
@@ -8,6 +8,7 @@ import { isTextChannel } from "utils/ChannelUtils";
 const updatetask: Command = {
     name: 'updatetask',
     description: 'Update an existing task and its embed if currently active.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.TaskAdmin],
 
     slashData: new SlashCommandBuilder()

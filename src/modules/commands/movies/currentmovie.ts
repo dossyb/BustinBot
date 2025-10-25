@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 import { createMovieNightEmbed } from '../../movies/MovieEmbeds';
 import type { Movie } from '../../../models/Movie';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
@@ -9,6 +9,7 @@ import { DateTime } from 'luxon';
 const currentmovie: Command = {
     name: 'currentmovie',
     description: 'View the currently scheduled movie night details.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()

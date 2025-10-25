@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import type { Movie } from "../../../models/Movie";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
@@ -10,6 +10,7 @@ const MOVIE_CAP = 3;
 const mymovies: Command = {
     name: 'mymovies',
     description: 'View the movies you\'ve added to the list.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()

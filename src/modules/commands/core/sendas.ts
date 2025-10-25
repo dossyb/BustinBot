@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, Message } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 
 const ADMIN_ROLE_NAME = process.env.ADMIN_ROLE_NAME || 'BustinBot Admin';
 
 const sendas: Command = {
     name: 'sendas',
     description: 'Send a message as BustinBot in a chosen channel',
+    module: CommandModule.Core,
     allowedRoles: [CommandRole.BotAdmin],
     usage: '/sendas <channel> <message>',
     examples: [

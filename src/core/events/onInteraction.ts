@@ -1,7 +1,7 @@
 import { GuildMember } from 'discord.js';
 import type { Interaction } from 'discord.js';
 import type { Command } from '../../models/Command';
-import { CommandRole } from '../../models/Command';
+import { CommandModule, CommandRole } from '../../models/Command';
 import type { ServiceContainer } from '../services/ServiceContainer';
 import { setupService } from '../services/SetupService';
 
@@ -42,6 +42,37 @@ export async function handleInteraction(
                 await interaction.reply({ content: "You don't have permission to use this command.", flags: 1 << 6 });
                 return;
             }
+        }
+
+        // Module setup validation
+        const guildId = interaction.guildId!;
+        const guildConfig = await services.guilds.get(guildId);
+        const setupMap = guildConfig?.setupComplete ?? {} as any;
+
+        const requiredModule = command.module;
+        const moduleReady = setupMap[requiredModule];
+
+        const isSetupCommand = command.name === 'setup';
+
+        if (!setupMap.core && !isSetupCommand) {
+            await interaction.reply({ content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: 1 << 6});
+            return;
+        }
+
+        if (!moduleReady && !isSetupCommand) {
+            let setupCommandHint = '';
+
+            switch (requiredModule) {
+                case CommandModule.Movie:
+                    setupCommandHint = '`/moviesetup`';
+                    break;
+                case CommandModule.Task:
+                    setupCommandHint = '`/tasksetup`';
+                    break;
+            }
+
+            await interaction.reply({ content: `This command can't be used yet! An admin needs to run \`${setupCommandHint}\` to configure its required channels and roles first.`, flags: 1 << 6 });
+            return;
         }
 
         try {

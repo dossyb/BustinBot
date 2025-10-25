@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 
 const movienight: Command = {
     name: 'movienight',
     description: "Schedule the next movie night.",
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

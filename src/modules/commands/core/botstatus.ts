@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Message } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { version as botVersion } from '../../../../package.json';
 
 const BOT_TIMEZONE = process.env.BOT_TIMEZONE || 'UTC';
@@ -17,6 +17,7 @@ function formatUptime(ms: number): string {
 const botstatus: Command = {
     name: 'botstatus',
     description: 'Display bot version, timezone, uptime, and more.',
+    module: CommandModule.Core,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()

@@ -16,6 +16,12 @@ export interface GuildRoles {
     taskUser?: string;
 }
 
+export interface GuildSetupComplete {
+    core?: boolean;
+    movie?: boolean;
+    task?: boolean;
+}
+
 export interface Guild {
   id: string;
 
@@ -27,7 +33,7 @@ export interface Guild {
   roles: GuildRoles;
   channels: GuildChannels;
 
-  setupComplete?: boolean;
+  setupComplete?: GuildSetupComplete;
   updatedBy?: string;
   updatedAt?: FirebaseFirestore.Timestamp;
 }

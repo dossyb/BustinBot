@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "discord.js";
 import type { Command } from "../../../models/Command";
-import { CommandRole } from "../../../models/Command";
+import { CommandModule, CommandRole } from "../../../models/Command";
 import { finishMovieNight } from "../../movies/MovieLifecycle";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
 
 const endmovie: Command = {
     name: 'endmovie',
     description: 'Manually end the current movie night and archive the movie.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()

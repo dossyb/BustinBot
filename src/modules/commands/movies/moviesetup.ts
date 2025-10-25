@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } from "discord.js";
 import type { Command } from 'models/Command';
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 
 const moviesetup: Command = {
     name: 'moviesetup',
     description: 'Configure channels and roles for the movie module.',
+    module: CommandModule.Core,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

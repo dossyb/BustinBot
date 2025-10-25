@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, ChannelType } from "discord.js";
 import type { Command } from "models/Command";
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 
 const setup: Command = {
     name: 'setup',
     description: 'Configure the general bot channels (announcements, logs, archive).',
+    module: CommandModule.Core,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

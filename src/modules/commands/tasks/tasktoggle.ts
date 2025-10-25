@@ -3,7 +3,7 @@ import {
     ChatInputCommandInteraction
 } from 'discord.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 import {
     initTaskScheduler,
     stopTaskScheduler
@@ -13,6 +13,7 @@ import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 const tasktoggle: Command = {
     name: 'tasktoggle',
     description: 'Toggle the task scheduler on and off.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()

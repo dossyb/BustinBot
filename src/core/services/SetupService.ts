@@ -1,3 +1,4 @@
+import { servicesVersion } from "typescript";
 import type { GuildService } from "./GuildService";
 
 type SetupType = "core" | "movie" | "task";
@@ -18,7 +19,9 @@ const PAYLOAD_BUILDERS: Record<SetupType, PayloadBuilder> = {
             botLog: selections.botLog ?? "",
             botArchive: selections.botArchive ?? "",
         },
-        setupComplete: true,
+        setupComplete: {
+            core: true,
+        },
     }),
     movie: (selections) => ({
         roles: {
@@ -29,6 +32,9 @@ const PAYLOAD_BUILDERS: Record<SetupType, PayloadBuilder> = {
             movieNight: selections.movieNight ?? "",
             movieVC: selections.movieVC ?? "",
         },
+        setupComplete: {
+            movie: true,
+        }
     }),
     task: (selections) => ({
         roles: {
@@ -39,6 +45,9 @@ const PAYLOAD_BUILDERS: Record<SetupType, PayloadBuilder> = {
             taskChannel: selections.taskChannel ?? "",
             taskVerification: selections.taskVerification ?? "",
         },
+        setupComplete: {
+            task: true,
+        }
     }),
 };
 
@@ -76,7 +85,17 @@ export class SetupService {
         selections: SelectionMap
     ) {
         const builder = PAYLOAD_BUILDERS[type];
+        const payload = builder(selections);
+
+        const guild = await guildService.get(guildId);
+        const currentSetup = guild?.setupComplete ?? {};
+
+        payload.setupComplete = {
+            ...currentSetup,
+            ...(payload.setupComplete as Record<string, boolean>),
+        };
         await guildService.update(guildId, builder(selections));
+        await guildService.refresh(guildId);
     }
 }
 

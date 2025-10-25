@@ -1,10 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import type { Command } from "models/Command";
-import { CommandRole } from "models/Command";
+import { CommandModule, CommandRole } from "models/Command";
 
 const addkeyword: Command = {
     name: 'addkeyword',
     description: 'Add a new keyword to the keyword pool.',
+    module: CommandModule.Task,
     allowedRoles: [CommandRole.TaskAdmin],
 
     slashData: new SlashCommandBuilder()

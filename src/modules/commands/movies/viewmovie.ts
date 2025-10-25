@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import Fuse from 'fuse.js';
 import type { Command } from '../../../models/Command';
-import { CommandRole } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
 import { createMovieEmbed } from '../../movies/MovieEmbeds';
 import type { Movie } from '../../../models/Movie';
 import type { ServiceContainer } from '../../../core/services/ServiceContainer';
@@ -9,6 +9,7 @@ import type { ServiceContainer } from '../../../core/services/ServiceContainer';
 const viewmovie: Command = {
     name: 'viewmovie',
     description: 'View details of a movie in the watchlist.',
+    module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
