@@ -8,12 +8,18 @@ import { scheduleMovieAutoEnd } from "./MovieLifecycle";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
 import { normaliseFirestoreDates } from "../../utils/DateUtils";
 
+async function resolveGuildTimezone(services: ServiceContainer, guildId: string | null): Promise<string> {
+    if (!guildId) return "UTC";
+    const config = await services.guilds.get(guildId);
+    return config?.timezone || "UTC";
+}
+
 export async function handleMovieNightDate(interaction: StringSelectMenuInteraction, services: ServiceContainer) {
     const selectedDate = interaction.values[0];
-    const BOT_TIMEZONE = process.env.BOT_TIMEZONE || "UTC";
+    const timezone = await resolveGuildTimezone(services, interaction.guildId);
 
     // Derive short label
-    const now = DateTime.now().setZone(BOT_TIMEZONE);
+    const now = DateTime.now().setZone(timezone);
     const numericOffset = now.toFormat("Z");
     const shortTZ = `(UTC${numericOffset})`;
 
@@ -48,7 +54,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     const parts = interaction.customId.split('-');
     const selectedDate = `${parts[2]}-${parts[3]}-${parts[4]}`;
     const time = interaction.fields.getTextInputValue('start-time');
-    const BOT_TIMEZONE = process.env.BOT_TIMEZONE || "UTC";
+    const timezone = await resolveGuildTimezone(services, interaction.guildId);
 
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(time)) {
@@ -58,7 +64,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         });
     }
 
-    const localDateTime = DateTime.fromISO(`${selectedDate}T${time}`, { zone: BOT_TIMEZONE });
+    const localDateTime = DateTime.fromISO(`${selectedDate}T${time}`, { zone: timezone });
     const utcDateTime = localDateTime.toUTC();
 
     const activePoll = await movieRepo.getActivePoll();

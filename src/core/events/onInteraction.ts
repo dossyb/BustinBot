@@ -4,6 +4,7 @@ import type { Command } from '../../models/Command';
 import { CommandModule, CommandRole } from '../../models/Command';
 import type { ServiceContainer } from '../services/ServiceContainer';
 import { setupService } from '../services/SetupService';
+import { createTimezoneModal, timezoneService } from 'core/services/TimezoneService';
 
 export async function handleInteraction(
     interaction: Interaction,
@@ -69,7 +70,7 @@ export async function handleInteraction(
         const isSetupCommand = command.name === 'setup';
 
         if (!setupMap.core && !isSetupCommand) {
-            await interaction.reply({ content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: 1 << 6});
+            await interaction.reply({ content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: 1 << 6 });
             return;
         }
 
@@ -122,6 +123,12 @@ export async function handleInteraction(
             await interaction.update({ content: 'Setup cancelled. No changes were made.', components: [] });
             return;
         }
+
+        if (customId === 'setup_timezone') {
+            const modal = createTimezoneModal();
+            await interaction.showModal(modal);
+            return;
+        }
     }
 
     if (interaction.isChannelSelectMenu()) {
@@ -147,5 +154,27 @@ export async function handleInteraction(
         }
 
         await interaction.deferUpdate();
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'setup_timezone_modal') {
+        const input = interaction.fields.getTextInputValue("timezone_input").trim();
+
+        const matchedZone = timezoneService.fuzzyMatch(input);
+
+        if (!matchedZone) {
+            await interaction.reply({
+                content:
+                    "Could not recognise that timezone. Please try again using an IANA name (e.g., `Australia/Melbourne`, `America/New_York`).", flags: 1 << 6,
+            });
+            return;
+        }
+
+        const guildId = interaction.guildId!;
+        await services.guilds.update(guildId, { timezone: matchedZone });
+
+        const currentTime = timezoneService.getCurrentTimeInZone(matchedZone);
+        await interaction.reply({ content: `Timezone set to **${matchedZone}**.\nCurrent local time: **${currentTime}**`, flags: 1 << 6 });
+
+        console.log(`[Setup] Timezone updated for ${guildId}: ${matchedZone}`);
     }
 }

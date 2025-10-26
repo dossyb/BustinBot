@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, ChannelType } from "discord.js";
+import { SlashCommandBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import type { Command } from "models/Command";
 import { CommandModule, CommandRole } from "models/Command";
 
@@ -58,6 +58,11 @@ const setup: Command = {
             .setMinValues(1)
             .setMaxValues(1);
 
+        const timezoneButton = new ButtonBuilder()
+            .setCustomId('setup_timezone')
+            .setLabel('Set Timezone')
+            .setStyle(ButtonStyle.Primary);
+
         const confirmButton = new ButtonBuilder()
             .setCustomId('setup_confirm')
             .setLabel('Confirm')
@@ -74,7 +79,7 @@ const setup: Command = {
                 new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(announceSelect),
                 new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(logSelect),
                 new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(archiveSelect),
-                new ActionRowBuilder<ButtonBuilder>().addComponents(confirmButton, cancelButton),
+                new ActionRowBuilder<ButtonBuilder>().addComponents(timezoneButton, confirmButton, cancelButton),
             ],
             flags: 1 << 6
         });
