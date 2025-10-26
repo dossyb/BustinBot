@@ -1,4 +1,4 @@
-import { StringSelectMenuInteraction, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, TextChannel } from "discord.js";
+import { StringSelectMenuInteraction, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, TextChannel, Client } from "discord.js";
 import { DateTime } from 'luxon';
 import { createMovieNightEmbed } from "./MovieEmbeds";
 import type { Movie } from "../../models/Movie";
@@ -7,11 +7,17 @@ import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
 import { scheduleMovieAutoEnd } from "./MovieLifecycle";
 import type { ServiceContainer } from "../../core/services/ServiceContainer";
 import { normaliseFirestoreDates } from "../../utils/DateUtils";
+import { registerVoiceListeners } from "./MovieAttendance";
 
 async function resolveGuildTimezone(services: ServiceContainer, guildId: string | null): Promise<string> {
     if (!guildId) return "UTC";
     const config = await services.guilds.get(guildId);
     return config?.timezone || "UTC";
+}
+
+export function initMovieScheduler(client: Client) {
+    registerVoiceListeners(client);
+    console.log("[MovieScheduler] Voice listeners rgeistered for attendance tracking.");
 }
 
 export async function handleMovieNightDate(interaction: StringSelectMenuInteraction, services: ServiceContainer) {

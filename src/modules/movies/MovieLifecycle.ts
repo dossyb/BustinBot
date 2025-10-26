@@ -2,6 +2,7 @@ import type { Movie } from '../../models/Movie';
 import { DateTime } from 'luxon';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { Client } from 'discord.js';
+import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
@@ -12,7 +13,7 @@ async function notifySubmitterMovieEnded(client: Client, addedBy: string, finish
         const guildName = guild?.id
             ? (await client.guilds.fetch(guild.id)).name
             : "this server";
-            
+
         const user = await client.users.fetch(addedBy);
         if (!user) return;
 
@@ -78,6 +79,9 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
             }
         }
 
+        const attendees = await finaliseAttendance(services);
+        console.log(`[MovieLifecycle] Attendance tracking complete: ${attendees.length} attendees.`);
+
         return {
             success: true,
             message: `The movie night for **${finishedMovie.title}** has ended.`,
@@ -89,7 +93,20 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
     }
 }
 
-export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: string, runtimeMinutes: number, client: Client) {
+export async function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: string, runtimeMinutes: number, client: Client) {
+    const movieRepo = services.repos.movieRepo;
+    if (!movieRepo) {
+        console.error("[MovieLifecycle] Movie repository not found; cannot shcedule auto-end.");
+        return;
+    }
+
+    const latestEvent = await movieRepo.getActiveEvent();
+    if (!latestEvent) {
+        console.warn("[MovieLifecycle] No active movie event found; skipping attendance tracking init.");
+    } else {
+        initAttendanceTracking(latestEvent.channelId, DateTime.fromISO(startTimeISO).toJSDate());
+    }
+
     const bufferMinutes = 30;
     const endTime = DateTime.fromISO(startTimeISO).plus({ minutes: runtimeMinutes + bufferMinutes });
     const now = DateTime.utc();
@@ -106,7 +123,38 @@ export function scheduleMovieAutoEnd(services: ServiceContainer, startTimeISO: s
 
     autoEndTimeout = setTimeout(async () => {
         console.log("[MovieLifecycle] Auto-ending movie night based on runtime.");
-        await finishMovieNight('auto', services, client);
+        const result = await finishMovieNight('auto', services, client);
+
+        if (result.success && result.finishedMovie) {
+            try {
+                const guilds = await services.guilds.getAll();
+                const guild = guilds[0];
+                if (!guild?.id) {
+                    console.warn("[MovieLifecycle] Could not identify guild for movie night end message.");
+                    return;
+                }
+
+                const guildConfig = await services.guilds.get(guild.id);
+                const movieChannelId = guildConfig?.channels?.movieNight;
+
+                if (movieChannelId) {
+                    const guildObj = await client.guilds.fetch(guild.id);
+                    const channel = await guildObj.channels.fetch(movieChannelId);
+                    if (channel?.isTextBased()) {
+                        await channel.send({
+                            content: `🎞️ **${result.finishedMovie.title}** has finished and has now been removed from the list. Thanks for watching!`
+                        });
+                        console.log(`[MovieLifecycle] Sent end-of-night message for ${result.finishedMovie}`);
+                    } else {
+                        console.warn(`[MovieLifecycle] Configured movie night channel is not text-based: ${movieChannelId}`);
+                    }
+                } else {
+                    console.warn("[MovieLifecycle] No movieNight channel configured; skipping end message.");
+                }
+            } catch (err) {
+                console.warn("[MovieLifecycle] Failed to send end-of-night message:", err);
+            }
+        }
     }, msUntilEnd);
 
     console.log(`[MovieLifecycle] Auto-end scheduled in ${Math.round(msUntilEnd / 1000)}s at ${endTime.toISO()}`);

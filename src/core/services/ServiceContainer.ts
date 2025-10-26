@@ -8,6 +8,7 @@ import type { IMovieRepository } from '../database/interfaces/IMovieRepo';
 import type { GuildService } from './GuildService';
 import type { IGuildRepository } from 'core/database/interfaces/IGuildRepo';
 import type { IKeywordRepository } from 'core/database/interfaces/IKeywordRepo';
+import type { IUserRepository } from 'core/database/interfaces/IUserRepo';
 
 export interface ServiceContainer {
     guildId: string;
@@ -22,5 +23,6 @@ export interface ServiceContainer {
         prizeRepo?: IPrizeDrawRepository;
         movieRepo?: IMovieRepository;
         keywordRepo?: IKeywordRepository;
+        userRepo?: IUserRepository;
     };
 }

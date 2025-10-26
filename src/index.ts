@@ -13,6 +13,7 @@ import { createServiceContainer } from './core/services/ServiceFactory';
 import { GuildRepository } from './core/database/GuildRepo';
 import { initTaskScheduler } from './modules/tasks/TaskScheduler';
 import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler';
+import { initMovieScheduler } from 'modules/movies/MovieScheduler';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -105,6 +106,9 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
                 initTaskScheduler(client, guildServices);
             }
         }
+
+        initMovieScheduler(client);
+        console.log("[MovieModule] Scheduler and attendance tracking initialised.");
 
         console.log('All guilds initialised.');
     });
