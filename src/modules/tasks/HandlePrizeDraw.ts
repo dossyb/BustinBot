@@ -7,6 +7,7 @@ import { SubmissionStatus } from '../../models/TaskSubmission';
 import { buildPrizeDrawEmbed } from './TaskEmbeds';
 import { Client, TextChannel } from 'discord.js';
 import { isTextChannel } from '../../utils/ChannelUtils';
+import type { ServiceContainer } from '../../core/services/ServiceContainer';
 
 const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
 
@@ -100,28 +101,39 @@ export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, sna
     return winnerId;
 }
 
-export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeDrawRepository, snapshotId: string): Promise<boolean> {
+export async function announcePrizeDrawWinner(
+    client: Client,
+    services: ServiceContainer,
+    prizeRepo: IPrizeDrawRepository,
+    snapshotId: string
+): Promise<boolean> {
     const snapshot = await prizeRepo.getPrizeDrawById(snapshotId);
     if (!snapshot || !snapshot.winnerId) {
         console.warn(`[PrizeDraw] Cannot announce winner - snapshot or winner not found.`);
         return false;
     }
 
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const roleName = process.env.TASK_USER_ROLE_NAME;
+    const guildId = services.guildId;
+    if (!guildId) {
+        console.warn('[PrizeDraw] No guild ID available for announcement.');
+        return false;
+    }
+
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) {
+        console.warn(`[PrizeDraw] Guild configuration missing for ${guildId}.`);
+        return false;
+    }
 
     let mention = '';
-    let guildName = 'this server';
-
-    if (guildId && roleName) {
-        const guild = await client.guilds.fetch(guildId);
-        guildName = guild.name;
-        const role = guild.roles.cache.find(r => r.name === roleName);
-        if (role) {
-            mention = `<@&${role.id}>`;
-        } else {
-            console.warn(`[PrizeDraw] Could not find role named "${roleName}". Proceeding without mention.`);
-        }
+    const guild = await client.guilds.fetch(guildId);
+    const guildName = guild.name;
+    const roleId = guildConfig.roles?.taskUser;
+    const role = roleId ? guild.roles.cache.get(roleId) : null;
+    if (role) {
+        mention = `<@&${role.id}>`;
+    } else {
+        console.warn('[PrizeDraw] Task user role not configured or not found.');
     }
 
     const embedData = buildPrizeDrawEmbed(
@@ -133,9 +145,20 @@ export async function announcePrizeDrawWinner(client: Client, prizeRepo: IPrizeD
         snapshot.tierCounts
     );
 
-    const channel = client.channels.cache.find(
-        (c): c is TextChannel => isTextChannel(c) && "name" in c && c.name === 'weekly-task'
-    );
+    let channel: TextChannel | undefined;
+    const taskChannelId = guildConfig.channels?.taskChannel;
+    if (taskChannelId) {
+        const fetched = await guild.channels.fetch(taskChannelId);
+        if (fetched && isTextChannel(fetched)) {
+            channel = fetched;
+        }
+    }
+
+    if (!channel) {
+        channel = client.channels.cache.find(
+            (c): c is TextChannel => isTextChannel(c) && "name" in c && c.name === 'weekly-task'
+        );
+    }
 
     if (!channel) {
         console.warn(`[PrizeDraw] Announcement channel not found.`);

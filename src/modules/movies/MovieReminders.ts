@@ -49,15 +49,33 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
     }
 
     const reminders = getPendingReminders(movieStart);
-    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID!);
-    const voiceChannelId = process.env.MOVIE_VOICE_CHANNEL_ID!;
-    const roleName = process.env.MOVIE_USER_ROLE_NAME!;
+    const guildId = services.guildId;
+    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
+    if (!guildId || !guildConfig) {
+        console.warn("[MovieReminders] Missing guild configuration for reminders.");
+        return;
+    }
 
-    const channel = guild.channels.cache.find(
-        (ch) => ch.name === "movie-night" && ch.isTextBased()
-    ) as TextChannel | undefined;
+    const guild = await client.guilds.fetch(guildId);
+    const movieChannelId = guildConfig.channels?.movieNight;
+    const voiceChannelId = guildConfig.channels?.movieVC;
+    const movieRoleId = guildConfig.roles?.movieUser;
 
-    const role = guild.roles.cache.find((r) => r.name === roleName);
+    let channel: TextChannel | undefined;
+    if (movieChannelId) {
+        const fetched = await guild.channels.fetch(movieChannelId);
+        if (fetched?.isTextBased()) {
+            channel = fetched as TextChannel;
+        }
+    }
+
+    if (!channel) {
+        channel = guild.channels.cache.find(
+            (ch) => ch.name === "movie-night" && ch.isTextBased()
+        ) as TextChannel | undefined;
+    }
+
+    const role = movieRoleId ? guild.roles.cache.get(movieRoleId) : null;
     const mention = role ? `<@&${role.id}>` : "";
 
     if (!channel) {
@@ -119,9 +137,10 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
                 )}:t>`;
 
                 // Build and send message
+                const voiceMention = voiceChannelId ? `<#${voiceChannelId}>` : "the movie voice channel";
                 const msg =
                     label === "start time"
-                        ? `${mention} Movie night is starting **now**! Join us in <#${voiceChannelId}> 🎬\n${stateLine}`
+                        ? `${mention} Movie night is starting **now**! Join us in ${voiceMention} 🎬\n${stateLine}`
                         : `${mention} Movie night starts in **${timeString}** (at ${absoluteTime})! ${stateLine}`;
 
                 await channel.send(msg);

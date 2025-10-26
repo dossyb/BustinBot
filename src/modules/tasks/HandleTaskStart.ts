@@ -19,9 +19,16 @@ export async function startAllTaskEvents(client: Client, services: ServiceContai
         return;
     }
 
-    const guildId = process.env.DISCORD_GUILD_ID;
-    if (!guildId) return;
-    const guildConfig = await repos.guildRepo?.getGuild(guildId);
+    const guildId = services.guildId;
+    if (!guildId) {
+        console.warn('[TaskStart] No guild ID available in services.');
+        return;
+    }
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) {
+        console.warn(`[TaskStart] Guild configuration not found for ${guildId}.`);
+        return;
+    }
     const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
 
     const categories: TaskCategory[] = [
@@ -34,19 +41,25 @@ export async function startAllTaskEvents(client: Client, services: ServiceContai
 
     const sharedKeyword = await keywords.selectKeyword(`weekly-${Date.now()}`);
 
-    const channelId = process.env.TASK_CHANNEL_ID;
-    if (!channelId) return;
+    const channelId = guildConfig.channels?.taskChannel;
+    if (!channelId) {
+        console.warn('[TaskStart] Task channel not configured.');
+        return;
+    }
 
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(channelId);
-    if (!channel?.isTextBased()) return;
+    if (!channel?.isTextBased()) {
+        console.warn('[TaskStart] Configured task channel is not text-based.');
+        return;
+    }
 
-    const roleName = process.env.TASK_USER_ROLE_NAME;
-    const role = guild.roles.cache.find(r => r.name === roleName);
+    const roleId = guildConfig.roles?.taskUser;
+    const role = roleId ? guild.roles.cache.get(roleId) : null;
     const mention = role ? `<@&${role.id}>` : '';
 
     if (!role) {
-        console.warn(`[TaskStart] Could not find role "${roleName}". Proceeding without mention.`);
+        console.warn(`[TaskStart] Task user role not configured or not found.`);
     }
 
     await channel.send(
@@ -55,11 +68,17 @@ export async function startAllTaskEvents(client: Client, services: ServiceContai
     );
 
     for (const category of categories) {
-        await startTaskEventForCategory(client, services, category, sharedKeyword);
+        await startTaskEventForCategory(client, services, category, sharedKeyword, channel as TextChannel);
     }
 }
 
-export async function startTaskEventForCategory(client: Client, services: ServiceContainer, category: TaskCategory, sharedKeyword: string): Promise<void> {
+export async function startTaskEventForCategory(
+    client: Client,
+    services: ServiceContainer,
+    category: TaskCategory,
+    sharedKeyword: string,
+    channelOverride?: TextChannel
+): Promise<void> {
     const { repos, taskEvents } = services;
 
     if (!repos?.taskRepo || !taskEvents) {
@@ -69,13 +88,33 @@ export async function startTaskEventForCategory(client: Client, services: Servic
         return;
     }
 
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const channelId = process.env.TASK_CHANNEL_ID;
-    if (!guildId || !channelId) return;
+    const guildId = services.guildId;
+    if (!guildId) {
+        console.warn('[TaskStart] No guild ID available while starting category event.');
+        return;
+    }
 
-    const guild = await client.guilds.fetch(guildId);
-    const channel = await guild.channels.fetch(channelId);
-    if (!channel?.isTextBased()) return;
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) {
+        console.warn(`[TaskStart] Guild configuration missing for ${guildId}.`);
+        return;
+    }
+
+    let channel = channelOverride as TextChannel | undefined;
+    if (!channel) {
+        const channelId = guildConfig.channels?.taskChannel;
+        if (!channelId) {
+            console.warn('[TaskStart] Task channel not configured.');
+            return;
+        }
+        const guild = await client.guilds.fetch(guildId);
+        const fetchedChannel = await guild.channels.fetch(channelId);
+        if (!fetchedChannel?.isTextBased()) {
+            console.warn('[TaskStart] Configured task channel is not text-based.');
+            return;
+        }
+        channel = fetchedChannel as TextChannel;
+    }
 
     const pollData =
         (await repos.taskRepo.getActiveTaskPollByCategory(category)) ??

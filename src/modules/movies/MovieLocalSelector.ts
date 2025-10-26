@@ -35,8 +35,8 @@ export async function buildMovieEmbedWithMeta(
 
     const titlePrefix =
         style === 'random' ? '🎲' :
-        style === 'chosen' ? '🎯' :
-        '🎥';
+            style === 'chosen' ? '🎯' :
+                '🎥';
 
     embed.setTitle(`${titlePrefix} ${movie.title}`);
     embed.setDescription(`${existingDescription}${addedByLine}`);
@@ -45,15 +45,13 @@ export async function buildMovieEmbedWithMeta(
 }
 
 
-export async function notifyMovieSubmitter(selectedMovie: Movie, client: Client) {
+export async function notifyMovieSubmitter(selectedMovie: Movie, client: Client, services: ServiceContainer) {
     if (!selectedMovie.addedBy) return;
-    const guildId = process.env.DISCORD_GUILD_ID;
-    let guildName = 'this server';
-
-    if (guildId) {
-        const guild = await client.guilds.fetch(guildId);
-        guildName = guild.name;
-    }
+    const guilds = await services.guilds.getAll();
+    const guild = guilds[0];
+    const guildName = guild?.id
+        ? (await client.guilds.fetch(guild.id)).name
+        : "this server";
 
     try {
         const user = await client.users.fetch(selectedMovie.addedBy);

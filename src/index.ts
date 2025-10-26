@@ -1,4 +1,4 @@
-import { REST, Routes, SlashCommandBuilder, Client, GatewayIntentBits, Partials } from 'discord.js';
+import { REST, Routes, Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from 'dotenv';
 import path from 'path';
 import { handleMessage } from './core/events/onMessage';
@@ -18,12 +18,8 @@ import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from .env file
+// Load environment variables (only for global secrets)
 config();
-
-// Initialise bot service
-const guildId = process.env.DISCORD_GUILD_ID!;
-const services = await createServiceContainer(guildId);
 
 // Create Discord client with required intents
 const client = new Client({
@@ -36,8 +32,10 @@ const client = new Client({
     partials: [Partials.Channel]
 });
 
-async function registerSlashCommands(commands: Map<string, Command>) {
+async function registerSlashCommands(commands: Map<string, Command>, guildId: string) {
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN_DEV || '');
+    const clientId = process.env.DISCORD_CLIENT_ID!;
+
     const slashCommands = [...commands.values()]
         .filter(cmd => cmd.slashData)
         .map(cmd => cmd.slashData!.toJSON());
@@ -45,10 +43,7 @@ async function registerSlashCommands(commands: Map<string, Command>) {
     console.log(`Registering ${slashCommands.length} slash command(s)...`);
 
     await rest.put(
-        Routes.applicationGuildCommands(
-            process.env.DISCORD_CLIENT_ID!,
-            process.env.DISCORD_GUILD_ID!
-        ),
+        Routes.applicationGuildCommands(clientId, guildId),
         { body: slashCommands }
     );
 
@@ -56,19 +51,28 @@ async function registerSlashCommands(commands: Map<string, Command>) {
 }
 
 // Load commands from /modules/commands recursively
-console.log('Loading commands...');
 (async () => {
+    console.log('Loading commands...');
     const commands = await loadCommands(path.join(__dirname, 'modules', 'commands'));
     console.log(`Loaded ${commands.size} commands.`);
-    await registerSlashCommands(commands);
+
+    const guildRepo = new GuildRepository();
+    const guilds = await guildRepo.getAllGuilds();
+
+    console.log(`Found ${guilds.length} guild(s) in Firestore.`);
+
+    // Register commands once globally, first guild is default registration target
+    const primaryGuildId = guilds[0]?.id ?? process.env.DISCORD_GUILD_ID!;
+    await registerSlashCommands(commands, primaryGuildId);
 
     // Register message handler
     client.on('messageCreate', async (message) => {
-        if (message.channel.type === 1) {
-            await handleDirectMessage(message, client, services);
-        }
         try {
-            await handleMessage(message, commands, services);
+            if (message.channel.type === 1) {
+                await handleDirectMessage(message, client, await createServiceContainer(message.guildId ?? ''));
+            } else {
+                await handleMessage(message, commands, await createServiceContainer(message.guildId!));
+            }
         } catch (error) {
             console.error('Error handling message:', error);
         }
@@ -77,9 +81,12 @@ console.log('Loading commands...');
     // Register interaction handler
     client.on('interactionCreate', async (interaction) => {
         try {
-            await handleInteraction(interaction, commands, services);
-            await handleMovieInteraction(interaction, services);
-            await handleTaskInteraction(interaction, client, services);
+            const guildId = interaction.guildId!;
+            const guildServices = await createServiceContainer(guildId);
+
+            await handleInteraction(interaction, commands, guildServices);
+            await handleMovieInteraction(interaction, guildServices);
+            await handleTaskInteraction(interaction, client, guildServices);
         } catch (error) {
             console.error('Error handling interaction:', error);
         }
@@ -88,10 +95,7 @@ console.log('Loading commands...');
     // Ready event
     client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
-        await scheduleActivePollClosure(services, client);
-
-        const guildRepo = new GuildRepository();
-        const guilds = await guildRepo.getAllGuilds();
+        await scheduleActivePollClosure(await createServiceContainer(primaryGuildId), client);
 
         for (const guild of guilds) {
             if (guild.toggles?.taskScheduler) {
@@ -101,6 +105,8 @@ console.log('Loading commands...');
                 initTaskScheduler(client, guildServices);
             }
         }
+
+        console.log('All guilds initialised.');
     });
 
     // Login to Discord with bot token

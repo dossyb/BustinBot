@@ -34,9 +34,10 @@ export function getWeekNumber(d: Date): number {
     return Math.ceil(((d.getTime() - oneJan.getTime()) / millisInDay + oneJan.getUTCDay() + 1) / 7);
 }
 
-export async function getDefaultChannel(client: Client): Promise<TextChannel | null> {
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const channelId = process.env.TASK_CHANNEL_ID;
+export async function getDefaultChannel(client: Client, services: ServiceContainer): Promise<TextChannel | null> {
+    const guildId = services.guildId;
+    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
+    const channelId = guildConfig?.channels?.taskChannel;
     if (!guildId || !channelId) return null;
 
     const guild = await client.guilds.fetch(guildId);
@@ -47,7 +48,7 @@ export async function getDefaultChannel(client: Client): Promise<TextChannel | n
 export function initTaskScheduler(
     client: Client,
     services: ServiceContainer,
-    getChannel: typeof getDefaultChannel = getDefaultChannel,
+    getChannel: (client: Client, services: ServiceContainer) => Promise<TextChannel | null> = getDefaultChannel,
     getWeek: typeof getWeekNumber = getWeekNumber
 ) {
     console.log('[TaskScheduler] Initialising default task schedule...');
@@ -83,15 +84,15 @@ export function initTaskScheduler(
                 await startAllTaskEvents(client, services);
             }
 
-            if ((minute - 1) % (2 * T) === 0) {
-                console.log('[TaskScheduler] [TEST] Running prize draw...');
-                const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
-                const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id);
-                if (winner) {
-                    const announced = await announcePrizeDrawWinner(client, prizeRepo, snapshot.id);
-                    if (!announced) {
-                        console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
-                    }
+                if ((minute - 1) % (2 * T) === 0) {
+                    console.log('[TaskScheduler] [TEST] Running prize draw...');
+                    const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
+                    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id);
+                    if (winner) {
+                        const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
+                        if (!announced) {
+                            console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
+                        }
                 } else {
                     console.log("[PrizeDraw] No winner - no eligible entries.");
                 }
@@ -107,7 +108,7 @@ export function initTaskScheduler(
             `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`,
             async () => {
                 console.log('[TaskScheduler] Running weekly task poll post...');
-                const channel = await getChannel(client);
+                const channel = await getChannel(client, services);
                 if (channel) {
                     await postAllTaskPolls(client, services);
                 }
@@ -117,7 +118,7 @@ export function initTaskScheduler(
             `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
             async () => {
                 console.log('[TaskScheduler] Closing poll and starting task event...');
-                const channel = await getChannel(client);
+                const channel = await getChannel(client, services);
                 if (channel) {
                     await startAllTaskEvents(client, services,);
                 }
@@ -131,7 +132,7 @@ export function initTaskScheduler(
                 const isEvenWeek = Math.floor(getWeek(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
                 if (!isEvenWeek) return;
                 console.log('[TaskScheduler] Running prize draw...');
-                const channel = await getChannel(client);
+                const channel = await getChannel(client, services);
                 if (channel) {
                     await channel.send('🏆 Running prize draw. The winner is BustinBot!');
                 }

@@ -26,6 +26,25 @@ async function createAndSendMoviePoll(
         return;
     }
 
+    const guildConfig = await services.guilds.requireConfig(interaction);
+    if (!guildConfig) return;
+
+    const guild = await client.guilds.fetch(interaction.guildId!);
+    const guildRoles = guildConfig.roles ?? {};
+    const guildChannels = guildConfig.channels ?? {};
+
+    const targetChannelId = guildChannels.movieNight || interaction.channelId;
+    if (!targetChannelId) return;
+    const fetchedChannel = await guild.channels.fetch(targetChannelId).catch(() => null);
+    const channel = fetchedChannel as TextChannel | null;
+    if (!channel) {
+        await interaction.reply({
+            content:
+                "Could not find the configured movie announcement channel. Please run `/moviesetup` again.", flags: 1 << 6,
+        });
+        return;
+    }
+
     const pollId = uuidv4();
     const now = DateTime.utc();
     let endsAt = now.plus({ hours: 24 });
@@ -75,21 +94,14 @@ async function createAndSendMoviePoll(
     );
 
     // Mention movie role if exists
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const roleName = process.env.MOVIE_USER_ROLE_NAME;
     let mention = "";
 
-    if (guildId && roleName) {
-        const guild = await client.guilds.fetch(guildId);
-        const role = guild.roles.cache.find((r) => r.name === roleName);
-        if (role) mention = `<@&${role.id}>`;
-        else console.warn(`[MoviePoll] Could not find role named "${roleName}". Proceeding without mention.`);
+    if (guildRoles.movieUser){
+        mention = `<@&${guildRoles.movieUser}>`;
     }
 
-    const channel = interaction.channel as TextChannel;
-    await channel.send(`${mention}`);
-
     const pollCloseUnix = Math.floor(endsAt.toSeconds());
+    if (mention) await channel.send(mention);
     const message = (await channel.send({
         content: `📊 **Vote for the next movie night pick!**\nPoll ends <t:${pollCloseUnix}:R> (<t:${pollCloseUnix}:F>).`,
         embeds,
@@ -234,7 +246,7 @@ export async function closeActiveMoviePoll(services: ServiceContainer, client: C
 
     // Save the selected movie as current
     await saveCurrentMovie(services, winningMovie, closedBy);
-    await notifyMovieSubmitter(winningMovie, client);
+    await notifyMovieSubmitter(winningMovie, client, services);
 
     const baseMessage = tieBreak
         ? `Poll closed successfully. After a tie with ${topVotes} votes, BustinBot chose ${winningMovie.title}.`

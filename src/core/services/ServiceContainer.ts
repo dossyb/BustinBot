@@ -10,6 +10,7 @@ import type { IGuildRepository } from 'core/database/interfaces/IGuildRepo';
 import type { IKeywordRepository } from 'core/database/interfaces/IKeywordRepo';
 
 export interface ServiceContainer {
+    guildId: string;
     botStats: BotStatsService;
     tasks: TaskService;
     taskEvents: TaskEventStore;

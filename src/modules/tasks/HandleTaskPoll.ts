@@ -35,10 +35,17 @@ function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
 
 export async function postAllTaskPolls(client: Client, services: ServiceContainer) {
     const { repos } = services;
+    const guildId = services.guildId;
+    if (!guildId) {
+        console.warn('[TaskPoll] No guild ID available in services.');
+        return;
+    }
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) {
+        console.warn(`[TaskPoll] Guild configuration missing for ${guildId}.`);
+        return;
+    }
 
-    const guildId = process.env.DISCORD_GUILD_ID;
-    if (!guildId) return;
-    const guildConfig = await repos.guildRepo?.getGuild(guildId);
     const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
     
     const categories: TaskCategory[] = [
@@ -51,40 +58,73 @@ export async function postAllTaskPolls(client: Client, services: ServiceContaine
         categories.push(TaskCategory.Leagues);
     }
 
-    const channelId = process.env.TASK_CHANNEL_ID;
-    if (!channelId) return;
+    const channelId = guildConfig.channels?.taskChannel;
+    if (!channelId) {
+        console.warn('[TaskPoll] Task channel not configured.');
+        return;
+    }
 
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(channelId);
-    if (!channel?.isTextBased()) return;
+    if (!channel?.isTextBased()) {
+        console.warn('[TaskPoll] Configured task channel is not text-based.');
+        return;
+    }
 
-    const roleName = process.env.TASK_USER_ROLE_NAME;
-    const role = guild.roles.cache.find(r => r.name === roleName);
+    const roleId = guildConfig.roles?.taskUser;
+    const role = roleId ? guild.roles.cache.get(roleId) : null;
 
     const mention = role ? `<@&${role.id}>` : '';
     if (!role) {
-        console.warn(`[TaskStart] Could not find role name "${roleName}". Proceeding without mention.`);
+        console.warn(`[TaskPoll] Task user role not configured or not found.`);
     }
-    await channel.send(`${mention} **New task polls are live!** Cast your votes for each category below:`);
+    await (channel as TextChannel).send(`${mention} **New task polls are live!** Cast your votes for each category below:`);
 
     for (const category of categories) {
-        await postTaskPollForCategory(client, services, category);
+        await postTaskPollForCategory(client, services, category, channel as TextChannel);
     }
 }
 
-export async function postTaskPollForCategory(client: Client, services: ServiceContainer, category: TaskCategory) {
+export async function postTaskPollForCategory(
+    client: Client,
+    services: ServiceContainer,
+    category: TaskCategory,
+    channelOverride?: TextChannel
+) {
     const userVotes = new Map<string, string>(); // userId -> taskId
 
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const channelId = process.env.TASK_CHANNEL_ID;
-    if (!guildId || !channelId) return;
+    const guildId = services.guildId;
+    if (!guildId) {
+        console.warn('[TaskPoll] No guild ID available while posting category poll.');
+        return;
+    }
 
-    const guild = await client.guilds.fetch(guildId);
-    const channel = await guild.channels.fetch(channelId);
-    if (!channel?.isTextBased()) return;
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) {
+        console.warn(`[TaskPoll] Guild configuration missing for ${guildId}.`);
+        return;
+    }
 
-    const roleName = process.env.TASK_USER_ROLE_NAME;
-    const role = guild.roles.cache.find(r => r.name === roleName);
+    let channel = channelOverride as TextChannel | undefined;
+    let channelId = '';
+    if (!channel) {
+        channelId = guildConfig.channels?.taskChannel ?? '';
+        if (!channelId) {
+            console.warn('[TaskPoll] Task channel not configured.');
+            return;
+        }
+
+        const guild = await client.guilds.fetch(guildId);
+        const fetchedChannel = await guild.channels.fetch(channelId);
+        if (!fetchedChannel?.isTextBased()) {
+            console.warn('[TaskPoll] Configured task channel is not text-based.');
+            return;
+        }
+
+        channel = fetchedChannel as TextChannel;
+    }
+    channelId = channelId || channel.id;
+
     const repo = services.repos.taskRepo;
     if (!repo) return;
 
@@ -130,7 +170,7 @@ export async function postTaskPollForCategory(client: Client, services: ServiceC
         .setColor(0x00ae86)
         .setThumbnail('attachment://category_icon.png');
 
-    const message = await (channel as TextChannel).send({
+    const message = await channel.send({
         embeds: [embed],
         components: [row],
         files: [{ attachment: iconPath, name: 'category_icon.png' }],
@@ -143,7 +183,7 @@ export async function postTaskPollForCategory(client: Client, services: ServiceC
         category,
         options: selectedTasks,
         messageId: message.id,
-        channelId: channelId,
+        channelId,
         createdAt: new Date(),
         endsAt: new Date(endTime),
         isActive: true,

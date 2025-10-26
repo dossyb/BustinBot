@@ -96,7 +96,7 @@ export async function handleMoviePickChooseModalSubmit(services: ServiceContaine
     }
 
     await saveCurrentMovie(services, selectedMovie, interaction.user.id);
-    await notifyMovieSubmitter(selectedMovie, interaction.client);
+    await notifyMovieSubmitter(selectedMovie, interaction.client, services);
 
     const embed = createMovieEmbed(selectedMovie);
     const existingDescription = embed.data.description ?? "";
@@ -158,7 +158,7 @@ export async function handleConfirmRandomMovie(services: ServiceContainer, inter
     }
 
     await saveCurrentMovie(services, selectedMovie, interaction.user.id);
-    await notifyMovieSubmitter(selectedMovie, interaction.client);
+    await notifyMovieSubmitter(selectedMovie, interaction.client, services);
 
     if (!embed) {
         await channel.send({

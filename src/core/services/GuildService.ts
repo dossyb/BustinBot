@@ -1,5 +1,6 @@
 import type { Guild } from "models/Guild";
 import type { IGuildRepository } from "core/database/interfaces/IGuildRepo";
+import { ChatInputCommandInteraction, Message, type RepliableInteraction } from "discord.js";
 
 export class GuildService {
     private cache = new Map<string, Guild>();
@@ -50,6 +51,7 @@ export class GuildService {
                 movie: false,
                 task: false,
             },
+            timezone: data.timezone ?? existing?.timezone ?? 'UTC',
         };
 
         // optional fields must be *conditionally* added
@@ -118,5 +120,33 @@ export class GuildService {
     async refresh(guildId: string): Promise<Guild | null> {
         this.cache.delete(guildId);
         return this.get(guildId);
+    }
+
+    async requireConfig(source: ChatInputCommandInteraction | Message | RepliableInteraction): Promise<Guild | null> {
+        const guildId = source.guildId;
+        if (!guildId) {
+            if (source instanceof Message) {
+                await source.reply('This command can only be used inside a server.');
+            } else {
+                await source.reply({ content: 'This command can only be used inside a server.', flags: 1 << 6 });
+            }
+            return null;
+        }
+
+        const guildConfig = await this.get(guildId);
+
+        if (!guildConfig) {
+            const replyContent = 'Guild configuration not found. Please run `/setup` first.';
+
+            if (source instanceof Message) {
+                await source.reply(replyContent);
+            } else {
+                await source.reply({ content: replyContent, flags: 1 << 6 });
+            }
+
+            return null;
+        }
+
+        return guildConfig;
     }
 }

@@ -36,22 +36,31 @@ const addmovie: Command = {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
+        const guildConfig = await services.guilds.requireConfig(interaction);
+        if (!guildConfig) return;
+
         const movieRepo = services.repos.movieRepo;
         if (!movieRepo) {
             await interaction.editReply("Movie repository not available.");
             return;
         }
 
-        const guild = interaction.guild;
-        const member = interaction.member as GuildMember | null;
+        const guild = interaction.guild!;
+        const member = interaction.member as GuildMember;
 
-        const hasRoleByName = (roleName?: string | null) =>
-            !!roleName && !!member?.roles.cache.some(role => role.name === roleName);
+        const guildRoles = guildConfig.roles ?? {};
+        const userRoleIds = member.roles.cache.map((r) => r.id);
+
+        const isBotAdmin =
+            guildRoles.admin && userRoleIds.includes(guildRoles.admin);
+        const isMovieAdmin =
+            guildRoles.movieAdmin && userRoleIds.includes(guildRoles.movieAdmin);
 
         const isPrivilegedUser =
-            (guild && guild.ownerId === interaction.user.id) ||
-            member?.permissions.has('Administrator') ||
-            hasRoleByName(process.env.ADMIN_ROLE_NAME || 'BustinBot Admin');
+            guild.ownerId === interaction.user.id ||
+            member.permissions.has("Administrator") ||
+            isBotAdmin ||
+            isMovieAdmin;
 
         try {
             const movies = await movieRepo.getAllMovies();

@@ -23,16 +23,30 @@ export async function handleInteraction(
             !command.allowedRoles.includes(CommandRole.Everyone)
         ) {
             const member = interaction.member as GuildMember;
-            const roleNames = member.roles.cache.map(role => role.name);
+            const guildConfig = await services.guilds.requireConfig(interaction);
+            if (!guildConfig) return;
+
+            const guildRoles = guildConfig.roles ?? {};
+            const userRoleIds = member.roles.cache.map(role => role.id);
+            const userRoleNames = member.roles.cache.map(role => role.name);
+
+            const hasRole = (configured?: string, fallbackEnv?: string) => {
+                const value = configured ?? fallbackEnv;
+                if (!value) return false;
+                if (/^\d+$/.test(value)) {
+                    return userRoleIds.includes(value);
+                }
+                return userRoleNames.includes(value);
+            };
 
             const roleMatch = command.allowedRoles.some(role => {
                 switch (role) {
                     case CommandRole.BotAdmin:
-                        return roleNames.includes(process.env.ADMIN_ROLE_NAME || 'BustinBot Admin');
+                        return hasRole(guildRoles.admin, process.env.ADMIN_ROLE_NAME);
                     case CommandRole.MovieAdmin:
-                        return roleNames.includes(process.env.MOVIE_ADMIN_ROLE_NAME || 'Movie Admin');
+                        return hasRole(guildRoles.movieAdmin, process.env.MOVIE_ADMIN_ROLE_NAME);
                     case CommandRole.TaskAdmin:
-                        return roleNames.includes(process.env.TASK_ADMIN_ROLE_NAME || 'Task Admin');
+                        return hasRole(guildRoles.taskAdmin, process.env.TASK_ADMIN_ROLE_NAME);
                     default:
                         return false;
                 }

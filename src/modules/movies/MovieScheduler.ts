@@ -42,6 +42,9 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         return interaction.reply({ content: "Internal error: missing movie repository.", flags: 1 << 6 });
     }
 
+    const guildConfig = await services.guilds.requireConfig(interaction);
+    if (!guildConfig) return;
+
     const parts = interaction.customId.split('-');
     const selectedDate = `${parts[2]}-${parts[3]}-${parts[4]}`;
     const time = interaction.fields.getTextInputValue('start-time');
@@ -153,12 +156,23 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         });
     }
 
-    const movieChannel = guild.channels.cache.find(
-        ch => ch.name === 'movie-night' && ch.isTextBased()
-    ) as TextChannel | undefined;
+    const channelId = guildConfig.channels?.movieNight;
+    let movieChannel: TextChannel | undefined;
+    if (channelId) {
+        const fetched = await guild.channels.fetch(channelId);
+        if (fetched?.isTextBased()) {
+            movieChannel = fetched as TextChannel;
+        }
+    }
 
-    const roleName = process.env.MOVIE_USER_ROLE_NAME;
-    const role = roleName ? guild.roles.cache.find(r => r.name === roleName) : null;
+    if (!movieChannel) {
+        movieChannel = guild.channels.cache.find(
+            ch => ch.name === 'movie-night' && ch.isTextBased()
+        ) as TextChannel | undefined;
+    }
+
+    const movieRoleId = guildConfig.roles?.movieUser;
+    const role = movieRoleId ? guild.roles.cache.get(movieRoleId) : null;
     const mention = role ? `<@&${role.id}>` : '';
 
     if (movieChannel) {

@@ -5,15 +5,14 @@ import { Client } from 'discord.js';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
-async function notifySubmitterMovieEnded(client: Client, addedBy: string, finishedMovie: Movie, remainingSlots: number) {
-    const guildId = process.env.DISCORD_GUILD_ID;
-    let guildName = 'this server';
-
-    if (guildId) {
-        const guild = await client.guilds.fetch(guildId);
-        guildName = guild.name;
-    }
+async function notifySubmitterMovieEnded(client: Client, addedBy: string, finishedMovie: Movie, remainingSlots: number, services: ServiceContainer) {
     try {
+        const guilds = await services.guilds.getAll();
+        const guild = guilds[0];
+        const guildName = guild?.id
+            ? (await client.guilds.fetch(guild.id)).name
+            : "this server";
+            
         const user = await client.users.fetch(addedBy);
         if (!user) return;
 
@@ -73,7 +72,7 @@ export async function finishMovieNight(endedBy: string, services: ServiceContain
                 const userMovies = allMovies.filter(m => m.addedBy === finishedMovie.addedBy && !m.watched);
                 const remainingSlots = Math.max(0, 3 - userMovies.length);
 
-                await notifySubmitterMovieEnded(client, finishedMovie.addedBy, finishedMovie, remainingSlots);
+                await notifySubmitterMovieEnded(client, finishedMovie.addedBy, finishedMovie, remainingSlots, services);
             } catch (err) {
                 console.warn(`[MovieLifecycle] Failed to calculate remaining slots or send DM:`, err);
             }

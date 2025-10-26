@@ -34,6 +34,8 @@ export interface Guild {
   channels: GuildChannels;
 
   setupComplete?: GuildSetupComplete;
+  // In IANA format (e.g. 'Australia/Melbourne')
+  timezone?: string;
   updatedBy?: string;
   updatedAt?: FirebaseFirestore.Timestamp;
 }

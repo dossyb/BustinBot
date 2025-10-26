@@ -1,11 +1,9 @@
 import { Message, GuildMember } from 'discord.js';
 import type { Command } from '../../models/Command';
 import { CommandRole } from '../../models/Command';
-import { loadCommands } from '../services/CommandService';
 import type { ServiceContainer } from '../services/ServiceContainer';
 
 const PREFIX = '!'; // Handle ! as the command prefix
-const commands = loadCommands('./src/modules/commands');
 
 export async function handleMessage(message: Message, commands: Map<string, Command>, services: ServiceContainer) {
     if (!message.content.startsWith(PREFIX) || message.author.bot) return;
@@ -26,7 +24,11 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
         return;
     }
 
-    const roleNames = member.roles.cache.map(role => role.name);
+    const guildConfig = await services.guilds.requireConfig(message);
+    if (!guildConfig) return;
+
+    const guildRoles = guildConfig.roles ?? {};
+    const userRoleIds = member.roles.cache.map((r) => r.id);
 
     // Role-based permission logic
     const hasPermission =
@@ -34,11 +36,11 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
         command.allowedRoles.some(role => {
             switch (role) {
                 case CommandRole.BotAdmin:
-                    return roleNames.includes(process.env.ADMIN_ROLE_NAME || 'BustinBot Admin');
+                    return guildRoles.admin && userRoleIds.includes(guildRoles.admin);
                 case CommandRole.MovieAdmin:
-                    return roleNames.includes(process.env.MOVIE_ADMIN_ROLE_NAME || 'Movie Admin');
+                    return guildRoles.movieAdmin && userRoleIds.includes(guildRoles.movieAdmin);
                 case CommandRole.TaskAdmin:
-                    return roleNames.includes(process.env.TASK_ADMIN_ROLE_NAME || 'Task Admin');
+                    return guildRoles.taskAdmin && userRoleIds.includes(guildRoles.taskAdmin);
                 default:
                     return false;
             }

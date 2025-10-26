@@ -75,7 +75,7 @@ const taskdraw: Command = {
                     await interaction.editReply('You must provide a snapshot ID to announce a winner.');
                     return;
                 }
-                const announced = await announcePrizeDrawWinner(interaction.client, prizeRepo, snapshotId);
+                const announced = await announcePrizeDrawWinner(interaction.client, services, prizeRepo, snapshotId);
                 if (announced) {
                     await interaction.editReply(`Announcement sent for **${snapshotId}**.`);
                 } else {
