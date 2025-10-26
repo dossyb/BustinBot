@@ -47,7 +47,7 @@ export async function postAllTaskPolls(client: Client, services: ServiceContaine
     }
 
     const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
-    
+
     const categories: TaskCategory[] = [
         TaskCategory.PvM,
         TaskCategory.Skilling,
@@ -203,6 +203,18 @@ export async function postTaskPollForCategory(
         const currentVotes = activeVotes.get(message.id);
         if (!currentVotes) return;
 
+        let firstTime = false;
+        let updatedPoll = poll;
+        try {
+            const result = await repo.voteInPollOnce(poll.id, userId, voteId);
+            firstTime = result.firstTime;
+            updatedPoll = result.updatedPoll;
+        } catch (err) {
+            console.error("[TaskPoll] Failed to record vote transaction:", err);
+            await interaction.reply({ content: "An error occurred while recording your vote.", flags: 1 << 6 });
+            return;
+        }
+
         const previousVoteId = userVotes.get(userId);
 
         // Prevent double voting unless changing vote
@@ -213,6 +225,19 @@ export async function postTaskPollForCategory(
         if (!previousVoteId || previousVoteId !== voteId) {
             currentVotes.set(voteId, (currentVotes.get(voteId) || 0) + 1);
             userVotes.set(userId, voteId);
+        }
+
+        if (firstTime) {
+            const userRepo = services.repos.userRepo;
+            if (userRepo) {
+                try {
+                    await userRepo.incrementStat(userId, "taskPollsVoted", 1);
+                } catch (err) {
+                    console.warn(`[Stats] Failed to increment taskPollsVoted for ${interaction.user.username}:`, err);
+                }
+            } else {
+                console.warn("[Stats] UserRepo unavailable; skipping taskPollsVoted increment.");
+            }
         }
 
         const updatedEmbed = EmbedBuilder.from(embed)

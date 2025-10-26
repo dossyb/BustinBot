@@ -178,6 +178,28 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
                 return;
             }
 
+            const userRepo = services.repos.userRepo;
+            if (userRepo) {
+                const { userId } = result;
+                try {
+                    switch (tier) {
+                        case 'bronze':
+                            await userRepo.incrementStat(userId, "tasksCompletedBronze", 1);
+                            break;
+                        case 'silver':
+                            await userRepo.incrementStat(userId, "tasksCompletedSilver", 1);
+                            break;
+                        case 'gold':
+                            await userRepo.incrementStat(userId, "tasksCompletedGold", 1);
+                            break;
+                    }
+                } catch (err) {
+                    console.warn(`[Stats] Failed to increment ${tier} completion for ${result.userId}:`, err);
+                }
+            } else {
+                console.warn("[Stats] UserRepo unavailable; skipping task completion increment.");
+            }
+
             const channel = interaction.channel as TextChannel;
             const formattedTier = tier.charAt(0).toUpperCase() + tier.slice(1);
             await channel.send(

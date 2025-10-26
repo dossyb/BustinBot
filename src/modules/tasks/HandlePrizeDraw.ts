@@ -73,16 +73,16 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     return snapshot;
 }
 
-export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, snapshotId: string): Promise<string | null> {
+export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, snapshotId: string, services: ServiceContainer): Promise<string | null> {
     const snapshot = await prizeRepo.getPrizeDrawById(snapshotId);
 
     if (!snapshot) throw new Error(`Snapshot ${snapshotId} not found.`);
     // Check if already rolled
     if (snapshot.winnerId) return snapshot.winnerId;
 
-    console.log('[DEBUG] Rolling for snapshot:', snapshot.id);
-    console.log('[DEBUG] Participants:', snapshot.participants);
-    console.log('[DEBUG] Total entries:', snapshot.totalEntries);
+    console.log('[PrizeDraw] Rolling for snapshot:', snapshot.id);
+    console.log('[PrizeDraw] Participants:', snapshot.participants);
+    console.log('[PrizeDraw] Total entries:', snapshot.totalEntries);
 
     const tickets: string[] = [];
     for (const [userId, count] of Object.entries(snapshot.participants)) {
@@ -97,6 +97,18 @@ export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, sna
 
     await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>, winnerId);
     console.log(`[PrizeDraw] Winner for ${snapshotId}: ${winnerId}`);
+
+        const userRepo = services.repos.userRepo;
+    if (userRepo && winnerId) {
+        try {
+            await userRepo.incrementStat(winnerId, "taskPrizesWon", 1);
+            console.log(`[Stats] Incremented taskPrizesWon for ${winnerId}`);
+        } catch (err) {
+            console.warn(`[Stats] Failed to increment taskPrizesWon for ${winnerId}:`, err);
+        }
+    } else {
+        console.warn("[Stats] UserRepo unavailable or winnerId missing; skipping taskPrizesWon increment.");
+    }
 
     return winnerId;
 }

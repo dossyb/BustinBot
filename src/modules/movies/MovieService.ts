@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import type { Movie } from '../../models/Movie';
+import type { ServiceContainer } from 'core/services/ServiceContainer';
 dotenv.config();
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -107,4 +108,16 @@ export async function fetchMovieDetailsById(id: number): Promise<Partial<Movie> 
         director,
         cast,
     };
+}
+
+export async function addMovieWithStats(movie: Movie, services: ServiceContainer) {
+    const movieRepo = services.repos.movieRepo;
+    const userRepo = services.repos.userRepo;
+
+    if (!movieRepo || !userRepo) {
+        throw new Error("[MovieService] Missing repositories.");
+    }
+
+    await movieRepo.upsertMovie(movie);
+    await userRepo.incrementStat(movie.addedBy, "moviesAdded", 1);
 }

@@ -45,4 +45,5 @@ export interface ITaskRepository {
     // Utilities
     deleteAllTasks(): Promise<void>;
     seedTasks(tasks: Task[]): Promise<void>;
+    voteInPollOnce(pollId: string, userId: string, optionId: string): Promise<{ firstTime: boolean, updatedPoll: TaskPoll; }>;
 }

@@ -8,7 +8,7 @@ export function truncate(text: string, length = 200): string {
 
 export function createMovieEmbed(movie: Partial<Movie>): EmbedBuilder {
     const embed = new EmbedBuilder()
-        .setTitle(`${movie.title}${movie.releaseDate ? `(${movie.releaseDate})` : ''}`)
+        .setTitle(`${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`)
         .setDescription(movie.overview || 'No description available.')
         .setThumbnail(movie.posterUrl || null)
         .addFields(

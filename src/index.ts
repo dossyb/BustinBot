@@ -58,21 +58,30 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
     console.log(`Loaded ${commands.size} commands.`);
 
     const guildRepo = new GuildRepository();
-    const guilds = await guildRepo.getAllGuilds();
+    const guildConfigs = await guildRepo.getAllGuilds();
+    console.log(`Found ${guildConfigs.length} guild(s) in Firestore.`);
 
-    console.log(`Found ${guilds.length} guild(s) in Firestore.`);
+    const servicesByGuild = new Map<string, Awaited<ReturnType<typeof createServiceContainer>>>();
+    const getServices = async (guildId: string) => {
+        if (!servicesByGuild.has(guildId)) {
+            const services = await createServiceContainer(guildId);
+            servicesByGuild.set(guildId, services);
+        }
+        return servicesByGuild.get(guildId)!;
+    };
 
-    // Register commands once globally, first guild is default registration target
-    const primaryGuildId = guilds[0]?.id ?? process.env.DISCORD_GUILD_ID!;
+    const primaryGuildId = guildConfigs[0]?.id ?? process.env.DISCORD_GUILD_ID!;
     await registerSlashCommands(commands, primaryGuildId);
 
     // Register message handler
     client.on('messageCreate', async (message) => {
         try {
             if (message.channel.type === 1) {
-                await handleDirectMessage(message, client, await createServiceContainer(message.guildId ?? ''));
-            } else {
-                await handleMessage(message, commands, await createServiceContainer(message.guildId!));
+                const services = await getServices(message.guildId ?? primaryGuildId);
+                await handleDirectMessage(message, client, services);
+            } else if (message.guildId) {
+                const services = await getServices(message.guildId);
+                await handleMessage(message, commands, services);
             }
         } catch (error) {
             console.error('Error handling message:', error);
@@ -82,8 +91,8 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
     // Register interaction handler
     client.on('interactionCreate', async (interaction) => {
         try {
-            const guildId = interaction.guildId!;
-            const guildServices = await createServiceContainer(guildId);
+            const guildId = interaction.guildId ?? primaryGuildId;
+            const guildServices = await getServices(guildId);
 
             await handleInteraction(interaction, commands, guildServices);
             await handleMovieInteraction(interaction, guildServices);
@@ -98,11 +107,10 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
         console.log(`Logged in as ${client.user?.tag}!`);
         await scheduleActivePollClosure(await createServiceContainer(primaryGuildId), client);
 
-        for (const guild of guilds) {
+        for (const guild of guildConfigs) {
             if (guild.toggles?.taskScheduler) {
                 console.log(`[Startup] Starting Task Scheduler for ${guild.id}`);
-
-                const guildServices = await createServiceContainer(guild.id);
+                const guildServices = await getServices(guild.id);
                 initTaskScheduler(client, guildServices);
             }
         }

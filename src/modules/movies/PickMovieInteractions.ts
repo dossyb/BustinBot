@@ -244,13 +244,37 @@ export async function handleMoviePollVote(services: ServiceContainer, interactio
         return;
     }
 
-    activePoll.votes[interaction.user.id] = selectedMovie.id;
-    await movieRepo.createPoll(activePoll); // overwrite poll with updated votes
+    const userId = interaction.user.id;
+
+    let firstTime = false;
+    let updatedPoll = activePoll;
+    try {
+        const result = await movieRepo.voteInPollOnce(activePoll.id, userId, selectedMovie.id);
+        firstTime = result.firstTime;
+        updatedPoll = result.updatedPoll;
+    } catch (err) {
+        console.error("[MoviePollVote] Failed to record vote transaction:", err);
+        await interaction.reply({ content: "An error occurred while recording your vote.", flags: 1 << 6 });
+        return;
+    }
+
+    if (firstTime) {
+        const userRepo = services.repos.userRepo;
+        if (userRepo) {
+            try {
+                await userRepo.incrementStat(userId, "moviePollsVoted", 1);
+            } catch (err) {
+                console.warn(`[Stats] Failed to increment moviePollsVoted for ${interaction.user.username}:`, err);
+            }
+        } else {
+            console.warn("[Stats] UserRepo unavailable; skipping moviePollsVoted increment.");
+        }
+    }
 
     const pollSession = getPollSession(activePoll);
     const updatedEmbeds: EmbedBuilder[] = interaction.message.embeds.map((embedData, i) => {
         const embed = EmbedBuilder.from(embedData);
-        const movie = activePoll.options[i]!;
+        const movie = updatedPoll.options[i]!;
         const count = pollSession.optionVoteCounts.get(movie.id) ?? 0;
         const runtimeText = movie.runtime ? ` | ⏱️ ${movie.runtime} mins` : "";
         embed.setFooter({

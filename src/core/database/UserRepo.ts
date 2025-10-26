@@ -9,6 +9,28 @@ export class UserRepository extends GuildScopedRepository<UserStats> implements 
         super(guildId, 'userStats');
     }
 
+    private createDefaultUserStats(userId: string): UserStats {
+        return {
+            userId,
+            joinedAt: new Date(),
+            lastActiveAt: new Date(),
+            commandsRun: 0,
+            moviesAdded: 0,
+            moviesWatched: 0,
+            moviesAttended: 0,
+            moviePollsVoted: 0,
+            tasksCompletedBronze: 0,
+            tasksCompletedSilver: 0,
+            tasksCompletedGold: 0,
+            taskStreak: 0,
+            longestTaskStreak: 0,
+            taskPollsVoted: 0,
+            taskPrizesWon: 0,
+            totalXP: 0,
+            leaderboardRank: 0,
+        };
+    }
+
     async getAllUsers(): Promise<UserStats[]> {
         const snapshot = await this.collection.get();
         return snapshot.docs.map((doc) => doc.data() as UserStats);
@@ -43,8 +65,20 @@ export class UserRepository extends GuildScopedRepository<UserStats> implements 
         field: keyof UserStats,
         amount = 1
     ): Promise<void> {
-        await this.collection.doc(userId).update({
+        const docRef = this.collection.doc(userId);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            const newStats = this.createDefaultUserStats(userId);
+            (newStats as any)[field] = amount;
+            await docRef.set(newStats);
+            return;
+        }
+
+        // If exists, increment the field
+        await docRef.update({
             [field]: FieldValue.increment(amount),
+            lastActiveAt: new Date(),
         });
     }
 

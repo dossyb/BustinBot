@@ -61,7 +61,7 @@ const taskdraw: Command = {
                     await interaction.editReply('You must provide a snapshot ID to roll a winner.');
                     return;
                 }
-                const winner = await rollWinnerForSnapshot(prizeRepo, snapshotId);
+                const winner = await rollWinnerForSnapshot(prizeRepo, snapshotId, services);
                 if (winner) {
                     await interaction.editReply(`Winner rolled for **${snapshotId}**: <@${winner}>`);
                 } else {

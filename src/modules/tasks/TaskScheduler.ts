@@ -87,7 +87,7 @@ export function initTaskScheduler(
                 if ((minute - 1) % (2 * T) === 0) {
                     console.log('[TaskScheduler] [TEST] Running prize draw...');
                     const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
-                    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id);
+                    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id, services);
                     if (winner) {
                         const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
                         if (!announced) {

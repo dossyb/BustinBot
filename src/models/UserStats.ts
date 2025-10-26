@@ -5,7 +5,7 @@ export interface UserStats {
     // General participation
     // First bot interaction
     joinedAt: Date;
-    
+
     // Last time they used a command or feature
     lastActiveAt: Date;
 
@@ -16,15 +16,20 @@ export interface UserStats {
     // How many movies they've added to the pool
     moviesAdded: number;
 
-    // How many movies watched (for any future tracking, not currently used)
+    // How many movies they've added that have been watched
     moviesWatched: number;
+
+    // How many movie nights they've attended
+    moviesAttended: number;
 
     // How many movie polls they've voted in
     moviePollsVoted: number;
 
     // Task module stats
-    // Total number of tasks they've completed
-    tasksCompleted: number;
+    // Total number of tasks they've completed for each tier
+    tasksCompletedBronze: 0,
+    tasksCompletedSilver: 0,
+    tasksCompletedGold: 0,
 
     // Current completion streak
     taskStreak: number;

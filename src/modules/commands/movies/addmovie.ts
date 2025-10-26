@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "discord.js";
 import type { Command } from '../../../models/Command';
 import { CommandModule, CommandRole } from "../../../models/Command";
-import { fetchMovieDetailsById } from "../../movies/MovieService";
+import { addMovieWithStats, fetchMovieDetailsById } from "../../movies/MovieService";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import { presentMovieSelection } from "../../movies/MovieSelector";
 import type { Movie } from "../../../models/Movie";
@@ -116,7 +116,7 @@ const addmovie: Command = {
             };
 
             // Save to Firestore
-            await movieRepo.upsertMovie(newMovie);
+            await addMovieWithStats(newMovie, services);
 
             // Confirm addition
             const embed = createMovieEmbed(newMovie)

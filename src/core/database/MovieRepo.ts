@@ -131,4 +131,21 @@ export class MovieRepository extends GuildScopedRepository<Movie> implements IMo
         snapshot.docs.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
     }
+
+    async voteInPollOnce(pollId: string, userId: string, optionId: string): Promise<{ firstTime: boolean, updatedPoll: MoviePoll; }> {
+        const pollRef = this.pollsCollection.doc(pollId);
+        return db.runTransaction(async (tx) => {
+            const snap = await tx.get(pollRef);
+            if (!snap.exists) throw new Error("Poll not found.");
+            const poll = snap.data() as MoviePoll;
+
+            poll.votes = poll.votes ?? {};
+            const firstTime = !poll.votes[userId];
+
+            poll.votes[userId] = optionId;
+            tx.set(pollRef, poll, { merge: true });
+
+            return { firstTime, updatedPoll: poll };
+        });
+    }
 }

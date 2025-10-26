@@ -66,9 +66,9 @@ export async function finaliseAttendance(services: ServiceContainer) {
 
     for (const userId of attendees) {
         try {
-            await userRepo.incrementStat(userId, "moviesWatched", 1);
+            await userRepo.incrementStat(userId, "moviesAttended", 1);
         } catch (err) {
-            console.warn(`[MovieAttendance] Failed to increment moviesWatched for ${userId}:`, err);
+            console.warn(`[MovieAttendance] Failed to increment moviesAttended for ${userId}:`, err);
         }
     }
 

@@ -241,4 +241,21 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         });
         await batch.commit();
     }
+
+    async voteInPollOnce(pollId: string, userId: string, optionId: string): Promise<{ firstTime: boolean, updatedPoll: TaskPoll; }> {
+        const pollRef = this.pollsCollection.doc(pollId);
+        return db.runTransaction(async (tx) => {
+            const snap = await tx.get(pollRef);
+            if (!snap.exists) throw new Error("Poll not found.");
+            const poll = snap.data() as TaskPoll;
+
+            poll.votes = poll.votes ?? {};
+            const firstTime = !poll.votes[userId];
+
+            poll.votes[userId] = optionId;
+            tx.set(pollRef, poll, { merge: true });
+
+            return { firstTime, updatedPoll: poll };
+        });
+    }
 }

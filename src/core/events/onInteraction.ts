@@ -91,10 +91,24 @@ export async function handleInteraction(
         }
 
         try {
+            const userRepo = services.repos.userRepo;
+            if (userRepo) {
+                try {
+                    await userRepo.incrementStat(interaction.user.id, "commandsRun", 1);
+                } catch (err) {
+                    console.warn(`[Stats] Failed to increment commandsRun for ${interaction.user.username}:`, err);
+                }
+            } else {
+                console.warn("[Stats] UserRepo unavailable; skipping commandsRun increment.");
+            }
             await command.execute({ interaction, services });
         } catch (error) {
             console.error(`[Slash Command Error]: ${command.name}`, error);
-            await interaction.reply({ content: 'There was an error executing that command.', flags: 1 << 6 });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: 'There was an error executing that command.', flags: 1 << 6 });
+            } else {
+                await interaction.followUp({ content: 'There was an error executing that command.', flags: 1 << 6 });
+            }
         }
         return;
     }
