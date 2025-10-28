@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "
 import type { Command } from "models/Command";
 import { CommandModule, CommandRole } from "models/Command";
 import { version } from "../../../../package.json";
+import { replaceBustinEmote } from "utils/EmoteHelper";
 
 const help: Command = {
     name: "help",
@@ -16,9 +17,13 @@ const help: Command = {
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
 
+        const guild = interaction.guild ?? null;
+        const emoji = replaceBustinEmote("🤖", guild);
+        const title = `${emoji} Welcome to BustinBot`;
+        
         const embed = new EmbedBuilder()
             .setColor(0x5865f2)
-            .setTitle("🤖 Welcome to BustinBot")
+            .setTitle(title)
             .setDescription(
                 "BustinBot is a custom community Discord bot that helps manage **movie nights**, **OSRS community tasks** and a bit of personality through fun interactions."
             )

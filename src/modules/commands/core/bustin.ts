@@ -1,3 +1,4 @@
+import { appendBustinEmote } from "utils/EmoteHelper";
 import type { Command } from "../../../models/Command";
 import { CommandModule, CommandRole } from "../../../models/Command";
 import { SlashCommandBuilder } from "discord.js";
@@ -11,8 +12,12 @@ const bustin: Command = {
         .setName('bustin')
         .setDescription('Ping the bot to see if it is responsive (it makes him feel good).'),
     async execute({ message, interaction, services }) {
-        const response = 'Bustin makes me feel good!';
+        const baseResponse = 'Bustin makes me feel good!';
         await services?.botStats.incrementBustin();
+        
+        const guild = message?.guild ?? interaction?.guild ?? null;
+        const response = appendBustinEmote(baseResponse, guild);
+
         if (message) await message.reply(response);
         else if (interaction) await interaction.reply(response);
     },

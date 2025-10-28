@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, Message, EmbedBuilder
 import type { Command } from "../../../models/Command";
 import { CommandModule, CommandRole } from "../../../models/Command";
 import { version as botVersion } from '../../../../package.json';
+import { replaceBustinEmote } from "utils/EmoteHelper";
 
 const START_TIME = Date.now();
 
@@ -26,10 +27,14 @@ const botinfo: Command = {
     async execute({ interaction, message }: { interaction?: ChatInputCommandInteraction, message?: Message }) {
         const uptime = formatUptime(Date.now() - START_TIME);
         const ping = interaction?.client.ws.ping ?? 'N/A';
+
+        const guild = interaction?.guild ?? null;
+        const emoji = replaceBustinEmote("🤖", guild);
+        const title = `${emoji} BustinBot Information`;
     
         const embed = new EmbedBuilder()
             .setColor(0x00c6ff)
-            .setTitle('🤖 BustinBot Information')
+            .setTitle(title)
             .setDescription(
                 "A custom-built Discord bot designed for community OSRS events and movie nights."
             )

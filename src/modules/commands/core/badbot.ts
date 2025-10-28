@@ -13,7 +13,7 @@ const badbot: Command = {
         .setDescription('Criticize BustinBot.'),
 
     async execute({ interaction, message, services }) {
-        const emoji = '😞';
+        const emoji = '😭';
         await services?.botStats.incrementBadBot();
         const count = services?.botStats.getBadBotCount();
 
@@ -26,7 +26,7 @@ const badbot: Command = {
             }
             console.log(`${message.author.username} made BustinBot feel bad!`);
         } else if (interaction) {
-            await interaction.reply(`${emoji}\n${reply}`);
+            await interaction.reply(`${emoji} ${reply}`);
             console.log(`${interaction.user.username} made BustinBot feel bad!`);
         }
     },

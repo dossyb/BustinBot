@@ -1,3 +1,4 @@
+import { replaceBustinEmote } from 'utils/EmoteHelper';
 import type { Command } from '../../../models/Command';
 import { CommandModule, CommandRole } from '../../../models/Command';
 import { SlashCommandBuilder, TextChannel } from 'discord.js';
@@ -13,7 +14,9 @@ const goodbot: Command = {
         .setDescription('Praise BustinBot.'),
 
     async execute({ interaction, message, services }) {
-        const emoji = '🥹';
+        const guild = message?.guild ?? interaction?.guild ?? null;
+        const emoji = replaceBustinEmote("🥹", guild);
+
         await services?.botStats.incrementGoodBot();
         const count = services?.botStats.getGoodBotCount();
 
@@ -26,7 +29,7 @@ const goodbot: Command = {
             }
             console.log(`${message.author.username} made BustinBot feel good!`);
         } else if (interaction) {
-            await interaction.reply(`${emoji}\n${reply}`);
+            await interaction.reply(`${emoji} ${reply}`);
             console.log(`${interaction.user.username} made BustinBot feel good!`);
         }
     },
