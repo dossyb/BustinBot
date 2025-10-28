@@ -2,9 +2,9 @@ import { TaskType } from "models/Task";
 
 export const TaskInstructions: Record<TaskType, string> = {
     [TaskType.XP]:
-        'Submit **before and after screenshots** showing your XP in the relevant skill with **keyword** visible. RuneLite users are recommended to use the XP tracker overlay for eassy verification.',
+        'Submit **before and after screenshots** showing your XP in the relevant skill with the **keyword** visible. RuneLite users are recommended to use the XP tracker overlay for eassy verification.',
     [TaskType.KC]:
-        'Submit **before and after screenshots** of your Kill Count for the relevant boss/activity with **keyword** visible. This can be via the collection log, kill notification messages, or KC overlays.',
+        'Submit **before and after screenshots** of your Kill Count for the relevant boss/activity with the **keyword** visible. This can be via the collection log, kill notification messages, or KC overlays.',
     [TaskType.Drop]:
         'Submit a **screenshot** showing the relevant item drop on the ground or in your inventory with the **keyword** visible. For unique/rare drops, multiple screenshots are recommended showing each drop.',
     [TaskType.Inventory]:
@@ -14,5 +14,5 @@ export const TaskInstructions: Record<TaskType, string> = {
     [TaskType.Materials]:
         'Submit a **screenshot** showing the relevant materials (can be noted) in your inventory or bank **before** starting the task, and a **second screenshot** showing the stack depleted after completion. XP gained must be shown via an XP tracker or before/after skill level. Include the **keyword** in both screenshots.',
     [TaskType.Other]:
-        'Submit **screenshots** or other proof as specified by the task with **keyword** visible.'
+        'Submit **screenshots** or other proof as specified by the task with the **keyword** visible.'
 };

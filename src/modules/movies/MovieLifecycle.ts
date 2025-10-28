@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { Client } from 'discord.js';
 import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance';
+import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
@@ -158,4 +159,5 @@ export async function scheduleMovieAutoEnd(services: ServiceContainer, startTime
     }, msUntilEnd);
 
     console.log(`[MovieLifecycle] Auto-end scheduled in ${Math.round(msUntilEnd / 1000)}s at ${endTime.toISO()}`);
+    SchedulerStatusReporter.onNewTrigger('Movie Auto-End', endTime.toJSDate());
 }

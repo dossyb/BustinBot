@@ -17,7 +17,7 @@ async function resolveGuildTimezone(services: ServiceContainer, guildId: string 
 
 export function initMovieScheduler(client: Client) {
     registerVoiceListeners(client);
-    console.log("[MovieScheduler] Voice listeners rgeistered for attendance tracking.");
+    console.log("[MovieScheduler] Voice listeners registered for attendance tracking.");
 }
 
 export async function handleMovieNightDate(interaction: StringSelectMenuInteraction, services: ServiceContainer) {

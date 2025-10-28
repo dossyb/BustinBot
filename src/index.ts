@@ -14,6 +14,7 @@ import { GuildRepository } from './core/database/GuildRepo';
 import { initTaskScheduler } from './modules/tasks/TaskScheduler';
 import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler';
 import { initMovieScheduler } from 'modules/movies/MovieScheduler';
+import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
 
 // Recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -105,7 +106,8 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
     // Ready event
     client.once('clientReady', async () => {
         console.log(`Logged in as ${client.user?.tag}!`);
-        await scheduleActivePollClosure(await createServiceContainer(primaryGuildId), client);
+        const primaryServices = await createServiceContainer(primaryGuildId);
+        await scheduleActivePollClosure(primaryServices, client);
 
         for (const guild of guildConfigs) {
             if (guild.toggles?.taskScheduler) {
@@ -117,6 +119,9 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
 
         initMovieScheduler(client);
         console.log("[MovieModule] Scheduler and attendance tracking initialised.");
+
+        await SchedulerStatusReporter.logAllUpcoming(primaryServices);
+        SchedulerStatusReporter.scheduleDailyLog(primaryServices);
 
         console.log('All guilds initialised.');
     });

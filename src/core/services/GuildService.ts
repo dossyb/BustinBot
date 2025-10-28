@@ -111,6 +111,10 @@ export class GuildService {
         console.log(`[GuildService] Toggled ${key} ${enabled ? "on" : "off"} for ${guildId}`);
     }
 
+    async toggleScheduler(guildId: string, enabled: boolean, userId: string): Promise<void> {
+        await this.updateToggle(guildId, "toggles.taskScheduler", enabled, userId);
+    }
+
     async getAll(): Promise<Guild[]> {
         const guilds = await this.repo.getAllGuilds();
         for (const g of guilds) this.cache.set(g.id, g);

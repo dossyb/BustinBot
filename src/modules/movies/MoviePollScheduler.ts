@@ -3,6 +3,7 @@ import { closeActiveMoviePoll } from './MoviePolls';
 import type { ServiceContainer } from '../../core/services/ServiceContainer';
 import { scheduleMovieAutoEnd } from './MovieLifecycle';
 import type { Client } from 'discord.js';
+import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
 
 let pollTimeout: NodeJS.Timeout | null = null;
 
@@ -80,6 +81,8 @@ export async function scheduleActivePollClosure(services: ServiceContainer, clie
             pollTimeout = null;
         }
     }, delayMs);
+
+    SchedulerStatusReporter.onNewTrigger('Movie Poll Auto-Close', endsAt.toJSDate());
 }
 
 // Cancels the current scheduled timeout, if any
