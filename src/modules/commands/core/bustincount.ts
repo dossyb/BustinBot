@@ -15,7 +15,7 @@ const bustincount: Command = {
         const count = stats?.funStats.bustinCount ?? 0;
         const response = `The bustin command has been used ${count} time${count !== 1 ? 's' : ''}.`;
 
-        if (interaction) await interaction.reply(response);
+        if (interaction) await interaction.reply({ content: response, flags: 1 << 6 });
         else if (message) await message.reply(response);
     }
 };
