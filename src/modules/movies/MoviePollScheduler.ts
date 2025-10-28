@@ -40,7 +40,6 @@ export async function scheduleActivePollClosure(services: ServiceContainer, clie
 
     const now = DateTime.utc();
     const delayMs = Math.max(endsAt.diff(now, 'milliseconds').milliseconds, 0);
-    console.log("[DEBUG] delayMs:", delayMs);
 
     if (pollTimeout) {
         clearTimeout(pollTimeout);

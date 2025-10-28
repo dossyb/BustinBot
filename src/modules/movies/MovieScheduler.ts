@@ -109,21 +109,6 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         }
     }
 
-    // Create movie event record
-    const event = {
-        id: `event-${Date.now()}`,
-        createdAt: new Date(),
-        startTime: utcDateTime.toJSDate(),
-        movie: movie ?? { id: "TBD", title: "TBD", addedBy: interaction.user.id, addedAt: new Date(), watched: false },
-        channelId: pollChannelId || "",
-        hostedBy: interaction.user.id,
-        completed: false,
-    };
-    await movieRepo.createMovieEvent(event);
-
-    // Schedule reminders
-    await scheduleMovieReminders(services, utcDateTime, interaction.client);
-
     // Auto-end scheduling (if runtime known)
     if (movie?.runtime) {
         scheduleMovieAutoEnd(services, utcDateTime.toISO()!, movie.runtime, interaction.client);
@@ -187,9 +172,35 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     const role = movieRoleId ? guild.roles.cache.get(movieRoleId) : null;
     const mention = role ? `<@&${role.id}>` : '';
 
+    // Prepare movie event record; announcement details filled after send
+    const eventId = `event-${Date.now()}`;
+    const baseEvent = {
+        id: eventId,
+        createdAt: new Date(),
+        startTime: utcDateTime.toJSDate(),
+        movie: movie ?? { id: "TBD", title: "TBD", addedBy: interaction.user.id, addedAt: new Date(), watched: false },
+        channelId: pollChannelId || interaction.channelId || "",
+        hostedBy: interaction.user.id,
+        completed: false,
+        ...(movieRoleId ? { roleId: movieRoleId } : {}),
+    };
+
+    let announcementMessageId: string | undefined;
+    let announcementChannelId = baseEvent.channelId;
     if (movieChannel) {
-        await movieChannel.send({ content: mention, embeds: [embed] });
+        const sent = await movieChannel.send({ content: mention, embeds: [embed] });
+        announcementMessageId = sent.id;
+        announcementChannelId = sent.channelId;
     }
+
+    await movieRepo.createMovieEvent({
+        ...baseEvent,
+        channelId: announcementChannelId,
+        ...(announcementMessageId ? { announcementMessageId } : {}),
+    });
+
+    // Schedule reminders
+    await scheduleMovieReminders(services, utcDateTime, interaction.client);
 
     await interaction.reply({
         content: `Movie night scheduled for **${readableDate}** at **${time}**.`,

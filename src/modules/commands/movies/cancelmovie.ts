@@ -31,6 +31,9 @@ const cancelmovie: Command = {
         }
 
         const actions: string[] = [];
+        let announcementHandled = false;
+        let fallbackAnnouncementChannelId: string | undefined;
+        const cancellationMessage = `❌ Movie night has been cancelled by <@${interaction.user.id}>.`;
 
         try {
             // Cancel active poll
@@ -60,12 +63,32 @@ const cancelmovie: Command = {
             // Mark latest movie event as cancelled
             const latestEvent = await movieRepo.getActiveEvent();
             if (latestEvent && !latestEvent.completed) {
-                await movieRepo.createMovieEvent({
+                fallbackAnnouncementChannelId = latestEvent.channelId;
+                const completedEvent = {
                     ...latestEvent,
                     completed: true,
                     completedAt: new Date(),
-                });
+                };
+                await movieRepo.createMovieEvent(completedEvent);
                 actions.push("Movie night event marked as cancelled");
+
+                if (latestEvent.channelId && latestEvent.announcementMessageId) {
+                    try {
+                        const announcementChannel = await interaction.client.channels.fetch(latestEvent.channelId);
+                        if (announcementChannel?.isTextBased()) {
+                            const announcementMessage = await announcementChannel.messages.fetch(latestEvent.announcementMessageId);
+                            await announcementMessage.edit({
+                                content: cancellationMessage,
+                                embeds: [],
+                                components: [],
+                            });
+                            actions.push("Movie night announcement updated to show cancellation");
+                            announcementHandled = true;
+                        }
+                    } catch (err) {
+                        console.warn("[CancelMovie] Failed to update movie night announcement message:", err);
+                    }
+                }
             }
 
             // Unpick currently selected movie (if any)
@@ -96,17 +119,27 @@ const cancelmovie: Command = {
             console.error("[CancelMovie] Firestore update failed:", err);
         }
 
-        // Public notification
-        const movieChannel = guild.channels.cache.find(
-            (ch) => ch.name === "movie-night" && ch.isTextBased()
-        ) as TextChannel | undefined;
+        if (!announcementHandled) {
+            let targetChannel: TextChannel | undefined;
 
-        if (movieChannel) {
-            await movieChannel.send({
-                content: "Movie night has been cancelled by an admin.",
-            });
-        } else {
-            console.warn("[CancelMovie] Could not find movie night channel.");
+            if (fallbackAnnouncementChannelId) {
+                const fetched = await interaction.client.channels.fetch(fallbackAnnouncementChannelId).catch(() => null);
+                if (fetched?.isTextBased()) {
+                    targetChannel = fetched as TextChannel;
+                }
+            }
+
+            if (!targetChannel) {
+                targetChannel = guild.channels.cache.find(
+                    (ch) => ch.name === "movie-night" && ch.isTextBased()
+                ) as TextChannel | undefined;
+            }
+
+            if (targetChannel) {
+                await targetChannel.send({ content: cancellationMessage });
+            } else {
+                console.warn("[CancelMovie] Could not find movie night channel for cancellation notice.");
+            }
         }
 
         await interaction.editReply({

@@ -121,3 +121,17 @@ export async function addMovieWithStats(movie: Movie, services: ServiceContainer
     await movieRepo.upsertMovie(movie);
     await userRepo.incrementStat(movie.addedBy, "moviesAdded", 1);
 }
+
+export async function removeMovieWithStats(movie: Movie, services: ServiceContainer) {
+    const movieRepo = services.repos.movieRepo;
+    const userRepo = services.repos.userRepo;
+
+    if (!movieRepo || !userRepo) {
+        throw new Error("[MovieService] Missing repositories.");
+    }
+
+    await movieRepo.deleteMovie(movie.id);
+    if (!movie.watched) {
+        await userRepo.incrementStat(movie.addedBy, "moviesAdded", -1);
+    }
+}

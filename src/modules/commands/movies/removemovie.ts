@@ -5,6 +5,7 @@ import { CommandModule, CommandRole } from "../../../models/Command";
 import { createMovieEmbed } from "../../movies/MovieEmbeds";
 import type { Movie } from "../../../models/Movie";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import { removeMovieWithStats } from "modules/movies/MovieService";
 
 const removemovie: Command = {
     name: 'removemovie',
@@ -65,7 +66,7 @@ const removemovie: Command = {
             }
 
             // Delete from Firestore
-            await movieRepo.deleteMovie(matched.id);
+            await removeMovieWithStats(matched, services);
 
             // Confirmation embed
             const embed = createMovieEmbed(matched)

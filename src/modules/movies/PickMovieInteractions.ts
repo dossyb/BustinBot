@@ -271,7 +271,7 @@ export async function handleMoviePollVote(services: ServiceContainer, interactio
         }
     }
 
-    const pollSession = getPollSession(activePoll);
+    const pollSession = getPollSession(updatedPoll);
     const updatedEmbeds: EmbedBuilder[] = interaction.message.embeds.map((embedData, i) => {
         const embed = EmbedBuilder.from(embedData);
         const movie = updatedPoll.options[i]!;
