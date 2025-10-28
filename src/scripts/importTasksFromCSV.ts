@@ -32,7 +32,7 @@ function normalizeKey(key: string): string {
     .replace(/\s+/g, "_"); // turn "Min XP for Bronze" → "min_xp_for_bronze"
 }
 
-async function importTasksFromCsv(guildId: string, filePath: string) {
+export async function importTasksFromCsv(guildId: string, filePath: string) {
   const csvData = fs.readFileSync(filePath, "utf-8");
   const records = parse<CsvRow>(csvData, {
     columns: (header) => header.map(normalizeKey),
@@ -40,13 +40,22 @@ async function importTasksFromCsv(guildId: string, filePath: string) {
   });
 
   const colRef = db.collection(`guilds/${guildId}/tasks`);
-  const batch = db.batch();
 
-  console.log(`📥 Found ${records.length} rows in CSV`);
+  const existingSnapshot = await colRef.select("id").get();
+  const existingIds = new Set(existingSnapshot.docs.map((d) => d.id));
+
+  const batch = db.batch();
+  let newCount = 0;
+  let skipped = 0;
 
   for (const row of records) {
     const id = String(row["id"] ?? row["i_d"] ?? "").trim();
     if (!id) continue;
+
+    if (existingIds.has(id)) {
+      skipped++;
+      continue;
+    }
 
     const category = row["category"];
     const type = row["type"];
@@ -80,19 +89,26 @@ async function importTasksFromCsv(guildId: string, filePath: string) {
 
     const docRef = colRef.doc(id);
     batch.set(docRef, cleanUndefined(task));
+    newCount++;
   }
 
-  await batch.commit();
-  console.log(`✅ Imported ${records.length} tasks into guild ${guildId}`);
+  if (newCount > 0) {
+    await batch.commit();
+  }
+
+  console.log(`✅ ${newCount} new tasks imported, ${skipped} skipped (already exist).`);
+  return { newCount, skipped, total: records.length };
 }
 
-// ---------- Run Script ----------
-const guildId = process.env.DISCORD_GUILD_ID!;
-const filePath = path.resolve("./src/data/tasks.csv");
+// CLI runner for local use
+if (process.argv[1]!.includes("importTasksFromCsv")) {
+  const guildId = process.env.DISCORD_GUILD_ID!;
+  const filePath = path.resolve("./src/data/tasks.csv");
 
-if (!guildId) {
-  console.error("❌ DISCORD_GUILD_ID missing from .env");
-  process.exit(1);
+  if (!guildId) {
+    console.error("❌ DISCORD_GUILD_ID missing from .env");
+    process.exit(1);
+  }
+
+  importTasksFromCsv(guildId, filePath).catch(console.error);
 }
-
-importTasksFromCsv(guildId, filePath).catch(console.error);
