@@ -18,14 +18,14 @@ vi.mock("../../database/firestore", () => ({
 vi.mock("../GuildRepo", () => {
   const getGuild = vi.fn();
   const updateGuild = vi.fn();
-  const toggleScheduler = vi.fn();
+  const updateToggle = vi.fn();
   const getAllGuilds = vi.fn();
 
   return {
     GuildRepository: vi.fn().mockImplementation(() => ({
       getGuild,
       updateGuild,
-      toggleScheduler,
+      updateToggle,
       getAllGuilds,
     })),
   };
@@ -41,7 +41,7 @@ describe("GuildService", () => {
 
   const baseGuild: Guild = {
     id: "123",
-    toggles: { taskScheduler: false },
+    toggles: { taskScheduler: false, leaguesEnabled: false },
     roles: {
       admin: "Admin",
       movieAdmin: "MovieAdmin",
@@ -55,7 +55,7 @@ describe("GuildService", () => {
       movieNight: "333",
       movieVC: "444",
     },
-    setupComplete: true,
+    setupComplete: { core: true, movie: true, task: true },
     updatedBy: "tester",
     updatedAt: new Date() as any,
   };
@@ -81,7 +81,7 @@ describe("GuildService", () => {
     service["cache"].set("123", baseGuild);
 
     await service.update("123", {
-      toggles: { taskScheduler: true },
+      toggles: { taskScheduler: true, leaguesEnabled: false },
       updatedBy: "adminUser",
     });
 
@@ -89,7 +89,7 @@ describe("GuildService", () => {
     expect(cached?.toggles.taskScheduler).toBe(true);
     expect(cached?.roles.admin).toBe("Admin");
     expect(repo.updateGuild).toHaveBeenCalledWith("123", {
-      toggles: { taskScheduler: true },
+      toggles: { taskScheduler: true, leaguesEnabled: false },
       updatedBy: "adminUser",
     });
   });
@@ -102,7 +102,7 @@ describe("GuildService", () => {
     const cached = service["cache"].get("123");
     expect(cached?.toggles.taskScheduler).toBe(true);
     expect(cached?.updatedBy).toBe("adminUser");
-    expect(repo.toggleScheduler).toHaveBeenCalledWith("123", true, "adminUser");
+    expect(repo.updateToggle).toHaveBeenCalledWith("123", "toggles.taskScheduler", true, "adminUser");
   });
 
   it("loads all guilds and caches them", async () => {

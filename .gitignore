@@ -4,3 +4,4 @@ logs
 .vs
 .vscode
 *.json
+coverage

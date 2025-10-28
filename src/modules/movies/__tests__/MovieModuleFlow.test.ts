@@ -73,12 +73,13 @@ describe("Movie module flows", () => {
           createMessageComponentCollector: vi.fn().mockReturnValue({ on: vi.fn() }),
         });
 
+      const channel = { send, isTextBased: () => true };
       const guild = {
         roles: { cache: { find: vi.fn().mockReturnValue({ id: "role-id", name: "Movie Fans" }) } },
+        channels: { fetch: vi.fn().mockResolvedValue(channel) },
       };
-
-      const channel = { send };
       const interaction: any = {
+        guildId: "guild-1",
         client: {
           guilds: {
             fetch: vi.fn().mockResolvedValue({
@@ -114,7 +115,16 @@ describe("Movie module flows", () => {
         getActiveEvent: vi.fn().mockResolvedValue(null),
         getActivePoll: vi.fn().mockResolvedValue(null),
       };
-      const services: any = { repos: { movieRepo } };
+      const services: any = {
+        guildId: "guild-1",
+        guilds: {
+          requireConfig: vi.fn().mockResolvedValue({
+            roles: { movieUser: "role-id" },
+            channels: { movieNight: "channel-123", movieVC: "voice-123" },
+          }),
+        },
+        repos: { movieRepo },
+      };
 
       await pollMovieWithList(services, interaction, movies as any);
 
@@ -140,6 +150,7 @@ describe("Movie module flows", () => {
 
     it("updates votes and footers when a user changes selection", async () => {
       const activePoll = {
+        id: "poll-1",
         isActive: true,
         messageId: "poll-message",
         options: [
@@ -149,11 +160,20 @@ describe("Movie module flows", () => {
         votes: {} as Record<string, string>,
       };
 
+      const voteHistory = new Set<string>();
       const movieRepo = {
         getActivePoll: vi.fn().mockResolvedValue(activePoll),
-        createPoll: vi.fn().mockResolvedValue(undefined),
+        voteInPollOnce: vi.fn().mockImplementation(async (_pollId: string, userId: string, movieId: string) => {
+          const firstTime = !voteHistory.has(userId);
+          voteHistory.add(userId);
+          activePoll.votes[userId] = movieId;
+          return { firstTime, updatedPoll: activePoll };
+        }),
       };
-      const services: any = { repos: { movieRepo } };
+      const userRepo = {
+        incrementStat: vi.fn().mockResolvedValue(undefined),
+      };
+      const services: any = { repos: { movieRepo, userRepo } };
 
       const embedData = [
         new EmbedBuilder().setFooter({ text: "option 1" }).toJSON(),
@@ -175,18 +195,22 @@ describe("Movie module flows", () => {
       };
 
       await handleMoviePollVote(services, interaction);
-      expect(movieRepo.createPoll).toHaveBeenCalledWith(activePoll);
+      expect(movieRepo.voteInPollOnce).toHaveBeenCalledWith("poll-1", "user-1", "movie-2");
       expect(message.edit).toHaveBeenCalled();
+      expect(userRepo.incrementStat).toHaveBeenCalledWith("user-1", "moviePollsVoted", 1);
+      expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
 
       // Switch vote to first option
       interaction.customId = "movie_vote_0";
       message.edit.mockClear();
-      movieRepo.createPoll.mockClear();
+      interaction.reply.mockClear();
+      userRepo.incrementStat.mockClear();
 
       await handleMoviePollVote(services, interaction);
       expect(activePoll.votes["user-1"]).toBe("movie-1");
-      expect(movieRepo.createPoll).toHaveBeenCalled();
       expect(message.edit).toHaveBeenCalled();
+      expect(userRepo.incrementStat).not.toHaveBeenCalled();
+      expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
     });
   });
 
@@ -199,16 +223,25 @@ describe("Movie module flows", () => {
       vi.setSystemTime(baseDate);
 
       const channelSend = vi.fn().mockResolvedValue(undefined);
+      const fallbackChannel = {
+        name: "movie-night",
+        isTextBased: () => true,
+        send: channelSend,
+      };
+      const fetchedChannel = {
+        isTextBased: () => true,
+        send: channelSend,
+      };
       const guild = {
-        roles: { cache: { find: vi.fn().mockReturnValue({ id: "role-id", name: "Movie Fans" }) } },
-        channels: {
+        roles: {
           cache: {
-            find: vi.fn().mockReturnValue({
-              name: "movie-night",
-              isTextBased: () => true,
-              send: channelSend,
-            }),
+            find: vi.fn().mockReturnValue({ id: "role-id", name: "Movie Fans" }),
+            get: vi.fn().mockReturnValue({ id: "role-id", name: "Movie Fans" }),
           },
+        },
+        channels: {
+          fetch: vi.fn().mockResolvedValue(fetchedChannel),
+          cache: { find: vi.fn().mockReturnValue(fallbackChannel) },
         },
       };
 
@@ -218,7 +251,16 @@ describe("Movie module flows", () => {
         getActiveEvent: vi.fn().mockResolvedValue({ movie: { title: "The Matrix" } }),
       };
 
-      const services: any = { repos: { movieRepo } };
+      const services: any = {
+        guildId: "guild-1",
+        guilds: {
+          get: vi.fn().mockResolvedValue({
+            roles: { movieUser: "role-id" },
+            channels: { movieNight: "movie-night-channel", movieVC: "voice-123" },
+          }),
+        },
+        repos: { movieRepo },
+      };
       const movieStart = DateTime.fromJSDate(new Date(baseDate.getTime() + 60 * 1000));
 
       await scheduleMovieReminders(services, movieStart, client);
@@ -257,12 +299,13 @@ describe("Movie module flows", () => {
       };
 
       const services: any = { repos: { movieRepo } };
+      const client: any = { tag: "MovieBot" };
 
-      await scheduleActivePollClosure(services);
+      await scheduleActivePollClosure(services, client);
       await vi.advanceTimersByTimeAsync(2000);
       await vi.runAllTimersAsync();
 
-      expect(closeActiveMoviePoll).toHaveBeenCalledWith(services, "Scheduler");
+      expect(closeActiveMoviePoll).toHaveBeenCalledWith(services, client, "Scheduler");
       expect(scheduleMovieAutoEnd).toHaveBeenCalled();
     });
   });

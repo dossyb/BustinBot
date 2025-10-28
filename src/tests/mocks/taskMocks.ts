@@ -13,6 +13,7 @@ function createBaseRepo() {
         }),
         createSubmission: vi.fn().mockResolvedValue(undefined),
         getSubmissionById: vi.fn(),
+        getSubmissionByUserAndTask: vi.fn().mockResolvedValue(null),
         updateSubmissionStatus: vi.fn().mockResolvedValue(undefined),
         getActiveTaskPoll: vi.fn(),
         getActiveEvent: vi.fn(),
@@ -20,6 +21,8 @@ function createBaseRepo() {
         createTaskPoll: vi.fn().mockResolvedValue(undefined),
         getTaskById: vi.fn(),
         closeTaskPoll: vi.fn(),
+        getActiveTaskPollByCategory: vi.fn().mockResolvedValue(null),
+        getLatestTaskPollByCategory: vi.fn().mockResolvedValue(null),
     };
 }
 

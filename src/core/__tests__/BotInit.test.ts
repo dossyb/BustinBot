@@ -11,7 +11,15 @@ describe('Bot startup smoke test', () => {
     it('initialises service container, registers commands, and schedules tasks without throwing', async () => {
         // ---- Mocks for external modules invoked by index.ts ----
         vi.doMock('dotenv', () => ({ config: vi.fn(() => ({ parsed: {} })) }));
-        vi.doMock('../database/firestore', () => ({ db: {} }));
+        const collectionMock = vi.fn(() => ({
+            doc: vi.fn(() => ({
+                get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+                set: vi.fn().mockResolvedValue(undefined),
+                update: vi.fn().mockResolvedValue(undefined),
+            })),
+            get: vi.fn().mockResolvedValue({ docs: [] }),
+        }));
+        vi.doMock('../database/firestore', () => ({ db: { collection: collectionMock } }));
 
         const mockClient = {
             on: vi.fn(),

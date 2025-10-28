@@ -1,3 +1,4 @@
+import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { SubmissionStatus } from '../../../models/TaskSubmission';
 import { handleDirectMessage, handleAdminButton, handleRejectionModal } from '../../tasks/TaskInteractions';
 import { createTaskServiceHarness, createAdminClientMock } from '../../../tests/mocks/taskMocks';
@@ -12,25 +13,36 @@ vi.mock('../../tasks/SubmissionActions', () => ({
 import * as submissionActions from '../../tasks/SubmissionActions';
 const { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } = submissionActions;
 
+const mockedPostToAdminChannel = vi.mocked(postToAdminChannel);
+const mockedNotifyUser = vi.mocked(notifyUser);
+const mockedArchiveSubmission = vi.mocked(archiveSubmission);
+const mockedUpdateTaskCounter = vi.mocked(updateTaskCounter);
+
 vi.mock('../../../utils/ChannelUtils', () => ({
     isTextChannel: (channel: any) => !!channel?.isTextBased?.(),
 }));
 
+let dateNowSpy: ReturnType<typeof vi.spyOn> | null = null;
+
 describe('Task submission lifecycle', () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
     });
 
     afterEach(() => {
         vi.useRealTimers();
-        vi.restoreAllMocks();
-        vi.clearAllMocks();
+        dateNowSpy?.mockRestore();
+        dateNowSpy = null;
+        mockedPostToAdminChannel.mockClear();
+        mockedNotifyUser.mockClear();
+        mockedArchiveSubmission.mockClear();
+        mockedUpdateTaskCounter.mockClear();
     });
 
     describe('Submission creation', () => {
         it('creates, stores, and forwards a submission to the admin channel', async () => {
-            const { repo, service } = createTaskServiceHarness({
+            const { repo, service, services } = createTaskServiceHarness({
                 getTaskEventById: vi.fn().mockResolvedValue({
                     id: 'event-1',
                     task: { id: 'task-1', taskName: 'Defeat {amount} dragons' },
@@ -51,13 +63,13 @@ describe('Task submission lifecycle', () => {
 
             repo.getSubmissionById.mockResolvedValue({ ...submission });
 
-            await service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], 'Nice work');
+            await service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], services, 'Nice work');
 
-            expect(postToAdminChannel).toHaveBeenCalledWith(client, expect.objectContaining({
+            expect(mockedPostToAdminChannel).toHaveBeenCalledWith(client, expect.objectContaining({
                 id: submission.id,
                 screenshotUrls: ['https://cdn/img.png'],
                 notes: 'Nice work',
-            }));
+            }), services);
 
             expect(repo.createSubmission).toHaveBeenCalledTimes(2); // first create + completion update
         });
@@ -82,14 +94,15 @@ describe('Task submission lifecycle', () => {
             const stored = { ...submission, screenshotUrls: ['https://cdn/img.png'] };
             repo.getSubmissionById.mockResolvedValue(stored);
 
-            await service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], 'note');
+            await service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], services, 'note');
 
             const interaction: any = {
-                customId: `approve_${submission.id}`,
+                customId: `approve_bronze_${submission.id}`,
                 user: { id: 'admin-1' },
                 client,
                 deferReply: vi.fn().mockResolvedValue(undefined),
                 editReply: vi.fn().mockResolvedValue(undefined),
+                reply: vi.fn().mockResolvedValue(undefined),
                 channel: adminChannel,
                 message: {
                     embeds: [{ fields: [{ value: '<@user-1>' }, { value: submission.taskName }] }],
@@ -98,11 +111,11 @@ describe('Task submission lifecycle', () => {
 
             await handleAdminButton(interaction, services);
 
-            expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Approved, 'admin-1');
-            expect(archiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Approved }));
-            expect(notifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Approved }));
-            expect(updateTaskCounter).toHaveBeenCalled();
-            expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('approved submission'));
+            expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Bronze, 'admin-1');
+            expect(mockedArchiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Bronze }));
+            expect(mockedNotifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Bronze }));
+            expect(mockedUpdateTaskCounter).toHaveBeenCalledWith(client, submission.taskEventId, submission.userId, repo, SubmissionStatus.Bronze);
+            expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('approved'));
         });
     });
 
@@ -127,8 +140,8 @@ describe('Task submission lifecycle', () => {
             await handleRejectionModal(modalInteraction, services);
 
             expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Rejected, 'admin-1');
-            expect(archiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected, rejectionReason: 'Too blurry' }));
-            expect(notifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected }));
+            expect(mockedArchiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected, rejectionReason: 'Too blurry' }));
+            expect(mockedNotifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected }));
             expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('Too blurry'));
         });
     });
@@ -165,13 +178,13 @@ describe('Task submission lifecycle', () => {
         });
 
         it('surfaces Discord send failures during completion for visibility', async () => {
-            const { service, repo } = createTaskServiceHarness();
+            const { service, repo, services } = createTaskServiceHarness();
             const { client } = createAdminClientMock();
             const submission = await service.createSubmission('user-1', 'event-1');
             repo.getSubmissionById.mockResolvedValue({ ...submission });
-            (postToAdminChannel as vi.Mock).mockRejectedValueOnce(new Error('send failed'));
+            mockedPostToAdminChannel.mockRejectedValueOnce(new Error('send failed'));
 
-            await expect(service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'])).rejects.toThrow('send failed');
+            await expect(service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], services)).rejects.toThrow('send failed');
         });
     });
 });
