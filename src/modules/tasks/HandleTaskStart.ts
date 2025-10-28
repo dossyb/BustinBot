@@ -131,12 +131,19 @@ export async function startTaskEventForCategory(
         voteCounts[votedTaskId] = (voteCounts[votedTaskId] ?? 0) + 1;
     }
 
-    // Pick the task option with the highest vote count
-    const winningTask = pollData.options.reduce((a, b) => {
-        const votesA = voteCounts[a.id] ?? 0;
-        const votesB = voteCounts[b.id] ?? 0;
-        return votesA >= votesB ? a : b;
-    });
+    const maxVotes = Math.max(...pollData.options.map(opt => voteCounts[opt.id] ?? 0));
+    const topTasks = pollData.options.filter(opt => (voteCounts[opt.id] ?? 0) === maxVotes);
+
+    // Deterministically select winner; fall back to first in poll order for ties
+    const winningTask = topTasks[0];
+    if (!winningTask) return;
+
+    const winnerLabel = winningTask.taskName ?? winningTask.id;
+    if (topTasks.length > 1) {
+        console.log(`[TaskStart] Tie detected in ${category}: ${topTasks.length} tasks tied with ${maxVotes} votes. Selected winner by poll order: ${winnerLabel}`);
+    } else {
+        console.log(`[TaskStart] Winner for ${category}: ${winnerLabel} (${maxVotes} votes)`);
+    }
 
     // Load full task data
     const task = await repos.taskRepo.getTaskById(winningTask.id);
@@ -159,7 +166,7 @@ export async function startTaskEventForCategory(
             silver: task.amtSilver,
             gold: task.amtGold,
         },
-        completionCounts:{
+        completionCounts: {
             bronze: 0,
             silver: 0,
             gold: 0

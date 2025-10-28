@@ -40,7 +40,7 @@ export interface ITaskRepository {
 
     // Feedback
     addFeedback(feedback: TaskFeedback): Promise<void>;
-    getFeedbackForTask(taskId: string): Promise<TaskFeedback[]>;
+    getFeedbackForTask(taskId: string, eventId?: string): Promise<TaskFeedback[]>;
 
     // Utilities
     deleteAllTasks(): Promise<void>;

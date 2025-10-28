@@ -43,6 +43,9 @@ export interface UserStats {
     // How many prizes they've won
     taskPrizesWon: number;
 
+    // Completed task count from v1 task system
+    legacyTasksCompleted: number;
+
     // Total XP for leaderboards
     totalXP?: number;
 

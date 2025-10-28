@@ -221,9 +221,11 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         await this.feedbackCollection.doc(feedback.id).set(feedback);
     }
 
-    async getFeedbackForTask(taskId: string): Promise<TaskFeedback[]> {
-        const snapshot = await this.feedbackCollection.where("taskId", "==", taskId).get();
-        return snapshot.docs.map(doc => doc.data() as TaskFeedback);
+    async getFeedbackForTask(taskId: string, eventId?: string): Promise<TaskFeedback[]> {
+    let query = this.feedbackCollection.where('taskId', '==', taskId);
+    if (eventId) query = query.where('eventId', '==', eventId);
+    const snapshot = await query.get();
+    return snapshot.docs.map((d) => d.data() as TaskFeedback);
     }
 
     async deleteAllTasks(): Promise<void> {

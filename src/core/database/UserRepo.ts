@@ -26,6 +26,7 @@ export class UserRepository extends GuildScopedRepository<UserStats> implements 
             longestTaskStreak: 0,
             taskPollsVoted: 0,
             taskPrizesWon: 0,
+            legacyTasksCompleted: 0,
             totalXP: 0,
             leaderboardRank: 0,
         };

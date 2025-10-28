@@ -126,12 +126,15 @@ export async function removeMovieWithStats(movie: Movie, services: ServiceContai
     const movieRepo = services.repos.movieRepo;
     const userRepo = services.repos.userRepo;
 
-    if (!movieRepo || !userRepo) {
-        throw new Error("[MovieService] Missing repositories.");
+    if (!movieRepo) {
+        throw new Error("[MovieService] Missing movie repository.");
     }
 
     await movieRepo.deleteMovie(movie.id);
-    if (!movie.watched) {
+
+    if (!movie.watched && userRepo) {
         await userRepo.incrementStat(movie.addedBy, "moviesAdded", -1);
+    } else if (!userRepo) {
+        console.warn("[MovieService] User repository unavailable; skipping moviesAdded decrement.");
     }
 }

@@ -19,6 +19,7 @@ const categoryIcons: Record<TaskCategory, string> = {
 };
 
 const activeVotes = new Map<string, Map<string, number>>(); // messageId -> Map<taskId, voteCount>
+const activePollSelections = new Map<string, Task[]>(); // messageId -> Task options list
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣'];
 
 function getVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
@@ -176,6 +177,7 @@ export async function postTaskPollForCategory(
         files: [{ attachment: iconPath, name: 'category_icon.png' }],
     });
     activeVotes.set(message.id, taskVotes);
+    activePollSelections.set(message.id, selectedTasks);
 
     const poll: TaskPoll = {
         id: message.id,
@@ -259,7 +261,99 @@ export async function postTaskPollForCategory(
 
         await message.edit({ embeds: [updatedEmbed], components: [] });
         activeVotes.delete(message.id);
+        activePollSelections.delete(message.id);
         await repo.closeTaskPoll(poll.id);
         console.log(`[TaskPoll] Poll closed for ${category}.`);
+    });
+}
+
+function buildVoteMapFromPoll(poll: TaskPoll): Map<string, number> {
+    const voteMap = new Map<string, number>();
+    for (const option of poll.options) {
+        voteMap.set(option.id, 0);
+    }
+
+    Object.values(poll.votes ?? {}).forEach((optionId) => {
+        voteMap.set(optionId, (voteMap.get(optionId) ?? 0) + 1);
+    });
+
+    return voteMap;
+}
+
+export function syncActivePollSelection(pollId: string, updatedTask: Task) {
+    const tasks = activePollSelections.get(pollId);
+    if (!tasks) return;
+
+    const index = tasks.findIndex((task) => task.id === updatedTask.id);
+    if (index === -1) return;
+
+    tasks[index] = { ...tasks[index], ...updatedTask };
+    activePollSelections.set(pollId, tasks);
+}
+
+export async function refreshTaskPollMessage(client: Client, poll: TaskPoll) {
+    if (!poll.messageId || !poll.channelId) return;
+
+    const channel = await client.channels.fetch(poll.channelId).catch(() => null);
+    if (!channel?.isTextBased()) return;
+
+    const textChannel = channel as TextChannel;
+    const message = await textChannel.messages.fetch(poll.messageId).catch(() => null);
+    if (!message) return;
+
+    const voteMap = buildVoteMapFromPoll(poll);
+    activeVotes.set(poll.messageId, voteMap);
+
+    const options = poll.options;
+    if (activePollSelections.has(poll.messageId)) {
+        const stored = activePollSelections.get(poll.messageId)!;
+        for (const option of options) {
+            const idx = stored.findIndex(task => task.id === option.id);
+            if (idx !== -1) {
+                stored[idx] = { ...stored[idx], ...option };
+            }
+        }
+    } else {
+        activePollSelections.set(poll.messageId, options);
+    }
+    const category = poll.category as TaskCategory;
+    const iconPath = categoryIcons[category];
+    const rawEndsAt = poll.endsAt as unknown;
+    let endsAtDate: Date | null = null;
+    if (rawEndsAt instanceof Date) {
+        endsAtDate = rawEndsAt;
+    } else if (rawEndsAt && typeof (rawEndsAt as any).toDate === 'function') {
+        endsAtDate = (rawEndsAt as any).toDate();
+    } else if (typeof rawEndsAt === 'number') {
+        endsAtDate = new Date(rawEndsAt);
+    } else if (typeof rawEndsAt === 'string') {
+        const parsed = new Date(rawEndsAt);
+        endsAtDate = Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const timeString = endsAtDate ? `<t:${Math.floor(endsAtDate.getTime() / 1000)}:R>` : '';
+
+    const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        options.map((task, i) =>
+            new ButtonBuilder()
+                .setCustomId(`vote_${category}_${task.id}`)
+                .setLabel(`${emojiNumbers[i]} ${task.shortName ?? `Task ${i + 1}`}`)
+                .setStyle(ButtonStyle.Secondary)
+        )
+    );
+
+    const updatedEmbed = new EmbedBuilder()
+        .setTitle(`🗳️ ${category} Task Poll`)
+        .setDescription(`${getVoteSummary(options, voteMap)}${timeString ? `\n\n Poll closes ${timeString}` : ''}`)
+        .setFooter({ text: 'Click a button below to vote.' })
+        .setColor(0x00ae86)
+        .setThumbnail('attachment://category_icon.png');
+
+    const files = iconPath ? [{ attachment: iconPath, name: 'category_icon.png' }] : [];
+
+    await message.edit({
+        embeds: [updatedEmbed],
+        components: [buttonRow],
+        ...(files.length ? { files } : {}),
     });
 }

@@ -58,11 +58,11 @@ export function buildTaskEventEmbed(event: TaskEvent) {
             .setLabel('📤 Submit Screenshot')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-            .setCustomId(`task-feedback-up-${event.task.id}`)
+            .setCustomId(`task-feedback-up-${event.task.id}-${event.id}`)
             .setLabel('👍')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
-            .setCustomId(`task-feedback-down-${event.task.id}`)
+            .setCustomId(`task-feedback-down-${event.task.id}-${event.id}`)
             .setLabel('👎')
             .setStyle(ButtonStyle.Secondary)
     );

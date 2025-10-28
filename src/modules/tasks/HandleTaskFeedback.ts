@@ -9,9 +9,10 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         const parts = interaction.customId.split('-');
         const direction = parts[2];
         const taskId = parts.slice(3).join('-');
+        const eventId = parts[4];
 
-        if (!taskId) {
-            await interaction.editReply({ content: 'Invalid task ID.', flags: 1 << 6 });
+        if (!taskId || !eventId) {
+            await interaction.editReply({ content: 'Invalid task or event ID.', flags: 1 << 6 });
             return;
         }
 
@@ -35,13 +36,13 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
 
         if (!existing) {
             // First time vote
-            const feedback: TaskFeedback = { id: Date.now().toString(), taskId, userId, vote: direction };
+            const feedback: TaskFeedback = { id: Date.now().toString(), taskId, eventId, userId, vote: direction };
             await repo.addFeedback(feedback);
             await repo.incrementWeight(taskId, direction === "up" ? +1 : -1);
             message = 'Thanks for your feedback!';
         } else if (existing.vote === direction) {
             // Same vote again
-            message = `You already gave this task a ${direction === 'up' ? '👍' : '👎'}`;
+            message = `You already gave this task a ${direction === 'up' ? '👍' : '👎'} for this event.`;
         } else {
             // Changed vote
             existing.vote = direction;
