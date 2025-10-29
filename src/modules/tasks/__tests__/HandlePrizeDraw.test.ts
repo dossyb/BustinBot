@@ -21,7 +21,7 @@ import { SubmissionStatus } from '../../../models/TaskSubmission';
 describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.setSystemTime(new Date('2025-02-15T12:34:56Z'));
+        vi.setSystemTime(new Date('2025-11-15T12:34:56Z'));
         process.env.PRIZE_PERIOD_DAYS = '5';
     });
 

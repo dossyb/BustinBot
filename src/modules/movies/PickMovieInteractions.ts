@@ -100,7 +100,7 @@ export async function handleMoviePickChooseModalSubmit(services: ServiceContaine
 
     const embed = createMovieEmbed(selectedMovie);
     const existingDescription = embed.data.description ?? "";
-    const addedByLine = `\n\n_Added by <@${selectedMovie.addedBy}>_`;
+    const addedByLine = `\n\n*Added by <@${selectedMovie.addedBy}>*`;
 
     embed.setTitle(
         `🎯  ${selectedMovie.title} ${selectedMovie.releaseDate ? `(${selectedMovie.releaseDate})` : ""

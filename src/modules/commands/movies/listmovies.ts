@@ -107,7 +107,7 @@ const listmovies: Command = {
 
         const collector = reply.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time: 180000,
+            time: 180000000,
             filter: (btnInt) => btnInt.user.id === interaction.user.id,
         });
 

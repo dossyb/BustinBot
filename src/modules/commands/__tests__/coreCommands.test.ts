@@ -39,7 +39,7 @@ describe('core moderation commands', () => {
         await badbot.execute({ interaction, services });
 
         expect(botStats.incrementBadBot).toHaveBeenCalled();
-        expect(interaction.reply).toHaveBeenCalledWith(expect.stringContaining('😞'));
+        expect(interaction.reply).toHaveBeenCalledWith(expect.stringContaining('😭'));
         expect(interaction.reply.mock.calls[0][0]).toContain('2 time');
     });
 });

@@ -31,7 +31,7 @@ export async function buildMovieEmbedWithMeta(
     const embed = createMovieEmbed(movie);
     const existingDescription = embed.data.description ?? '';
     const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
-    const addedByLine = `\n\n_Added by ${addedByText}_`;
+    const addedByLine = `\n\n*Added by ${addedByText}*`;
 
     const titlePrefix =
         style === 'random' ? '🎲' :

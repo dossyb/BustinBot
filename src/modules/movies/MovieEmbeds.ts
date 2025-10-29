@@ -41,7 +41,7 @@ export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3
         const index = page * perPage + i + 1;
         const title = `${index}. ${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
         const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
-        const addedByLine = `\n\n_Added by ${addedByText}_`;
+        const addedByLine = `\n\n*Added by ${addedByText}*`;
 
         return new EmbedBuilder()
             .setTitle(title)
@@ -54,7 +54,7 @@ export function createMovieListEmbeds(movies: Movie[], page: number, perPage = 3
 export function createLocalMoviePreviewEmbed(movie: Movie): EmbedBuilder {
     const title = `${movie.title}${movie.releaseDate ? ` (${movie.releaseDate})` : ''}`;
     const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
-    const addedByLine = `\n\n_Added by ${addedByText}_`;
+    const addedByLine = `\n\n*Added by ${addedByText}*`;
 
     return new EmbedBuilder()
         .setTitle(title)

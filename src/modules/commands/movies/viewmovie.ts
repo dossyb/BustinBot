@@ -57,7 +57,7 @@ const viewmovie: Command = {
             const matchedMovie = results[0]!.item;
 
             let description = matchedMovie.overview ?? "No description available.";
-            description += `\n\n_Added by <@${matchedMovie.addedBy ?? "unknown"}>_`;
+            description += `\n\n*Added by <@${matchedMovie.addedBy ?? "unknown"}>*`;
 
             const embed = createMovieEmbed(matchedMovie)
                 .setTitle(`🎬 ${matchedMovie.title}`)
