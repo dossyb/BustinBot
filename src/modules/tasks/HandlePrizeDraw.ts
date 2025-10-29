@@ -48,7 +48,7 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     for (const submission of filtered) {
         participants[submission.userId] = (participants[submission.userId] || 0) + 1;
     }
-    
+
     const tierCounts = {
         bronze: filtered.filter(s => s.status === SubmissionStatus.Bronze).length,
         silver: filtered.filter(s => s.status === SubmissionStatus.Silver).length,
@@ -65,6 +65,32 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         entries: filtered.map((submission) => submission.userId),
         totalEntries: filtered.length,
         tierCounts,
+    }
+
+    // TEMP: Remove after first draw
+    // Inlcude final v1 task completions in first prize draw
+    const nowISO = new Date().toISOString();
+
+    const firstDrawCutoff = new Date("2025-11-12T00:00:00Z");
+    if (nowISO < firstDrawCutoff.toISOString()) {
+        try {
+            const { users: v1Users } = await import("../../data/legacy-finaldraw.json", {
+                assert: { type: "json" },
+            });
+
+            console.log(`[PrizeDraw] Merging ${v1Users.length} carryover submissions from v1...`);
+
+            for (const { id, submissions } of v1Users) {
+                snapshot.participants[id] = (snapshot.participants[id] || 0) + submissions;
+
+                for (let i = 0; i < submissions; i++) snapshot.entries.push(id);
+                snapshot.totalEntries += submissions;
+            }
+
+            console.log("[PrizeDraw] Carryover merge complete. Total entries now:", snapshot.totalEntries);
+        } catch (err) {
+            console.warn("[PrizeDraw] Failed to merge v1 submissions:", err);
+        }
     }
 
     // Persist snapshot
@@ -98,7 +124,7 @@ export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, sna
     await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>, winnerId);
     console.log(`[PrizeDraw] Winner for ${snapshotId}: ${winnerId}`);
 
-        const userRepo = services.repos.userRepo;
+    const userRepo = services.repos.userRepo;
     if (userRepo && winnerId) {
         try {
             await userRepo.incrementStat(winnerId, "taskPrizesWon", 1);
