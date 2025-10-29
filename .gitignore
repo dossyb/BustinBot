@@ -5,3 +5,4 @@ logs
 .vscode
 *.json
 coverage
+!announcements.json
