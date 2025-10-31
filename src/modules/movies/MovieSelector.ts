@@ -34,7 +34,7 @@ export async function presentMovieSelection(
             .setStyle(ButtonStyle.Danger)
     );
 
-    const reply = await interaction.editReply({ embeds, components: [buttons] }) as Message;
+    const reply = await interaction.editReply({ content: "Here are the **top 3** results for that movie; click the button that matches the movie you're looking for. If none of these match, click **Cancel** and try again with a different search term.", embeds, components: [buttons] }) as Message;
 
     const collector = reply.createMessageComponentCollector({
         componentType: ComponentType.Button,

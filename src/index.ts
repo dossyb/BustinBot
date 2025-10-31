@@ -49,6 +49,26 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
         { body: slashCommands }
     );
 
+    if (process.env.BOT_MODE !== 'dev') {
+        await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: slashCommands }
+        );
+        console.log(`🌍 Registered ${slashCommands.length} commands globally, waiting 1 hour until cleanup...`);
+
+        setTimeout(async () => {
+            try {
+                await rest.put(
+                    Routes.applicationGuildCommands(clientId, guildId),
+                    { body: [] }
+                );
+                console.log(`🧹 Cleared guild-specific commands for ${guildId}`);
+            } catch (err) {
+                console.error('Failed to clean up guild commands:', err);
+            }
+        }, 60 * 60 * 1000);
+    }
+
     console.log('Slash commands registered successfully.');
 }
 
