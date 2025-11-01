@@ -1,22 +1,27 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "CommonJS",
-    "target": "ES2020",
-    "moduleResolution": "node",
-    "noEmitOnError": false,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "verbatimModuleSyntax": false,      
-    "isolatedModules": false,          
-    "removeComments": true,
-    "outDir": "dist",
-    "types": ["node"]
-  },
-  "exclude": [
-    "**/*.test.ts",
-    "**/__tests__/**",
-    "vitest.config.ts"
-  ]
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "module": "CommonJS",
+        "target": "ES2020",
+        "moduleResolution": "node",
+        "noEmitOnError": false,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "verbatimModuleSyntax": false,
+        "isolatedModules": false,
+        "removeComments": true,
+        "outDir": "dist",
+        "types": [
+            "node"
+        ]
+    },
+    "exclude": [
+        "**/*.test.ts",
+        "**/__tests__/**",
+        "vitest.config.ts",
+        "src/tests/**",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts"
+    ]
 }

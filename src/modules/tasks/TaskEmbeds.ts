@@ -2,12 +2,11 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, embedLength
 import path from 'path';
 import type { TaskEvent } from "../../models/TaskEvent";
 import type { Task } from "../../models/Task";
-import { fileURLToPath } from "url";
 import { TaskCategory } from "../../models/Task";
 import { TaskInstructions } from "./TaskInstructions";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __filename = getFilename(import.meta.url);
+const __dirname = getDirname(import.meta.url);
 
 const categoryIcons: Record<TaskCategory, string> = {
     [TaskCategory.PvM]: path.resolve(__dirname, '../../assets/icons/task_pvm.png'),

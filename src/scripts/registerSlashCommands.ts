@@ -1,9 +1,7 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { registerSlashCommands } from '../utils/registerCommands';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __dirname = getDirname(import.meta.url);
 
 try {
     await registerSlashCommands({

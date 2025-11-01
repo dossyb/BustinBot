@@ -7,7 +7,6 @@ import { handleDirectMessage } from './modules/tasks/TaskInteractions';
 import { handleTaskInteraction } from './modules/tasks/TaskInteractionHandler';
 import { loadCommands } from './core/services/CommandService';
 import { registerGuildCommands } from './utils/registerCommands';
-import { fileURLToPath } from 'url';
 import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 import { createServiceContainer } from './core/services/ServiceFactory';
 import { GuildRepository } from './core/database/GuildRepo';
@@ -15,10 +14,8 @@ import { initTaskScheduler } from './modules/tasks/TaskScheduler';
 import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler';
 import { initMovieScheduler } from 'modules/movies/MovieScheduler';
 import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
-
-// Recreate __dirname for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getDirname } from 'utils/PathUtils';
+const __dirname = getDirname(import.meta.url);
 
 // Load environment variables (only for global secrets)
 config();

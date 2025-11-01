@@ -1,13 +1,12 @@
 import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import type { Command } from '../models/Command';
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __filename = getFilename(import.meta.url);
+const __dirname = getDirname(import.meta.url);
 
 config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export interface RegisterCommandOptions {
     modulesDir?: string;

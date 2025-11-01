@@ -4,14 +4,12 @@ import { CommandModule, CommandRole } from "../../../models/Command";
 import { buildTaskEventEmbed } from "../../tasks/TaskEmbeds";
 import type { TaskEvent } from "../../../models/TaskEvent";
 import { TaskCategory, type Task } from "../../../models/Task";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from "fs";
 import path from "path";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __filename = getFilename(import.meta.url);
+const __dirname = getDirname(import.meta.url);
 
 const testtask: Command = {
     name: 'testtask',

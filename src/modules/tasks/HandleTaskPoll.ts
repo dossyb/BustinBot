@@ -1,15 +1,13 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client, ButtonInteraction, ComponentType } from 'discord.js';
 import path from 'path';
 import type { Task } from '../../models/Task';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
 import type { TaskPoll } from '../../models/TaskPoll';
 import { TaskCategory } from '../../models/Task';
-import { fileURLToPath } from 'url';
 import { selectTasksForCategory } from './TaskSelector';
 import type { ServiceContainer } from 'core/services/ServiceContainer';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __filename = getFilename(import.meta.url);
+const __dirname = getDirname(import.meta.url);
 
 const categoryIcons: Record<TaskCategory, string> = {
     [TaskCategory.PvM]: path.resolve(__dirname, '../../assets/icons/task_pvm.png'),

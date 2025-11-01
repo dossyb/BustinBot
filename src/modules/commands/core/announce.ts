@@ -11,12 +11,11 @@ import type { Command } from "models/Command";
 import { CommandModule, CommandRole } from "models/Command";
 import { version } from "../../../../package.json";
 import fs from "fs";
-import path, { dirname } from "path";
+import path from "path";
 import type { ServiceContainer } from "core/services/ServiceContainer";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { getFilename, getDirname } from 'utils/PathUtils';
+const __filename = getFilename(import.meta.url);
+const __dirname = getDirname(import.meta.url);
 
 interface Announcement {
     title: string;
