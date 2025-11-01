@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from '../../tasks/HandlePrizeDraw';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from '../../tasks/HandlePrizeDraw.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 
 const taskdraw: Command = {
     name: 'taskdraw',

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { db } from "core/database/firestore";
-import { fetchMovieDetails, fetchMovieDetailsById } from "modules/movies/MovieService";
+import { db } from "../core/database/firestore.js";
+import { fetchMovieDetails, fetchMovieDetailsById } from "../modules/movies/MovieService.js";
 import { Timestamp } from "firebase-admin/firestore";
 import "dotenv/config";
 

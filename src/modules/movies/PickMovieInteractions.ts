@@ -1,14 +1,14 @@
 import { ButtonInteraction, ModalSubmitInteraction, ActionRowBuilder, Message, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, StringSelectMenuInteraction } from "discord.js";
 import Fuse from 'fuse.js';
-import type { Movie } from "../../models/Movie";
-import type { MoviePoll } from "../../models/MoviePoll";
-import type { PollSession } from "../../models/PollSession";
-import { createMovieEmbed } from "./MovieEmbeds";
-import { pickRandomMovie, buildMovieEmbedWithMeta } from "./MovieLocalSelector";
-import { getManualPollSession, changeManualPollPage, clearManualPollSession, updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll";
-import { pollMovieRandom, pollMovieWithList } from "./MoviePolls";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { notifyMovieSubmitter } from "./MovieLocalSelector";
+import type { Movie } from "../../models/Movie.js";
+import type { MoviePoll } from "../../models/MoviePoll.js";
+import type { PollSession } from "../../models/PollSession.js";
+import { createMovieEmbed } from "./MovieEmbeds.js";
+import { pickRandomMovie, buildMovieEmbedWithMeta } from "./MovieLocalSelector.js";
+import { getManualPollSession, changeManualPollPage, clearManualPollSession, updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll.js";
+import { pollMovieRandom, pollMovieWithList } from "./MoviePolls.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { notifyMovieSubmitter } from "./MovieLocalSelector.js";
 
 export async function saveCurrentMovie(services: ServiceContainer, movie: Movie, selectedBy?: string) {
     const movieRepo = services.repos.movieRepo;

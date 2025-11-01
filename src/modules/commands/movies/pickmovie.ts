@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Message, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } from "discord.js";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { pickRandomMovie, buildMovieEmbedWithMeta } from "../../movies/MovieLocalSelector";
-import { showMovieManualPollMenu } from "../../movies/MovieManualPoll";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { pickRandomMovie, buildMovieEmbedWithMeta } from "../../movies/MovieLocalSelector.js";
+import { showMovieManualPollMenu } from "../../movies/MovieManualPoll.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const pickmovie: Command = {
     name: 'pickmovie',

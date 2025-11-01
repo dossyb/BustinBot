@@ -6,8 +6,8 @@ vi.mock('../TaskSelector', () => ({
     selectTasksForCategory: selectTasksForCategoryMock,
 }));
 
-import { postTaskPollForCategory } from '../HandleTaskPoll';
-import { TaskCategory, TaskType } from '../../../models/Task';
+import { postTaskPollForCategory } from '../HandleTaskPoll.js';
+import { TaskCategory, TaskType } from '../../../models/Task.js';
 
 describe('HandleTaskPoll collector behaviour', () => {
     beforeEach(() => {

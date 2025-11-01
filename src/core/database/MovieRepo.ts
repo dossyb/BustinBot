@@ -1,10 +1,10 @@
-import { db } from "./firestore";
-import { GuildScopedRepository } from "./CoreRepo";
-import type { IMovieRepository } from "./interfaces/IMovieRepo";
-import type { Movie } from "../../models/Movie";
-import type { MoviePoll } from "../../models/MoviePoll";
-import type { MovieEvent } from "../../models/MovieEvent";
-import { normaliseFirestoreDates } from "../../utils/DateUtils";
+import { db } from "./firestore.js";
+import { GuildScopedRepository } from "./CoreRepo.js";
+import type { IMovieRepository } from "./interfaces/IMovieRepo.js";
+import type { Movie } from "../../models/Movie.js";
+import type { MoviePoll } from "../../models/MoviePoll.js";
+import type { MovieEvent } from "../../models/MovieEvent.js";
+import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
 
 export class MovieRepository extends GuildScopedRepository<Movie> implements IMovieRepository {
     constructor(guildId: string) {

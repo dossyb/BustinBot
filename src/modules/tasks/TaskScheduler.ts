@@ -2,11 +2,11 @@ import cron from 'node-cron';
 import { CronExpressionParser } from 'cron-parser';
 import type { ScheduledTask } from 'node-cron';
 import { Client, TextChannel } from 'discord.js';
-import { postAllTaskPolls } from './HandleTaskPoll';
-import { startAllTaskEvents } from './HandleTaskStart';
-import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
-import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
+import { postAllTaskPolls } from './HandleTaskPoll.js';
+import { startAllTaskEvents } from './HandleTaskStart.js';
+import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
 
 // Store next trigger times for console log
 let nextPollTime: Date | null = null;

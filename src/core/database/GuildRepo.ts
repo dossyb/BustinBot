@@ -1,7 +1,7 @@
-import { db } from "./firestore";
+import { db } from "./firestore.js";
 import { FieldValue } from "firebase-admin/firestore";
-import type { IGuildRepository } from "./interfaces/IGuildRepo";
-import type { Guild } from "models/Guild";
+import type { IGuildRepository } from "./interfaces/IGuildRepo.js";
+import type { Guild } from "../../models/Guild.js";
 
 export class GuildRepository implements IGuildRepository {
     private readonly collection = db.collection('guilds');

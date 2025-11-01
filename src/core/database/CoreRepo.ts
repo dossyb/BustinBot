@@ -1,4 +1,4 @@
-import { db } from "./firestore";
+import { db } from "./firestore.js";
 import { CollectionReference } from "firebase-admin/firestore";
 import type { DocumentData } from "firebase-admin/firestore";
 

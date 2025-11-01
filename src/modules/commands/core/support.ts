@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import { version } from '../../../../package.json';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { packageVersion } from '../../../utils/version.js';
 
 const support: Command = {
     name: 'support',
@@ -35,7 +35,7 @@ const support: Command = {
                 }
             ],
             footer: {
-                text: `BustinBot ${version ?? "v2"} • Developed by dossyb`
+                text: `BustinBot ${packageVersion} • Developed by dossyb`
             }
         };
 

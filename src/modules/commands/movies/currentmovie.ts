@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import { createMovieNightEmbed } from '../../movies/MovieEmbeds';
-import type { Movie } from '../../../models/Movie';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { createMovieNightEmbed } from '../../movies/MovieEmbeds.js';
+import type { Movie } from '../../../models/Movie.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 import { DateTime } from 'luxon';
 
 const currentmovie: Command = {

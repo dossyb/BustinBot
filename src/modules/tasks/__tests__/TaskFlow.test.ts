@@ -1,8 +1,8 @@
-import { postTaskPollForCategory } from '../../tasks/HandleTaskPoll';
-import { startTaskEventForCategory } from '../../tasks/HandleTaskStart';
-import { TaskCategory, TaskType } from '../../../models/Task';
-import * as TaskSelectorModule from '../../tasks/TaskSelector';
-import { createTaskRepoMock } from '../../../tests/mocks/taskMocks';
+import { postTaskPollForCategory } from '../HandleTaskPoll.js';
+import { startTaskEventForCategory } from '../HandleTaskStart.js';
+import { TaskCategory, TaskType } from '../../../models/Task.js';
+import * as TaskSelectorModule from '../TaskSelector.js';
+import { createTaskRepoMock } from '../../../tests/mocks/taskMocks.js';
 
 const TASK_USER_ROLE = 'Task User';
 const TASK_ADMIN_CHANNEL = 'task-channel';

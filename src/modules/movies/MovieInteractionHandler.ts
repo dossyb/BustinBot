@@ -1,9 +1,9 @@
 import type { Interaction } from "discord.js";
-import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie, handleMoviePollVote, handleManualPollInteraction, handleRandomPollCountSelect } from "./PickMovieInteractions";
-import { handleMovieNightDate, handleMovieNightTime } from "./MovieScheduler";
-import { updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { setupService } from "../../core/services/SetupService";
+import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie, handleMoviePollVote, handleManualPollInteraction, handleRandomPollCountSelect } from "./PickMovieInteractions.js";
+import { handleMovieNightDate, handleMovieNightTime } from "./MovieScheduler.js";
+import { updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { setupService } from "../../core/services/SetupService.js";
 
 export async function handleMovieInteraction(
     interaction: Interaction,

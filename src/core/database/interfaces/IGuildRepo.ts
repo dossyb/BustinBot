@@ -1,4 +1,4 @@
-import type { Guild } from "models/Guild";
+import type { Guild } from "../../../models/Guild.js";
 
 export interface IGuildRepository {
     getGuild(guildId: string): Promise<Guild | null>;

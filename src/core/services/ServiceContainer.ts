@@ -1,14 +1,14 @@
-import type { BotStatsService } from './BotStatsService';
-import type { TaskService } from '../../modules/tasks/TaskService';
-import type { TaskEventStore } from '../../modules/tasks/TaskEventStore';
-import type { KeywordSelector } from '../../modules/tasks/KeywordSelector';
-import type { ITaskRepository } from '../database/interfaces/ITaskRepo';
-import type { IPrizeDrawRepository } from '../database/interfaces/IPrizeDrawRepo';
-import type { IMovieRepository } from '../database/interfaces/IMovieRepo';
-import type { GuildService } from './GuildService';
-import type { IGuildRepository } from 'core/database/interfaces/IGuildRepo';
-import type { IKeywordRepository } from 'core/database/interfaces/IKeywordRepo';
-import type { IUserRepository } from 'core/database/interfaces/IUserRepo';
+import type { BotStatsService } from './BotStatsService.js';
+import type { TaskService } from '../../modules/tasks/TaskService.js';
+import type { TaskEventStore } from '../../modules/tasks/TaskEventStore.js';
+import type { KeywordSelector } from '../../modules/tasks/KeywordSelector.js';
+import type { ITaskRepository } from '../database/interfaces/ITaskRepo.js';
+import type { IPrizeDrawRepository } from '../database/interfaces/IPrizeDrawRepo.js';
+import type { IMovieRepository } from '../database/interfaces/IMovieRepo.js';
+import type { GuildService } from './GuildService.js';
+import type { IGuildRepository } from '../database/interfaces/IGuildRepo.js';
+import type { IKeywordRepository } from '../database/interfaces/IKeywordRepo.js';
+import type { IUserRepository } from '../database/interfaces/IUserRepo.js';
 
 export interface ServiceContainer {
     guildId: string;

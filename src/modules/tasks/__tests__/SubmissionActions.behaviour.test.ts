@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SubmissionStatus } from '../../../models/TaskSubmission';
+import { SubmissionStatus } from '../../../models/TaskSubmission.js';
 
 vi.mock('../TaskEmbeds', () => ({
     buildSubmissionEmbed: vi.fn(() => ({ type: 'submission-embed' })),
@@ -19,7 +19,7 @@ vi.mock('utils/DateUtils', () => ({
     normaliseFirestoreDates: (event: any) => event,
 }));
 
-const TaskEmbeds = await import('../TaskEmbeds');
+const TaskEmbeds = await import('../TaskEmbeds.js');
 const { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } = vi.mocked(TaskEmbeds);
 
 const {
@@ -27,7 +27,7 @@ const {
     notifyUser,
     archiveSubmission,
     updateTaskCounter,
-} = await import('../SubmissionActions');
+} = await import('../SubmissionActions.js');
 
 const client = {
     channels: {

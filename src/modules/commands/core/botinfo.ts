@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Message, EmbedBuilder } from "discord.js";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { version as botVersion } from '../../../../package.json';
-import { replaceBustinEmote } from "utils/EmoteHelper";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { replaceBustinEmote } from "../../../utils/EmoteHelper.js";
+import { packageVersion } from "../../../utils/version.js";
 
 const START_TIME = Date.now();
 
@@ -39,7 +39,7 @@ const botinfo: Command = {
                 "A custom-built Discord bot designed for community OSRS events and movie nights."
             )
             .addFields(
-                { name: "Version", value: botVersion, inline: true },
+                { name: "Version", value: packageVersion, inline: true },
                 { name: "Uptime", value: uptime, inline: true },
                 { name: "Ping", value: `${ping} ms`, inline: true },
                 {

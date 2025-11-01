@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { pickWeightedRandom, selectTasksForCategory } from '../TaskSelector';
-import { Skill, TaskCategory, TaskType } from '../../../models/Task';
-import type { Task } from '../../../models/Task';
+import { pickWeightedRandom, selectTasksForCategory } from '../TaskSelector.js';
+import { Skill, TaskCategory, TaskType } from '../../../models/Task.js';
+import type { Task } from '../../../models/Task.js';
 
 let counter = 0;
 const baseTask = (overrides: Partial<Task>): Task => {

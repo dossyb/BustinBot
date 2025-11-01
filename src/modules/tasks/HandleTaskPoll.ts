@@ -1,11 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client, ButtonInteraction, ComponentType } from 'discord.js';
 import path from 'path';
-import type { Task } from '../../models/Task';
-import type { TaskPoll } from '../../models/TaskPoll';
-import { TaskCategory } from '../../models/Task';
-import { selectTasksForCategory } from './TaskSelector';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
-import { getFilename, getDirname } from 'utils/PathUtils';
+import type { Task } from '../../models/Task.js';
+import type { TaskPoll } from '../../models/TaskPoll.js';
+import { TaskCategory } from '../../models/Task.js';
+import { selectTasksForCategory } from './TaskSelector.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { getFilename, getDirname } from '../../utils/PathUtils.js';
 const filename = getFilename(import.meta.url);
 const dirname = getDirname(import.meta.url);
 

@@ -1,20 +1,20 @@
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from 'dotenv';
 import path from 'path';
-import { handleMessage } from './core/events/onMessage';
-import { handleInteraction } from './core/events/onInteraction';
-import { handleDirectMessage } from './modules/tasks/TaskInteractions';
-import { handleTaskInteraction } from './modules/tasks/TaskInteractionHandler';
-import { loadCommands } from './core/services/CommandService';
-import { registerGuildCommands } from './utils/registerCommands';
-import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
-import { createServiceContainer } from './core/services/ServiceFactory';
-import { GuildRepository } from './core/database/GuildRepo';
-import { initTaskScheduler } from './modules/tasks/TaskScheduler';
-import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler';
-import { initMovieScheduler } from 'modules/movies/MovieScheduler';
-import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
-import { getDirname } from 'utils/PathUtils';
+import { handleMessage } from './core/events/onMessage.js';
+import { handleInteraction } from './core/events/onInteraction.js';
+import { handleDirectMessage } from './modules/tasks/TaskInteractions.js';
+import { handleTaskInteraction } from './modules/tasks/TaskInteractionHandler.js';
+import { loadCommands } from './core/services/CommandService.js';
+import { registerGuildCommands } from './utils/registerCommands.js';
+import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler.js';
+import { createServiceContainer } from './core/services/ServiceFactory.js';
+import { GuildRepository } from './core/database/GuildRepo.js';
+import { initTaskScheduler } from './modules/tasks/TaskScheduler.js';
+import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler.js';
+import { initMovieScheduler } from './modules/movies/MovieScheduler.js';
+import { SchedulerStatusReporter } from './core/services/SchedulerStatusReporter.js';
+import { getDirname } from './utils/PathUtils.js';
 const dirname = getDirname(import.meta.url);
 
 // Load environment variables (only for global secrets)

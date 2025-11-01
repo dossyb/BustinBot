@@ -1,4 +1,4 @@
-import { TaskType } from "models/Task";
+import { TaskType } from "../../models/Task.js";
 
 export const TaskInstructions: Record<TaskType, string> = {
     [TaskType.XP]:

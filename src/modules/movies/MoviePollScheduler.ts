@@ -1,9 +1,9 @@
 import { DateTime } from 'luxon';
-import { closeActiveMoviePoll } from './MoviePolls';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
-import { scheduleMovieAutoEnd } from './MovieLifecycle';
+import { closeActiveMoviePoll } from './MoviePolls.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { scheduleMovieAutoEnd } from './MovieLifecycle.js';
 import type { Client } from 'discord.js';
-import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
+import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
 
 let pollTimeout: NodeJS.Timeout | null = null;
 

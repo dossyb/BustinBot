@@ -1,11 +1,11 @@
-const cronMockModule = vi.hoisted(() => import("@tests/mocks/cronMock"));
+const cronMockModule = vi.hoisted(() => import("../../../tests/mocks/cronMock.js"));
 
 vi.mock("node-cron", async () => ({
     ...(await cronMockModule),
 }));
 
-import { initTaskScheduler, stopTaskScheduler } from "../TaskScheduler";
-import { scheduledTasks } from "@tests/mocks/cronMock";
+import { initTaskScheduler, stopTaskScheduler } from "../TaskScheduler.js";
+import { scheduledTasks } from "../../../tests/mocks/cronMock.js";
 
 const mockClient: any = {};
 const mockServices: any = {
@@ -50,7 +50,7 @@ describe('TaskScheduler production schedules', () => {
             ...(await cronMockModule),
         }));
 
-        const mod = await import("../TaskScheduler");
+        const mod = await import("../TaskScheduler.js");
         const { initTaskScheduler, stopTaskScheduler } = mod as any;
 
         const { scheduledTasks } = (await import("node-cron")) as any;

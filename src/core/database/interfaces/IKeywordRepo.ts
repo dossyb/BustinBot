@@ -1,4 +1,4 @@
-import type { Keyword } from "../../../models/Keyword";
+import type { Keyword } from "../../../models/Keyword.js";
 
 export interface IKeywordRepository {
     getAllKeywords(): Promise<Keyword[]>;

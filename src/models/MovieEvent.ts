@@ -1,4 +1,4 @@
-import type { Movie } from "./Movie";
+import type { Movie } from "./Movie.js";
 
 export interface MovieEvent {
     // Unique identifier for the event

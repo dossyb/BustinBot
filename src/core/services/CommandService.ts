@@ -1,7 +1,7 @@
 import path from 'path';
 import { readdirSync, statSync } from 'fs';
 import { pathToFileURL } from 'url';
-import type { Command } from '../../models/Command';
+import type { Command } from '../../models/Command.js';
 
 const commandMap = new Map<string, Command>();
 

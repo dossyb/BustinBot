@@ -7,13 +7,13 @@ import {
     type APISectionComponent,
     type APITextDisplayComponent,
 } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { version } from "../../../../package.json";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
 import fs from "fs";
 import path from "path";
-import type { ServiceContainer } from "core/services/ServiceContainer";
-import { getFilename, getDirname } from 'utils/PathUtils';
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import { getFilename, getDirname } from '../../../utils/PathUtils.js';
+import { packageVersion } from "../../../utils/version.js";
 const filename = getFilename(import.meta.url);
 const dirname = getDirname(import.meta.url);
 
@@ -83,7 +83,7 @@ const announce: Command = {
         }
 
         const data = JSON.parse(fs.readFileSync(announcementsPath, "utf8"));
-        const currentVersion = version;
+        const currentVersion = packageVersion;
         const announcement: Announcement | undefined = data[currentVersion];
 
         if (!announcement) {

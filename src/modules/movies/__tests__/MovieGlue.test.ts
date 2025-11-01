@@ -49,20 +49,20 @@ const services: any = {
     },
 };
 
-const movieManualPoll = await import('../MovieManualPoll');
+const movieManualPoll = await import('../MovieManualPoll.js');
 const updateManualPollSelectionSpy = vi.spyOn(movieManualPoll, 'updateManualPollSelection');
 const showMovieManualPollMenuSpy = vi.spyOn(movieManualPoll, 'showMovieManualPollMenu');
 const { clearManualPollSession } = movieManualPoll;
 
-const movieLifecycle = await import('../MovieLifecycle');
+const movieLifecycle = await import('../MovieLifecycle.js');
 const { finishMovieNight, scheduleMovieAutoEnd } = movieLifecycle;
-const { handleMovieInteraction } = await import('../MovieInteractionHandler');
-const { showMovieManualPollMenu } = await import('../MovieManualPoll');
+const { handleMovieInteraction } = await import('../MovieInteractionHandler.js');
+const { showMovieManualPollMenu } = await import('../MovieManualPoll.js');
 
-const setupServiceModule = await import('../../../core/services/SetupService');
+const setupServiceModule = await import('../../../core/services/SetupService.js');
 const { setupService } = setupServiceModule;
 
-const DateUtils = await import('utils/DateUtils');
+const DateUtils = await import('../../../utils/DateUtils.js');
 vi.spyOn(DateUtils, 'normaliseFirestoreDates').mockImplementation((movie: any) => movie);
 
 beforeEach(() => {
@@ -329,7 +329,7 @@ describe('showMovieManualPollMenu', () => {
 
 describe('addMovieWithStats', () => {
     it('persists movie and increments user stat', async () => {
-        const { addMovieWithStats } = await import('../MovieService');
+        const { addMovieWithStats } = await import('../MovieService.js');
         const servicesWithRepos: any = {
             repos: {
                 movieRepo: { upsertMovie: vi.fn().mockResolvedValue(undefined) },

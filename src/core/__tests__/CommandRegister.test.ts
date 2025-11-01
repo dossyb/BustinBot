@@ -1,5 +1,6 @@
 import path from 'path';
-import { loadCommands } from '../services/CommandService';
+import { describe, it, expect, vi } from 'vitest';
+import { loadCommands } from '../services/CommandService.js';
 
 vi.mock('../services/CommandService', () => ({
   loadCommands: vi.fn(async () => {

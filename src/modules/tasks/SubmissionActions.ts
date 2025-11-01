@@ -1,11 +1,11 @@
 import { TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder, Client, Message } from 'discord.js';
-import type { TaskSubmission } from '../../models/TaskSubmission';
-import { SubmissionStatus } from '../../models/TaskSubmission';
-import { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } from './TaskEmbeds';
-import { isTextChannel } from '../../utils/ChannelUtils';
-import type { ITaskRepository } from 'core/database/interfaces/ITaskRepo';
-import { normaliseFirestoreDates } from 'utils/DateUtils';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
+import type { TaskSubmission } from '../../models/TaskSubmission.js';
+import { SubmissionStatus } from '../../models/TaskSubmission.js';
+import { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } from './TaskEmbeds.js';
+import { isTextChannel } from '../../utils/ChannelUtils.js';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
+import { normaliseFirestoreDates } from '../../utils/DateUtils.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
 // Configurable constants (replace with environment variable later)
 const ADMIN_CHANNEL_NAME = 'task-admin';

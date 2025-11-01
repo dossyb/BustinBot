@@ -1,7 +1,7 @@
-import { db } from "./firestore";
+import { db } from "./firestore.js";
 import { FieldValue } from "firebase-admin/firestore";
-import type { IBotRepository } from "./interfaces/IBotRepo";
-import type { BotStats } from "../../models/BotStats";
+import type { IBotRepository } from "./interfaces/IBotRepo.js";
+import type { BotStats } from "../../models/BotStats.js";
 
 export class BotRepository implements IBotRepository {
     private readonly docRef = db.collection('bot').doc('stats');

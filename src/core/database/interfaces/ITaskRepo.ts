@@ -1,9 +1,9 @@
-import type { Task } from "../../../models/Task";
-import type { TaskPoll } from "../../../models/TaskPoll";
-import type { TaskSubmission } from "../../../models/TaskSubmission";
-import type { TaskEvent } from "../../../models/TaskEvent";
-import type { TaskFeedback } from "../../../models/TaskFeedback";
-import type { TaskCategory } from "../../../models/Task";
+import type { Task } from "../../../models/Task.js";
+import type { TaskPoll } from "../../../models/TaskPoll.js";
+import type { TaskSubmission } from "../../../models/TaskSubmission.js";
+import type { TaskEvent } from "../../../models/TaskEvent.js";
+import type { TaskFeedback } from "../../../models/TaskFeedback.js";
+import type { TaskCategory } from "../../../models/Task.js";
 
 export interface ITaskRepository {
     getAllTasks(): Promise<Task[]>;

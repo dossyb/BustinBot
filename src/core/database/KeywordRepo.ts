@@ -1,8 +1,8 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { GuildScopedRepository } from "./CoreRepo";
-import { db } from "./firestore";
-import type { Keyword } from "../../models/Keyword";
-import type { IKeywordRepository } from "./interfaces/IKeywordRepo";
+import { GuildScopedRepository } from "./CoreRepo.js";
+import { db } from "./firestore.js";
+import type { Keyword } from "../../models/Keyword.js";
+import type { IKeywordRepository } from "./interfaces/IKeywordRepo.js";
 
 export class KeywordRepository extends GuildScopedRepository<Keyword> implements IKeywordRepository {
     constructor(guildId: string) {

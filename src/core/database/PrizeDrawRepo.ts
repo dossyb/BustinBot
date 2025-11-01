@@ -1,8 +1,8 @@
-import { db } from "./firestore";
-import { GuildScopedRepository } from "./CoreRepo";
-import type { IPrizeDrawRepository } from "./interfaces/IPrizeDrawRepo";
-import type { PrizeDraw } from "../../models/PrizeDraw";
-import { TaskCategory } from "../../models/Task";
+import { db } from "./firestore.js";
+import { GuildScopedRepository } from "./CoreRepo.js";
+import type { IPrizeDrawRepository } from "./interfaces/IPrizeDrawRepo.js";
+import type { PrizeDraw } from "../../models/PrizeDraw.js";
+import { TaskCategory } from "../../models/Task.js";
 
 export class PrizeDrawRepository extends GuildScopedRepository<PrizeDraw> implements IPrizeDrawRepository {
     constructor(guildId: string) {

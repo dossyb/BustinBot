@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-import type { Movie } from '../../models/Movie';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
+import type { Movie } from '../../models/Movie.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 dotenv.config();
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;

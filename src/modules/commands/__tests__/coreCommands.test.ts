@@ -9,8 +9,8 @@ const botStats = {
 
 const services = { botStats } as any;
 
-const { default: goodbot } = await import('../core/goodbot');
-const { default: badbot } = await import('../core/badbot');
+const { default: goodbot } = await import('../core/goodbot.js');
+const { default: badbot } = await import('../core/badbot.js');
 
 beforeEach(() => {
     Object.values(botStats).forEach((fn: any) => fn.mockClear?.());

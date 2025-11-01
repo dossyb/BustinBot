@@ -39,7 +39,7 @@ const services: any = {
     guilds: { name: 'guildService' },
 };
 
-const { handleTaskInteraction } = await import('../TaskInteractionHandler');
+const { handleTaskInteraction } = await import('../TaskInteractionHandler.js');
 
 const baseInteraction = () => ({
     user: { id: 'user-1' },

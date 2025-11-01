@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-import { SubmissionStatus } from '../../../models/TaskSubmission';
-import { handleDirectMessage, handleAdminButton, handleRejectionModal } from '../../tasks/TaskInteractions';
-import { createTaskServiceHarness, createAdminClientMock } from '../../../tests/mocks/taskMocks';
+import { SubmissionStatus } from '../../../models/TaskSubmission.js';
+import { handleDirectMessage, handleAdminButton, handleRejectionModal } from '../TaskInteractions.js';
+import { createTaskServiceHarness, createAdminClientMock } from '../../../tests/mocks/taskMocks.js';
 
 vi.mock('../../tasks/SubmissionActions', () => ({
   postToAdminChannel: vi.fn().mockResolvedValue(undefined),
@@ -10,7 +10,7 @@ vi.mock('../../tasks/SubmissionActions', () => ({
   updateTaskCounter: vi.fn().mockResolvedValue(undefined),
 }));
 
-import * as submissionActions from '../../tasks/SubmissionActions';
+import * as submissionActions from '../SubmissionActions.js';
 const { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } = submissionActions;
 
 const mockedPostToAdminChannel = vi.mocked(postToAdminChannel);

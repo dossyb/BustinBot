@@ -1,10 +1,10 @@
 import { GuildMember } from 'discord.js';
 import type { Interaction } from 'discord.js';
-import type { Command } from '../../models/Command';
-import { CommandModule, CommandRole } from '../../models/Command';
-import type { ServiceContainer } from '../services/ServiceContainer';
-import { setupService } from '../services/SetupService';
-import { createTimezoneModal, timezoneService } from 'core/services/TimezoneService';
+import type { Command } from '../../models/Command.js';
+import { CommandModule, CommandRole } from '../../models/Command.js';
+import type { ServiceContainer } from '../services/ServiceContainer.js';
+import { setupService } from '../services/SetupService.js';
+import { createTimezoneModal, timezoneService } from '../services/TimezoneService.js';
 
 export async function handleInteraction(
     interaction: Interaction,

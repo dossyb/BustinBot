@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { db } from "core/database/firestore";
+import { db } from "../core/database/firestore.js";
 import { Timestamp } from "firebase-admin/firestore";
 import "dotenv/config";
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import type { Client, VoiceState } from 'discord.js';
-import { initAttendanceTracking, registerVoiceListeners, finaliseAttendance } from '../MovieAttendance';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import { initAttendanceTracking, registerVoiceListeners, finaliseAttendance } from '../MovieAttendance.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 
 function makeVoiceState(id: string, channelId: string | null): VoiceState {
     return {

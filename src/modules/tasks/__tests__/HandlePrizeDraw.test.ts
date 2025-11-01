@@ -15,8 +15,8 @@ import {
     generatePrizeDrawSnapshot,
     rollWinnerForSnapshot,
     announcePrizeDrawWinner,
-} from '../HandlePrizeDraw';
-import { SubmissionStatus } from '../../../models/TaskSubmission';
+} from '../HandlePrizeDraw.js';
+import { SubmissionStatus } from '../../../models/TaskSubmission.js';
 
 describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
     beforeEach(() => {

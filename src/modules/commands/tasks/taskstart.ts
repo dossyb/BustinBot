@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { startAllTaskEvents } from "../../tasks/HandleTaskStart";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { startAllTaskEvents } from "../../tasks/HandleTaskStart.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const taskstart: Command = {
     name: 'taskstart',

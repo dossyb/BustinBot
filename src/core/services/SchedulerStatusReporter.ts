@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
-import type { ServiceContainer } from "./ServiceContainer";
-import { getNextPollDate, getNextEventDate, getNextPrizeDrawDate } from "modules/tasks/TaskScheduler";
+import type { ServiceContainer } from "./ServiceContainer.js";
+import { getNextPollDate, getNextEventDate, getNextPrizeDrawDate } from "../../modules/tasks/TaskScheduler.js";
 
 export class SchedulerStatusReporter {
     static async logAllUpcoming(services: ServiceContainer) {

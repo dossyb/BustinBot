@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Message, SlashCommandBuilder, type SlashCommandOptionsOnlyBuilder, type SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
-import type { ServiceContainer } from '../core/services/ServiceContainer';
+import type { ServiceContainer } from '../core/services/ServiceContainer.js';
 
 export enum CommandRole {
     Everyone = 'Everyone',

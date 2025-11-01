@@ -1,5 +1,5 @@
-import type { Guild } from "models/Guild";
-import type { IGuildRepository } from "core/database/interfaces/IGuildRepo";
+import type { Guild } from "../../models/Guild.js";
+import type { IGuildRepository } from "../database/interfaces/IGuildRepo.js";
 import { ChatInputCommandInteraction, Message, type RepliableInteraction } from "discord.js";
 
 export class GuildService {

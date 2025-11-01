@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
 
 const movienight: Command = {
     name: 'movienight',

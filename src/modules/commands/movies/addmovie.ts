@@ -1,11 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "discord.js";
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { addMovieWithStats, fetchMovieDetailsById } from "../../movies/MovieService";
-import { createMovieEmbed } from "../../movies/MovieEmbeds";
-import { presentMovieSelection } from "../../movies/MovieSelector";
-import type { Movie } from "../../../models/Movie";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { addMovieWithStats, fetchMovieDetailsById } from "../../movies/MovieService.js";
+import { createMovieEmbed } from "../../movies/MovieEmbeds.js";
+import { presentMovieSelection } from "../../movies/MovieSelector.js";
+import type { Movie } from "../../../models/Movie.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const MAX_ACTIVE_MOVIES_PER_USER = 3;
 

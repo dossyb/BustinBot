@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { fetchMovieDetails } from '../../movies/MovieService';
-import { CommandModule, CommandRole, type Command } from '../../../models/Command';
-import { createMovieEmbed } from '../../movies/MovieEmbeds';
+import { fetchMovieDetails } from '../../movies/MovieService.js';
+import { CommandModule, CommandRole, type Command } from '../../../models/Command.js';
+import { createMovieEmbed } from '../../movies/MovieEmbeds.js';
 
 const testmovie: Command = {
     name: 'testmovie',

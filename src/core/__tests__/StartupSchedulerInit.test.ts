@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GuildRepository } from "../database/GuildRepo";
-import { initTaskScheduler } from "../../../src/modules/tasks/TaskScheduler";
+import { GuildRepository } from "../database/GuildRepo.js";
+import { initTaskScheduler } from "../../modules/tasks/TaskScheduler.js";
 
 vi.mock("../database/GuildRepo", () => ({
   GuildRepository: vi.fn().mockImplementation(() => ({

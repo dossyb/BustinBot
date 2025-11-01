@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { version } from '../../../../package.json';
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { packageVersion } from '../../../utils/version.js';
 
 const taskhelp: Command = {
     name: 'taskhelp',
@@ -42,9 +42,12 @@ const taskhelp: Command = {
                     value:
                         "Prize draws occur **every fortnight on Tuesday at 00:00 UTC**. Each prize roll counts as one entry so completing more tasks at higher tiers improve your odds of winning.\nWinners are announced in the task channel and will be contacted by a task admin to award them with a free bond!"
                 },
-            ]
+            ],
+            footer: {
+                text: `BustinBot ${packageVersion} • Developed by dossyb`
+            }
         };
-        
+
         await interaction.reply({ embeds: [embed], flags: 1 << 6 });
     }
 }

@@ -31,9 +31,9 @@ vi.mock("../GuildRepo", () => {
   };
 });
 
-import { GuildRepository } from "../GuildRepo";
-import { GuildService } from "../../services/GuildService";
-import type { Guild } from "../../../models/Guild";
+import { GuildRepository } from "../GuildRepo.js";
+import { GuildService } from "../../services/GuildService.js";
+import type { Guild } from "../../../models/Guild.js";
 
 describe("GuildService", () => {
   let repo: any;

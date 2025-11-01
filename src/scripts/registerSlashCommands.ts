@@ -1,6 +1,6 @@
 import path from 'path';
-import { registerSlashCommands } from '../utils/registerCommands';
-import { getFilename, getDirname } from 'utils/PathUtils';
+import { registerSlashCommands } from '../utils/registerCommands.js';
+import { getFilename, getDirname } from '../utils/PathUtils.js';
 const dirname = getDirname(import.meta.url);
 
 try {

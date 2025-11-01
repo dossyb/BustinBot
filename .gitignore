@@ -7,3 +7,4 @@ logs
 coverage
 !announcements.json
 !tsconfig.prod.json
+dist

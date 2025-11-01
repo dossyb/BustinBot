@@ -1,4 +1,4 @@
-import { truncate } from "../MovieEmbeds";
+import { truncate } from "../MovieEmbeds.js";
 
 describe('truncate', () => {
     it('should not modify short text', () => {

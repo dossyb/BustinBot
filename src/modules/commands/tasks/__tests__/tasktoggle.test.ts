@@ -1,13 +1,13 @@
 import { describe, it, beforeEach, expect, vi } from 'vitest';
 
-import tasktoggle from '../tasktoggle';
+import tasktoggle from '../tasktoggle.js';
 
 vi.mock('../../../tasks/TaskScheduler', () => ({
     initTaskScheduler: vi.fn(),
     stopTaskScheduler: vi.fn(),
 }));
 
-import { initTaskScheduler, stopTaskScheduler } from '../../../tasks/TaskScheduler';
+import { initTaskScheduler, stopTaskScheduler } from '../../../tasks/TaskScheduler.js';
 
 describe('tasktoggle command', () => {
     const guilds = {

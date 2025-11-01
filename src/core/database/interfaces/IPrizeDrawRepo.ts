@@ -1,5 +1,5 @@
-import type { PrizeDraw } from "../../../models/PrizeDraw";
-import type { TaskCategory } from "../../../models/Task";
+import type { PrizeDraw } from "../../../models/PrizeDraw.js";
+import type { TaskCategory } from "../../../models/Task.js";
 
 export interface IPrizeDrawRepository {
     createPrizeDraw(draw: PrizeDraw): Promise<void>;

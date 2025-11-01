@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import Fuse from 'fuse.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import { createMovieEmbed } from '../../movies/MovieEmbeds';
-import type { Movie } from '../../../models/Movie';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { createMovieEmbed } from '../../movies/MovieEmbeds.js';
+import type { Movie } from '../../../models/Movie.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 
 const viewmovie: Command = {
     name: 'viewmovie',

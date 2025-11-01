@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { version } from "../../../../package.json";
-import { replaceBustinEmote } from "utils/EmoteHelper";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { replaceBustinEmote } from "../../../utils/EmoteHelper.js";
+import { packageVersion } from "../../../utils/version.js";
 
 const help: Command = {
     name: "help",
@@ -49,7 +49,7 @@ const help: Command = {
                 }
             )
             .setFooter({
-                text: `BustinBot ${version ?? "v2"} • Developed by dossyb`,
+                text: `BustinBot ${packageVersion} • Developed by dossyb`,
             });
 
         await interaction.reply({ embeds: [embed], flags: 1 << 6 });

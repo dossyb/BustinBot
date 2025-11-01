@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { version } from "../../../../package.json";
-import type { ServiceContainer } from "core/services/ServiceContainer";
-import type { UserStats } from "models/UserStats";
-import { normaliseFirestoreDates } from "utils/DateUtils";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import type { UserStats } from "../../../models/UserStats.js";
+import { normaliseFirestoreDates } from "../../../utils/DateUtils.js";
+import { packageVersion } from "../../../utils/version.js";
 
 const stats: Command = {
     name: "stats",
@@ -85,7 +85,7 @@ const stats: Command = {
                 },
             ])
             .setFooter({
-                text: `BustinBot ${version ?? "v2"} • Developed by dossyb`,
+                text: `BustinBot ${packageVersion} • Developed by dossyb`,
             });
 
         await interaction.editReply({ embeds: [embed] });

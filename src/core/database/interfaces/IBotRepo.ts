@@ -1,4 +1,4 @@
-import type { BotStats } from "../../../models/BotStats";
+import type { BotStats } from "../../../models/BotStats.js";
 
 export interface IBotRepository {
     getBotStats(): Promise<BotStats | null>;

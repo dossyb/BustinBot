@@ -16,13 +16,13 @@ vi.mock('../../movies/MovieSelector', () => ({
     presentMovieSelection: vi.fn(),
 }));
 
-const { addMovieWithStats, fetchMovieDetailsById } = vi.mocked(await import('../../movies/MovieService'));
-const { createMovieEmbed } = vi.mocked(await import('../../movies/MovieEmbeds'));
-const { presentMovieSelection } = vi.mocked(await import('../../movies/MovieSelector'));
+const { addMovieWithStats, fetchMovieDetailsById } = vi.mocked(await import('../../movies/MovieService.js'));
+const { createMovieEmbed } = vi.mocked(await import('../../movies/MovieEmbeds.js'));
+const { presentMovieSelection } = vi.mocked(await import('../../movies/MovieSelector.js'));
 
-const { default: addmovie } = await import('../movies/addmovie');
-const { default: moviesetup } = await import('../movies/moviesetup');
-const { default: tasksetup } = await import('../tasks/tasksetup');
+const { default: addmovie } = await import('../movies/addmovie.js');
+const { default: moviesetup } = await import('../movies/moviesetup.js');
+const { default: tasksetup } = await import('../tasks/tasksetup.js');
 
 const mockGuilds = {
     requireConfig: vi.fn(),

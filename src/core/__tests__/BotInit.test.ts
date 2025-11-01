@@ -1,6 +1,6 @@
-import type { ServiceContainer } from '../services/ServiceContainer';
-import type { BotStatsService } from '../services/BotStatsService';
-import type { Command } from '../../models/Command';
+import type { ServiceContainer } from '../services/ServiceContainer.js';
+import type { BotStatsService } from '../services/BotStatsService.js';
+import type { Command } from '../../models/Command.js';
 
 describe('Bot startup smoke test', () => {
     afterEach(() => {
@@ -88,6 +88,6 @@ describe('Bot startup smoke test', () => {
         process.env.DISCORD_GUILD_ID = 'guild';
 
         // ---- Run main index (startup) ----
-        await expect(import('../../index')).resolves.not.toThrow();
+        await expect(import('../../index.js')).resolves.not.toThrow();
     }, 10000);
 });

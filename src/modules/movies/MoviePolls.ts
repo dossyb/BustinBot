@@ -1,15 +1,15 @@
 import { ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, Message, TextChannel, Client } from "discord.js";
 import type { RepliableInteraction } from "discord.js";
 import { v4 as uuidv4 } from "uuid";
-import type { Movie } from "../../models/Movie";
-import type { MoviePoll } from "../../models/MoviePoll";
-import { injectMockUsers } from "./MovieMockUtils";
-import { createLocalMoviePreviewEmbed } from "./MovieEmbeds";
-import { saveCurrentMovie } from "./PickMovieInteractions";
+import type { Movie } from "../../models/Movie.js";
+import type { MoviePoll } from "../../models/MoviePoll.js";
+import { injectMockUsers } from "./MovieMockUtils.js";
+import { createLocalMoviePreviewEmbed } from "./MovieEmbeds.js";
+import { saveCurrentMovie } from "./PickMovieInteractions.js";
 import { DateTime } from "luxon";
-import { scheduleActivePollClosure } from "./MoviePollScheduler";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { notifyMovieSubmitter } from "./MovieLocalSelector";
+import { scheduleActivePollClosure } from "./MoviePollScheduler.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { notifyMovieSubmitter } from "./MovieLocalSelector.js";
 
 const MAX_CHOICES = 5;
 const emojiNumbers = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];

@@ -1,4 +1,4 @@
-import type { Movie } from "../../models/Movie";
+import type { Movie } from "../../models/Movie.js";
 
 const MOCK_USER_IDS = ['user_1', 'user_2', 'user_3', 'user_4', 'user_5'];
 const MOCK_USER_NAMES = ['Pitbull', 'Yuki', 'skaterbob', 'Zuk', 'Wartortor'];

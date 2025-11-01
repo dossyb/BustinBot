@@ -1,8 +1,8 @@
 import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import type { RepliableInteraction } from "discord.js";
-import type { Movie } from "../../models/Movie";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { normaliseFirestoreDates } from "utils/DateUtils";
+import type { Movie } from "../../models/Movie.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
 
 const PAGE_SIZE = 25;
 const sessions = new Map<string, { selected: Set<string>; page: number }>();

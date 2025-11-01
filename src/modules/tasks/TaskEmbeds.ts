@@ -1,10 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, embedLength } from "discord.js";
 import path from 'path';
-import type { TaskEvent } from "../../models/TaskEvent";
-import type { Task } from "../../models/Task";
-import { TaskCategory } from "../../models/Task";
-import { TaskInstructions } from "./TaskInstructions";
-import { getFilename, getDirname } from 'utils/PathUtils';
+import type { TaskEvent } from "../../models/TaskEvent.js";
+import type { Task } from "../../models/Task.js";
+import { TaskCategory } from "../../models/Task.js";
+import { TaskInstructions } from "./TaskInstructions.js";
+import { getFilename, getDirname } from '../../utils/PathUtils.js';
 const filename = getFilename(import.meta.url);
 const dirname = getDirname(import.meta.url);
 

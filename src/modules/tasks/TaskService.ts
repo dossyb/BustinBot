@@ -1,12 +1,12 @@
 import type { Client } from 'discord.js';
 import { TextChannel } from 'discord.js';
-import type { TaskSubmission } from '../../models/TaskSubmission';
-import { SubmissionStatus } from '../../models/TaskSubmission';
-import { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } from './SubmissionActions';
-import { isTextChannel } from '../../utils/ChannelUtils';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
-import { getTaskDisplayName } from './TaskEmbeds';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
+import type { TaskSubmission } from '../../models/TaskSubmission.js';
+import { SubmissionStatus } from '../../models/TaskSubmission.js';
+import { postToAdminChannel, notifyUser, archiveSubmission, updateTaskCounter } from './SubmissionActions.js';
+import { isTextChannel } from '../../utils/ChannelUtils.js';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
+import { getTaskDisplayName } from './TaskEmbeds.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
 const MAX_SCREENSHOTS = 10;
 

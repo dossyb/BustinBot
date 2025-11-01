@@ -1,8 +1,8 @@
-import { db } from "./firestore";
-import { GuildScopedRepository } from "./CoreRepo";
+import { db } from "./firestore.js";
+import { GuildScopedRepository } from "./CoreRepo.js";
 import { FieldValue } from "firebase-admin/firestore";
-import type { IUserRepository } from "./interfaces/IUserRepo";
-import type { UserStats } from "../../models/UserStats";
+import type { IUserRepository } from "./interfaces/IUserRepo.js";
+import type { UserStats } from "../../models/UserStats.js";
 
 export class UserRepository extends GuildScopedRepository<UserStats> implements IUserRepository {
     constructor(guildId: string) {

@@ -1,16 +1,16 @@
-import { BotRepository } from "../database/BotRepo";
-import { TaskRepository } from "../database/TaskRepo";
-import { PrizeDrawRepository } from "../database/PrizeDrawRepo";
-import { KeywordRepository } from "../database/KeywordRepo";
-import { BotStatsService } from "./BotStatsService";
-import { TaskService } from "../../modules/tasks/TaskService";
-import { TaskEventStore } from "../../modules/tasks/TaskEventStore";
-import { KeywordSelector } from "../../modules/tasks/KeywordSelector";
-import { MovieRepository } from "../database/MovieRepo";
-import { GuildRepository } from "../database/GuildRepo";
-import { GuildService } from "./GuildService";
-import type { ServiceContainer } from "./ServiceContainer";
-import { UserRepository } from "core/database/UserRepo";
+import { BotRepository } from "../database/BotRepo.js";
+import { TaskRepository } from "../database/TaskRepo.js";
+import { PrizeDrawRepository } from "../database/PrizeDrawRepo.js";
+import { KeywordRepository } from "../database/KeywordRepo.js";
+import { BotStatsService } from "./BotStatsService.js";
+import { TaskService } from "../../modules/tasks/TaskService.js";
+import { TaskEventStore } from "../../modules/tasks/TaskEventStore.js";
+import { KeywordSelector } from "../../modules/tasks/KeywordSelector.js";
+import { MovieRepository } from "../database/MovieRepo.js";
+import { GuildRepository } from "../database/GuildRepo.js";
+import { GuildService } from "./GuildService.js";
+import type { ServiceContainer } from "./ServiceContainer.js";
+import { UserRepository } from "../database/UserRepo.js";
 
 export async function createServiceContainer(guildId: string): Promise<ServiceContainer> {
     const botRepo = new BotRepository();

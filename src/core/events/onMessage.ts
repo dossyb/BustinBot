@@ -1,7 +1,7 @@
 import { Message, GuildMember } from 'discord.js';
-import type { Command } from '../../models/Command';
-import { CommandRole } from '../../models/Command';
-import type { ServiceContainer } from '../services/ServiceContainer';
+import type { Command } from '../../models/Command.js';
+import { CommandRole } from '../../models/Command.js';
+import type { ServiceContainer } from '../services/ServiceContainer.js';
 
 const PREFIX = '!'; // Handle ! as the command prefix
 

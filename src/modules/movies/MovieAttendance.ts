@@ -1,5 +1,5 @@
 import { Client, VoiceState } from 'discord.js';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 import { DateTime } from 'luxon';
 
 const MIN_ATTENDANCE_MS = 30 * 60 * 1000; // 30 mins

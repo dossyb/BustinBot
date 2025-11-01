@@ -1,5 +1,5 @@
-import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo";
-import type { TaskEvent } from "../../models/TaskEvent";
+import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo.js";
+import type { TaskEvent } from "../../models/TaskEvent.js";
 
 export class TaskEventStore {
     constructor(private repo: ITaskRepository) {}

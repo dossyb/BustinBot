@@ -34,11 +34,11 @@ vi.mock('firebase-admin/firestore', () => {
 
 const { incrementMock, serverTimestampMock, timestampNowMock, timestampFromMillisMock } = firebaseHoist;
 
-import { db } from '../../database/firestore';
-import { GuildScopedRepository } from '../CoreRepo';
-import { BotRepository } from '../BotRepo';
-import { KeywordRepository } from '../KeywordRepo';
-import { UserRepository } from '../UserRepo';
+import { db } from '../firestore.js';
+import { GuildScopedRepository } from '../CoreRepo.js';
+import { BotRepository } from '../BotRepo.js';
+import { KeywordRepository } from '../KeywordRepo.js';
+import { UserRepository } from '../UserRepo.js';
 
 type FirestoreDoc<T = any> = {
     get: ReturnType<typeof vi.fn>;

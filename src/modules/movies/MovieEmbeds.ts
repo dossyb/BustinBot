@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
-import type { Movie } from '../../models/Movie';
-import { getDisplayNameFromAddedBy } from './MovieMockUtils';
+import type { Movie } from '../../models/Movie.js';
+import { getDisplayNameFromAddedBy } from './MovieMockUtils.js';
 
 export function truncate(text: string, length = 200): string {
     return text.length > length ? text.slice(0, length - 3) + '...' : text;

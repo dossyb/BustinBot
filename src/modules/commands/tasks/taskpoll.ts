@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import { postAllTaskPolls } from '../../tasks/HandleTaskPoll';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { postAllTaskPolls } from '../../tasks/HandleTaskPoll.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 
 const taskpoll: Command = {
     name: 'taskpoll',

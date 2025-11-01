@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "discord.js";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { finishMovieNight } from "../../movies/MovieLifecycle";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { finishMovieNight } from "../../movies/MovieLifecycle.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const endmovie: Command = {
     name: 'endmovie',

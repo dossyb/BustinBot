@@ -140,7 +140,7 @@ describe('index startup script', () => {
     });
 
     it('registers slash commands and wires handlers on startup', async () => {
-        await import('../index');
+        await import('../index.js');
 
         // Allow any pending microtasks to flush
         await Promise.resolve();

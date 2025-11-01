@@ -1,8 +1,8 @@
 import { Client, EmbedBuilder } from 'discord.js';
-import type { Movie } from '../../models/Movie';
-import { createMovieEmbed } from './MovieEmbeds';
-import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
+import type { Movie } from '../../models/Movie.js';
+import { createMovieEmbed } from './MovieEmbeds.js';
+import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
 export async function pickRandomMovie(services: ServiceContainer): Promise<Movie | null> {
     const movieRepo = services.repos.movieRepo;

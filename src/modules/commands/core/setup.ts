@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
 
 const setup: Command = {
     name: 'setup',

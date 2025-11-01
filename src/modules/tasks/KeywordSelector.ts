@@ -1,5 +1,5 @@
-import type { IKeywordRepository } from "../../core/database/interfaces/IKeywordRepo";
-import type { Keyword } from "../../models/Keyword";
+import type { IKeywordRepository } from "../../core/database/interfaces/IKeywordRepo.js";
+import type { Keyword } from "../../models/Keyword.js";
 
 const HISTORY_LIMIT = 26;
 

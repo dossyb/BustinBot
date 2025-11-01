@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Message } from "discord.js";
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from "../../../models/Command";
-import type { Movie } from "../../../models/Movie";
-import { createMovieListEmbeds } from "../../movies/MovieEmbeds";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import type { Movie } from "../../../models/Movie.js";
+import { createMovieListEmbeds } from "../../movies/MovieEmbeds.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const MOVIES_PER_PAGE = 3;
 

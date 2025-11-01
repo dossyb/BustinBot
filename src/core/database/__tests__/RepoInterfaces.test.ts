@@ -6,9 +6,9 @@ let PrizeDrawRepository: any;
 
 beforeAll(async () => {
     // Dynamically import after global Firestore mock from setup.ts is applied
-    TaskRepository = (await import("../TaskRepo")).TaskRepository;
-    MovieRepository = (await import("../MovieRepo")).MovieRepository;
-    PrizeDrawRepository = (await import("../PrizeDrawRepo")).PrizeDrawRepository;
+    TaskRepository = (await import("../TaskRepo.js")).TaskRepository;
+    MovieRepository = (await import("../MovieRepo.js")).MovieRepository;
+    PrizeDrawRepository = (await import("../PrizeDrawRepo.js")).PrizeDrawRepository;
 });
 
 

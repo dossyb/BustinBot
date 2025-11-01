@@ -1,6 +1,6 @@
-import type { Movie } from "../../../models/Movie";
-import type { MovieEvent } from "../../../models/MovieEvent";
-import type { MoviePoll } from "../../../models/MoviePoll";
+import type { Movie } from "../../../models/Movie.js";
+import type { MovieEvent } from "../../../models/MovieEvent.js";
+import type { MoviePoll } from "../../../models/MoviePoll.js";
 
 export interface IMovieRepository {
     getAllMovies(): Promise<Movie[]>;

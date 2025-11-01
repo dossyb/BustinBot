@@ -1,8 +1,8 @@
 import { ButtonInteraction, StringSelectMenuInteraction, Message, Client, ModalSubmitInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, TextChannel, ActionRowBuilder } from 'discord.js';
-import { SubmissionStatus } from '../../models/TaskSubmission';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
-import { getTaskDisplayName } from './TaskEmbeds';
-import { handleUpdateTaskModal } from './HandleUpdateTaskModal';
+import { SubmissionStatus } from '../../models/TaskSubmission.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { getTaskDisplayName } from './TaskEmbeds.js';
+import { handleUpdateTaskModal } from './HandleUpdateTaskModal.js';
 
 const MAX_SCREENSHOTS = 10;
 

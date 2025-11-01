@@ -1,11 +1,11 @@
-const discordMock = vi.hoisted(() => import("../../../tests/mocks/discordMock"));
+const discordMock = vi.hoisted(() => import("../../../tests/mocks/discordMock.js"));
 
 vi.mock("discord.js", async () => ({
     ...(await discordMock),
 }));
 
-import { createMovieEmbed } from "../MovieEmbeds";
-import { mockEmbedInstance } from "../../../tests/mocks/discordMock";
+import { createMovieEmbed } from "../MovieEmbeds.js";
+import { mockEmbedInstance } from "../../../tests/mocks/discordMock.js";
 
 describe('createMovieEmbed', () => {
     beforeEach(() => {

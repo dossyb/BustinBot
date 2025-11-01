@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember, EmbedBuilder } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { version } from "../../../../package.json";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { packageVersion } from "../../../utils/version.js";
 
 const moviehelp: Command = {
     name: 'moviehelp',
@@ -73,7 +73,7 @@ const moviehelp: Command = {
                 value: commandList,
             })
             .setFooter({
-                text: `BustinBot ${version ?? "v2"} • Developed by dossyb`
+                text: `BustinBot ${packageVersion} • Developed by dossyb`
             });
 
         await interaction.reply({ embeds: [embed], flags: 1 << 6 });

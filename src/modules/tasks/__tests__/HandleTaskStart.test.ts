@@ -12,8 +12,8 @@ vi.mock('../TaskEmbeds', () => ({
     buildTaskEventEmbed: buildTaskEventEmbedMock,
 }));
 
-import { startTaskEventForCategory } from '../HandleTaskStart';
-import { TaskCategory, TaskType } from '../../../models/Task';
+import { startTaskEventForCategory } from '../HandleTaskStart.js';
+import { TaskCategory, TaskType } from '../../../models/Task.js';
 
 describe('HandleTaskStart.startTaskEventForCategory', () => {
     beforeEach(() => {

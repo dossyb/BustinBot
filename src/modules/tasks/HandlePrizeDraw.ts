@@ -1,13 +1,13 @@
-import type { IPrizeDrawRepository } from '../../core/database/interfaces/IPrizeDrawRepo';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
-import type { PrizeDraw } from '../../models/PrizeDraw';
-import type { TaskEvent } from '../../models/TaskEvent';
-import { TaskCategory } from '../../models/Task';
-import { SubmissionStatus } from '../../models/TaskSubmission';
-import { buildPrizeDrawEmbed } from './TaskEmbeds';
+import type { IPrizeDrawRepository } from '../../core/database/interfaces/IPrizeDrawRepo.js';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
+import type { PrizeDraw } from '../../models/PrizeDraw.js';
+import type { TaskEvent } from '../../models/TaskEvent.js';
+import { TaskCategory } from '../../models/Task.js';
+import { SubmissionStatus } from '../../models/TaskSubmission.js';
+import { buildPrizeDrawEmbed } from './TaskEmbeds.js';
 import { Client, TextChannel } from 'discord.js';
-import { isTextChannel } from '../../utils/ChannelUtils';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
+import { isTextChannel } from '../../utils/ChannelUtils.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
 const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
 

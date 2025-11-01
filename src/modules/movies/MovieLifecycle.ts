@@ -1,9 +1,9 @@
-import type { Movie } from '../../models/Movie';
+import type { Movie } from '../../models/Movie.js';
 import { DateTime } from 'luxon';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 import { Client } from 'discord.js';
-import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance';
-import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
+import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance.js';
+import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 

@@ -1,13 +1,13 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { GuildScopedRepository } from "./CoreRepo";
-import { db } from "./firestore";
-import type { Task } from "../../models/Task";
-import type { TaskPoll } from "../../models/TaskPoll";
-import type { TaskSubmission } from "../../models/TaskSubmission";
-import type { TaskEvent } from "../../models/TaskEvent";
-import type { TaskFeedback } from "../../models/TaskFeedback";
-import type { ITaskRepository } from "./interfaces/ITaskRepo";
-import type { TaskCategory } from "../../models/Task";
+import { GuildScopedRepository } from "./CoreRepo.js";
+import { db } from "./firestore.js";
+import type { Task } from "../../models/Task.js";
+import type { TaskPoll } from "../../models/TaskPoll.js";
+import type { TaskSubmission } from "../../models/TaskSubmission.js";
+import type { TaskEvent } from "../../models/TaskEvent.js";
+import type { TaskFeedback } from "../../models/TaskFeedback.js";
+import type { ITaskRepository } from "./interfaces/ITaskRepo.js";
+import type { TaskCategory } from "../../models/Task.js";
 
 export class TaskRepository extends GuildScopedRepository<Task> implements ITaskRepository {
     constructor(guildId: string) {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { KeywordSelector } from '../KeywordSelector';
+import { KeywordSelector } from '../KeywordSelector.js';
 
 const repo = {
     getAllKeywords: vi.fn(),

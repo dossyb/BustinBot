@@ -1,5 +1,5 @@
-import type { BotStats } from '../../models/BotStats';
-import type { IBotRepository } from '../database/interfaces/IBotRepo';
+import type { BotStats } from '../../models/BotStats.js';
+import type { IBotRepository } from '../database/interfaces/IBotRepo.js';
 
 export class BotStatsService {
     private stats: BotStats | null = null;

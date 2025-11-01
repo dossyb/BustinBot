@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, Message } from 'discord.js';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
-import type { ServiceContainer } from 'core/services/ServiceContainer';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
+import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
 
 const sendas: Command = {
     name: 'sendas',

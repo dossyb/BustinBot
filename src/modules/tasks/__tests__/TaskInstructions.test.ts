@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { TaskInstructions } from '../../tasks/TaskInstructions';
-import { TaskType } from '../../../models/Task';
+import { TaskInstructions } from '../TaskInstructions.js';
+import { TaskType } from '../../../models/Task.js';
 
 describe('TaskInstructions mapping', () => {
     it('provides instructions for every task type', () => {

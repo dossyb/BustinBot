@@ -42,7 +42,7 @@ vi.mock('../GuildService', () => ({ GuildService }));
 
 describe('createServiceContainer', () => {
     it('constructs repositories and services with initialised bot stats', async () => {
-        const { createServiceContainer } = await import('../ServiceFactory');
+        const { createServiceContainer } = await import('../ServiceFactory.js');
 
         const services = await createServiceContainer('guild-42');
 

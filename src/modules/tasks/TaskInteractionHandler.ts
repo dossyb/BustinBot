@@ -1,14 +1,14 @@
 import type { Interaction, Client } from "discord.js";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { handleTaskFeedback } from "./HandleTaskFeedback";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { handleTaskFeedback } from "./HandleTaskFeedback.js";
 import {
     handleSubmitButton,
     handleAdminButton,
     handleTaskSelect,
     handleRejectionModal,
-} from "./TaskInteractions";
-import { handleUpdateTaskModal } from "./HandleUpdateTaskModal";
-import { setupService } from "../../core/services/SetupService";
+} from "./TaskInteractions.js";
+import { handleUpdateTaskModal } from "./HandleUpdateTaskModal.js";
+import { setupService } from "../../core/services/SetupService.js";
 
 export async function handleTaskInteraction(
     interaction: Interaction,

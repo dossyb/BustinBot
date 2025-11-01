@@ -1,6 +1,6 @@
-import { replaceBustinEmote } from 'utils/EmoteHelper';
-import type { Command } from '../../../models/Command';
-import { CommandModule, CommandRole } from '../../../models/Command';
+import { replaceBustinEmote } from '../../../utils/EmoteHelper.js';
+import type { Command } from '../../../models/Command.js';
+import { CommandModule, CommandRole } from '../../../models/Command.js';
 import { SlashCommandBuilder, TextChannel } from 'discord.js';
 
 const goodbot: Command = {

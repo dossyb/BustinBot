@@ -1,11 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { CommandModule, CommandRole } from "models/Command";
-import type { Command } from "models/Command";
-import type { ServiceContainer } from "core/services/ServiceContainer";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import type { Command } from "../../../models/Command.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import { importTasksFromCsv } from "scripts/importTasksFromCSV";
+import { importTasksFromCsv } from "../../../scripts/importTasksFromCSV.js";
 
 const importtasks: Command = {
     name: "importtasks",

@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from "discord.js";
-import type { Command } from "models/Command";
-import { CommandModule, CommandRole } from "models/Command";
-import { TaskCategory, TaskType } from "models/Task";
-import { buildTaskEventEmbed } from "modules/tasks/TaskEmbeds";
-import { isTextChannel } from "utils/ChannelUtils";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { TaskCategory, TaskType } from "../../../models/Task.js";
+import { buildTaskEventEmbed } from "../../tasks/TaskEmbeds.js";
+import { isTextChannel } from "../../../utils/ChannelUtils.js";
 
 const updatetask: Command = {
     name: 'updatetask',

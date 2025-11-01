@@ -1,8 +1,8 @@
 import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import path from 'path';
-import type { Command } from '../models/Command';
-import { getFilename, getDirname } from 'utils/PathUtils';
+import type { Command } from '../models/Command.js';
+import { getFilename, getDirname } from './PathUtils.js';
 const filename = getFilename(import.meta.url);
 const dirname = getDirname(import.meta.url);
 
@@ -16,7 +16,7 @@ export interface RegisterCommandOptions {
 }
 
 async function loadCommands(dir: string): Promise<Map<string, Command>> {
-    const { loadCommands } = await import('../core/services/CommandService');
+    const { loadCommands } = await import('../core/services/CommandService.js');
     return loadCommands(dir);
 }
 

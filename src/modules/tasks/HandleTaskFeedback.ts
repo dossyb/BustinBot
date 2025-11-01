@@ -1,6 +1,6 @@
 import { ButtonInteraction } from 'discord.js';
-import type { TaskFeedback } from '../../models/TaskFeedback';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo';
+import type { TaskFeedback } from '../../models/TaskFeedback.js';
+import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
 
 export async function handleTaskFeedback(interaction: ButtonInteraction, repo: ITaskRepository) {
     await interaction.deferReply({ flags: 1 << 6 });

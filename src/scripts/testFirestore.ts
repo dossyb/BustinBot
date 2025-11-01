@@ -1,4 +1,4 @@
-import { db } from "../core/database/firestore";
+import { db } from "../core/database/firestore.js";
 
 async function test() {
     const docRef = db.collection("test").doc("ping");

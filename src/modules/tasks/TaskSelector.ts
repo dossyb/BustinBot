@@ -1,5 +1,5 @@
-import type { Task } from "models/Task";
-import { TaskCategory } from "models/Task";
+import type { Task } from "../../models/Task.js";
+import { TaskCategory } from "../../models/Task.js";
 
 export function pickWeightedRandom(tasks: Task[], count: number): Task[] {
     if (!tasks.length) return [];

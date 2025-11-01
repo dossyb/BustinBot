@@ -1,5 +1,5 @@
-import { SubmissionStatus } from "../../models/TaskSubmission";
-import { TaskService } from "../../modules/tasks/TaskService";
+import { SubmissionStatus } from "../../models/TaskSubmission.js";
+import { TaskService } from "../../modules/tasks/TaskService.js";
 
 type PartialRepo = Partial<ReturnType<typeof createBaseRepo>>;
 

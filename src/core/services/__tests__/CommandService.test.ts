@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 async function loadCommandModule() {
-    const module = await import('../CommandService');
+    const module = await import('../CommandService.js');
     return module.loadCommands;
 }
 

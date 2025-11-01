@@ -1,5 +1,5 @@
 import { servicesVersion } from "typescript";
-import type { GuildService } from "./GuildService";
+import type { GuildService } from "./GuildService.js";
 
 type SetupType = "core" | "movie" | "task";
 type SelectionMap = Record<string, string>;

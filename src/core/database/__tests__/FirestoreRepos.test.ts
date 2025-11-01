@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
-import { TaskCategory } from "../../../models/Task";
+import { TaskCategory } from "../../../models/Task.js";
 
 // --- Firestore mocks ---
 const fromDateMock = vi.fn((date: Date) => ({ __ts: date }));
@@ -122,9 +122,9 @@ function createCollectionStub(path: string): CollectionStub {
 // --- Test setup ---
 beforeAll(async () => {
     vi.resetModules();
-    TaskRepository = (await import("../TaskRepo")).TaskRepository;
-    PrizeDrawRepository = (await import("../PrizeDrawRepo")).PrizeDrawRepository;
-    BotRepository = (await import("../BotRepo")).BotRepository;
+    TaskRepository = (await import("../TaskRepo.js")).TaskRepository;
+    PrizeDrawRepository = (await import("../PrizeDrawRepo.js")).PrizeDrawRepository;
+    BotRepository = (await import("../BotRepo.js")).BotRepository;
 });
 
 beforeEach(() => {

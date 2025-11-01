@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ComponentType, Message } from "discord.js";
-import { createMoviePreviewEmbeds } from "./MovieEmbeds";
+import { createMoviePreviewEmbeds } from "./MovieEmbeds.js";
 
 
 export async function presentMovieSelection(

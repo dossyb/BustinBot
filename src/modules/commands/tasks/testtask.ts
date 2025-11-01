@@ -1,13 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from "discord.js";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
-import { buildTaskEventEmbed } from "../../tasks/TaskEmbeds";
-import type { TaskEvent } from "../../../models/TaskEvent";
-import { TaskCategory, type Task } from "../../../models/Task";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { buildTaskEventEmbed } from "../../tasks/TaskEmbeds.js";
+import type { TaskEvent } from "../../../models/TaskEvent.js";
+import { TaskCategory, type Task } from "../../../models/Task.js";
 import fs from "fs";
 import path from "path";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer";
-import { getFilename, getDirname } from 'utils/PathUtils';
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import { getFilename, getDirname } from '../../../utils/PathUtils.js';
 const filename = getFilename(import.meta.url);
 const dirname = getDirname(import.meta.url);
 

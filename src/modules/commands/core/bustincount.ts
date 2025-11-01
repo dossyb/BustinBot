@@ -1,6 +1,6 @@
-import { appendBustinEmote } from "utils/EmoteHelper";
-import type { Command } from "../../../models/Command";
-import { CommandModule, CommandRole } from "../../../models/Command";
+import { appendBustinEmote } from "../../../utils/EmoteHelper.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
 import { SlashCommandBuilder } from "discord.js";
 
 const bustincount: Command = {

@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
-import type { Reminder } from "../../models/Reminder";
+import type { Reminder } from "../../models/Reminder.js";
 import type { Client, TextChannel } from 'discord.js';
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
 
 export function getPendingReminders(movieStart: DateTime, now: DateTime = DateTime.utc()): Reminder[] {
     const reminderOffsets = [

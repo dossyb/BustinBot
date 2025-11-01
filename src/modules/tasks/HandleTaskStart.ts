@@ -1,8 +1,8 @@
 import { Client, TextChannel } from 'discord.js';
-import { buildTaskEventEmbed } from './TaskEmbeds';
-import type { TaskEvent } from '../../models/TaskEvent';
-import type { ServiceContainer } from '../../core/services/ServiceContainer';
-import { TaskCategory } from 'models/Task';
+import { buildTaskEventEmbed } from './TaskEmbeds.js';
+import type { TaskEvent } from '../../models/TaskEvent.js';
+import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { TaskCategory } from '../../models/Task.js';
 
 function generateTaskEventId(taskId: string): string {
     const now = new Date();

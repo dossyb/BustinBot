@@ -1,4 +1,4 @@
-import type { UserStats } from "../../../models/UserStats";
+import type { UserStats } from "../../../models/UserStats.js";
 
 export interface IUserRepository {
     getAllUsers(): Promise<UserStats[]>;

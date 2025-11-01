@@ -1,6 +1,6 @@
-import type { Task } from "./Task";
-import type { TaskSubmission } from "./TaskSubmission";
-import type { TaskCategory } from "./Task";
+import type { Task } from "./Task.js";
+import type { TaskSubmission } from "./TaskSubmission.js";
+import type { TaskCategory } from "./Task.js";
 
 export interface TaskEvent {
     id: string;

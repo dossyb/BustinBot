@@ -47,11 +47,11 @@ describe("Movie module flows", () => {
 
     // 👇 Lazy import ensures modules see fake timers
     vi.resetModules();
-    pollMovieWithList = (await import("../../movies/MoviePolls")).pollMovieWithList;
-    handleMoviePollVote = (await import("../../movies/PickMovieInteractions")).handleMoviePollVote;
-    scheduleMovieReminders = (await import("../../movies/MovieReminders")).scheduleMovieReminders;
-    scheduleActivePollClosure = (await import("../../movies/MoviePollScheduler")).scheduleActivePollClosure;
-    removemovie = (await import("../../commands/movies/removemovie")).default;
+    pollMovieWithList = (await import("../MoviePolls.js")).pollMovieWithList;
+    handleMoviePollVote = (await import("../PickMovieInteractions.js")).handleMoviePollVote;
+    scheduleMovieReminders = (await import("../MovieReminders.js")).scheduleMovieReminders;
+    scheduleActivePollClosure = (await import("../MoviePollScheduler.js")).scheduleActivePollClosure;
+    removemovie = (await import("../../commands/movies/removemovie.js")).default;
   });
 
   afterEach(() => {
@@ -275,8 +275,8 @@ describe("Movie module flows", () => {
 
     it("auto closes polls and schedules auto end when movie starts", async () => {
       // ✅ Lazy import to ensure fake timers are active
-      const { closeActiveMoviePoll } = vi.mocked(await import("../../movies/MoviePolls")) as any;
-      const { scheduleMovieAutoEnd } = vi.mocked(await import("../../movies/MovieLifecycle")) as any;
+      const { closeActiveMoviePoll } = vi.mocked(await import("../MoviePolls.js")) as any;
+      const { scheduleMovieAutoEnd } = vi.mocked(await import("../MovieLifecycle.js")) as any;
 
       const base = new Date("2025-01-01T00:00:00.000Z");
       vi.setSystemTime(base);

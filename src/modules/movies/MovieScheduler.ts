@@ -1,13 +1,13 @@
 import { StringSelectMenuInteraction, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, TextChannel, Client } from "discord.js";
 import { DateTime } from 'luxon';
-import { createMovieNightEmbed } from "./MovieEmbeds";
-import type { Movie } from "../../models/Movie";
-import { scheduleActivePollClosure } from "./MoviePollScheduler";
-import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders";
-import { scheduleMovieAutoEnd } from "./MovieLifecycle";
-import type { ServiceContainer } from "../../core/services/ServiceContainer";
-import { normaliseFirestoreDates } from "../../utils/DateUtils";
-import { registerVoiceListeners } from "./MovieAttendance";
+import { createMovieNightEmbed } from "./MovieEmbeds.js";
+import type { Movie } from "../../models/Movie.js";
+import { scheduleActivePollClosure } from "./MoviePollScheduler.js";
+import { scheduleMovieReminders, getPendingReminders } from "./MovieReminders.js";
+import { scheduleMovieAutoEnd } from "./MovieLifecycle.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
+import { registerVoiceListeners } from "./MovieAttendance.js";
 
 async function resolveGuildTimezone(services: ServiceContainer, guildId: string | null): Promise<string> {
     if (!guildId) return "UTC";
