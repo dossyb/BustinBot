@@ -13,27 +13,40 @@ async function loadCommandFiles(dir: string): Promise<void> {
         const stats = statSync(fullPath);
 
         if (stats.isDirectory()) {
-            if (entry === '__tests__' || entry.startsWith('__')) continue;
-            await loadCommandFiles(fullPath); // Recursively load commands from subdirectories
+            // skip test directories and internal folders
+            if (entry === "__tests__" || entry.startsWith("__")) continue;
+            await loadCommandFiles(fullPath);
+            continue;
         }
-        else if ((entry.endsWith('.js') || entry.endsWith('.ts')) && !entry.endsWith('.test.js') && !entry.endsWith('.test.ts')) {
+
+        // only load real JS command files (ignore .d.ts and tests)
+        const isCommandFile =
+            entry.endsWith(".js") &&
+            !entry.endsWith(".d.ts") &&
+            !entry.endsWith(".test.js");
+
+        if (!isCommandFile) continue;
+
+        try {
             const commandUrl = pathToFileURL(fullPath).href;
             const commandModule = await import(commandUrl);
             const command: Command = commandModule.default;
 
             if (!command || !command.name) {
-                console.warn(`Skipped invalid command module: ${fullPath}`);
+                console.warn(`⚠️  Skipped invalid command module: ${fullPath}`);
                 continue;
             }
 
             commandMap.set(command.name, command);
 
-            // Register aliases
+            // register aliases if any
             if (command.aliases) {
                 for (const alias of command.aliases) {
                     commandMap.set(alias, command);
                 }
             }
+        } catch (err) {
+            console.error(`❌ Failed to load command ${entry}:`, err);
         }
     }
 }
