@@ -130,6 +130,14 @@ const client = new Client({
         console.log('All guilds initialised.');
     });
 
-    // Login to Discord with bot token
-    client.login(process.env.DISCORD_TOKEN_DEV);
+    // Login to Discord with the appropriate bot token
+    const loginToken = isDevMode
+        ? process.env.DISCORD_TOKEN_DEV ?? null
+        : process.env.DISCORD_TOKEN_LIVE ?? process.env.DISCORD_TOKEN_DEV ?? null;
+
+    if (!loginToken) {
+        throw new Error('No Discord bot token available. Check DISCORD_TOKEN_LIVE / DISCORD_TOKEN_DEV.');
+    }
+
+    client.login(loginToken);
 })();
