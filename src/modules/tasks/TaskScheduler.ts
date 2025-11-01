@@ -17,7 +17,7 @@ export function getNextPollDate() { return nextPollTime; }
 export function getNextEventDate() { return nextEventTime; }
 export function getNextPrizeDrawDate() { return nextPrizeTime; }
 
-// Replace with config store (admin editable)
+// TODO: Replace with config store (admin editable)
 const defaultSchedule = {
     pollDay: 0, // 0 = Sunday, 1 = Monday, ...
     pollHourUTC: 0,
@@ -26,14 +26,44 @@ const defaultSchedule = {
     prizeFrequencyWeeks: 2,
     prizeDay: 2, // Tuesday
     prizeHourUTC: 0,
+    prizeWeekOffset: 0,
 };
+
+const schedulerTimezone = 'UTC';
 
 function getNextRunDate(expression: string): Date | null {
     try {
-        const interval = CronExpressionParser.parse(expression, { currentDate: new Date() });
+        const interval = CronExpressionParser.parse(expression, {
+            currentDate: new Date(),
+            tz: schedulerTimezone,
+        });
         return interval.next().toDate();
     } catch (err) {
         console.warn('[TaskScheduler] Failed to parse cron expression:', expression, err);
+        return null;
+    }
+}
+
+function getNextMatchingRunDate(
+    expression: string,
+    predicate: (date: Date) => boolean,
+    baseDate: Date = new Date()
+): Date | null {
+    try {
+        const interval = CronExpressionParser.parse(expression, {
+            currentDate: baseDate,
+            tz: schedulerTimezone,
+        });
+
+        for (let i = 0; i < 12; i++) {
+            const next = interval.next().toDate();
+            if (predicate(next)) {
+                return next;
+            }
+        }
+        return null;
+    } catch (err) {
+        console.warn('[TaskScheduler] Failed to evaluate matching cron expression:', expression, err);
         return null;
     }
 }
@@ -112,6 +142,9 @@ export function initTaskScheduler(
     // Shortcuts for readability
     const taskRepo = repos.taskRepo;
     const prizeRepo = repos.prizeRepo;
+    const prizeExpression = `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`;
+    const isPrizeWeek = (date: Date) =>
+        ((getWeek(date) + defaultSchedule.prizeWeekOffset) % defaultSchedule.prizeFrequencyWeeks) === 0;
 
     if (isTestMode()) {
         // ------------------------------
@@ -175,7 +208,9 @@ export function initTaskScheduler(
                 const pollExpr = `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`;
                 nextPollTime = getNextRunDate(pollExpr);
                 if (nextPollTime) SchedulerStatusReporter.onNewTrigger('Task Poll', nextPollTime);
-            });
+            },
+            { timezone: schedulerTimezone }
+        );
 
         taskStartJob = cron.schedule(
             `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
@@ -188,24 +223,28 @@ export function initTaskScheduler(
                 const eventExpr = `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`;
                 nextEventTime = getNextRunDate(eventExpr);
                 if (nextEventTime) SchedulerStatusReporter.onNewTrigger('Task Event', nextEventTime);
-            }
+            },
+            { timezone: schedulerTimezone }
         );
 
         prizeJob = cron.schedule(
-            `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`,
+            prizeExpression,
             async () => {
                 const now = new Date();
-                const isEvenWeek = Math.floor(getWeek(now)) % defaultSchedule.prizeFrequencyWeeks === 0;
-                if (!isEvenWeek) return;
+                if (!isPrizeWeek(now)) {
+                    nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, now);
+                    if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+                    return;
+                }
                 console.log('[TaskScheduler] Running prize draw...');
                 const channel = await getChannel(client, services);
                 if (channel) {
                     await channel.send('🏆 Running prize draw. The winner is BustinBot!');
                 }
-                const prizeExpr = `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`;
-                nextPrizeTime = getNextRunDate(prizeExpr);
+                nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, now);
                 if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
-            }
+            },
+            { timezone: schedulerTimezone }
         );
         const pollExpr = `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`;
         nextPollTime = getNextRunDate(pollExpr);
@@ -215,8 +254,7 @@ export function initTaskScheduler(
         nextEventTime = getNextRunDate(eventExpr);
         if (nextEventTime) SchedulerStatusReporter.onNewTrigger('Task Event', nextEventTime);
 
-        const prizeExpr = `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`;
-        nextPrizeTime = getNextRunDate(prizeExpr);
+        nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek);
         if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
     }
     console.log('[TaskScheduler] Production mode schedule initialised.');

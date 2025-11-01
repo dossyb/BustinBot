@@ -1,4 +1,4 @@
-import { REST, Routes, Client, GatewayIntentBits, Partials } from 'discord.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from 'dotenv';
 import path from 'path';
 import { handleMessage } from './core/events/onMessage';
@@ -6,7 +6,7 @@ import { handleInteraction } from './core/events/onInteraction';
 import { handleDirectMessage } from './modules/tasks/TaskInteractions';
 import { handleTaskInteraction } from './modules/tasks/TaskInteractionHandler';
 import { loadCommands } from './core/services/CommandService';
-import type { Command } from './models/Command';
+import { registerGuildCommands } from './utils/registerCommands';
 import { fileURLToPath } from 'url';
 import { scheduleActivePollClosure } from './modules/movies/MoviePollScheduler';
 import { createServiceContainer } from './core/services/ServiceFactory';
@@ -34,44 +34,6 @@ const client = new Client({
     partials: [Partials.Channel]
 });
 
-async function registerSlashCommands(commands: Map<string, Command>, guildId: string) {
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN_DEV || '');
-    const clientId = process.env.DISCORD_CLIENT_ID!;
-
-    const slashCommands = [...commands.values()]
-        .filter(cmd => cmd.slashData)
-        .map(cmd => cmd.slashData!.toJSON());
-
-    console.log(`Registering ${slashCommands.length} slash command(s)...`);
-
-    await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId),
-        { body: slashCommands }
-    );
-
-    if (process.env.BOT_MODE !== 'dev') {
-        await rest.put(
-            Routes.applicationCommands(clientId),
-            { body: slashCommands }
-        );
-        console.log(`🌍 Registered ${slashCommands.length} commands globally, waiting 1 hour until cleanup...`);
-
-        setTimeout(async () => {
-            try {
-                await rest.put(
-                    Routes.applicationGuildCommands(clientId, guildId),
-                    { body: [] }
-                );
-                console.log(`🧹 Cleared guild-specific commands for ${guildId}`);
-            } catch (err) {
-                console.error('Failed to clean up guild commands:', err);
-            }
-        }, 60 * 60 * 1000);
-    }
-
-    console.log('Slash commands registered successfully.');
-}
-
 // Load commands from /modules/commands recursively
 (async () => {
     console.log('Loading commands...');
@@ -92,8 +54,33 @@ async function registerSlashCommands(commands: Map<string, Command>, guildId: st
     };
 
     const primaryGuildId = guildConfigs[0]?.id ?? process.env.DISCORD_GUILD_ID!;
-    await registerSlashCommands(commands, primaryGuildId);
+    const isDevMode = process.env.BOT_MODE === 'dev';
+    const enableSync = process.env.ENABLE_GUILD_COMMAND_SYNC === 'true' || isDevMode;
 
+    const syncToken = isDevMode
+        ? process.env.DISCORD_TOKEN_DEV ?? null
+        : process.env.DISCORD_TOKEN_LIVE ?? process.env.DISCORD_TOKEN_DEV ?? null;
+
+    const syncClientId = isDevMode
+        ? process.env.DISCORD_CLIENT_ID_DEV ?? null
+        : process.env.DISCORD_CLIENT_ID ?? process.env.DISCORD_CLIENT_ID_DEV ?? null;
+
+    const shouldSyncGuildCommands = enableSync && !!syncToken && !!syncClientId && !!primaryGuildId;
+
+    if (shouldSyncGuildCommands && primaryGuildId && syncToken && syncClientId) {
+        try {
+            await registerGuildCommands({
+                modulesDir: path.join(__dirname, 'modules', 'commands'),
+                guildId: primaryGuildId,
+                token: syncToken,
+                clientId: syncClientId,
+            });
+        } catch (err) {
+            console.error('Failed to sync guild slash commands:', err);
+        }
+    } else if (enableSync) {
+        console.warn('[SlashCommands] Skipping guild sync; missing token or client ID env vars.');
+    }
     // Register message handler
     client.on('messageCreate', async (message) => {
         try {

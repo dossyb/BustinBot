@@ -89,14 +89,37 @@ export class SetupService {
 
         const guild = await guildService.get(guildId);
         const currentSetup = guild?.setupComplete ?? {};
+        const existingChannels = guild?.channels ?? {};
+        const existingRoles = guild?.roles ?? {};
 
+        // Merge setupComplete state
         payload.setupComplete = {
             ...currentSetup,
             ...(payload.setupComplete as Record<string, boolean>),
         };
-        await guildService.update(guildId, builder(selections));
+
+        // Merge channels/roles to avoid overwriting other module configs
+        if (payload.channels) {
+            payload.channels = {
+                ...existingChannels,
+                ...(payload.channels as Record<string, string>),
+            };
+        }
+        if (payload.roles) {
+            payload.roles = {
+                ...existingRoles,
+                ...(payload.roles as Record<string, string>),
+            };
+        }
+
+        // Persist full merged payload
+        console.log("[SetupService] Payload being sent to GuildService.update:", JSON.stringify(payload, null, 2));
+        await guildService.update(guildId, payload);
         await guildService.refresh(guildId);
+
+        console.log(`[SetupService] Persisted ${type} setup for ${guildId}`);
     }
+
 }
 
 export const setupService = new SetupService();

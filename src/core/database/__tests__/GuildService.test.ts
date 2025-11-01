@@ -88,10 +88,13 @@ describe("GuildService", () => {
     const cached = service["cache"].get("123");
     expect(cached?.toggles.taskScheduler).toBe(true);
     expect(cached?.roles.admin).toBe("Admin");
-    expect(repo.updateGuild).toHaveBeenCalledWith("123", {
-      toggles: { taskScheduler: true, leaguesEnabled: false },
-      updatedBy: "adminUser",
-    });
+    expect(repo.updateGuild).toHaveBeenCalledWith(
+      "123",
+      expect.objectContaining({
+        toggles: expect.objectContaining({ taskScheduler: true, leaguesEnabled: false }),
+        updatedBy: "adminUser",
+      })
+    );
   });
 
   it("toggles scheduler and updates cache", async () => {

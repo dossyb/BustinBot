@@ -30,6 +30,27 @@ const cancelmovie: Command = {
             return;
         }
 
+        const guildConfig = await services.guilds.get(guild.id);
+        const client = interaction.client;
+
+        async function fetchMessageFromChannels(messageId: string, ...channelIds: (string | null | undefined)[]) {
+            for (const channelId of channelIds) {
+                if (!channelId) continue;
+                try {
+                    const fetchedChannel = await client.channels.fetch(channelId);
+                    if (!fetchedChannel?.isTextBased()) continue;
+                    const message = await fetchedChannel.messages.fetch(messageId);
+                    return { channel: fetchedChannel as TextChannel, message };
+                } catch (err) {
+                    if ((err as any)?.code === 10008) {
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            return null;
+        }
+
         const actions: string[] = [];
         let announcementHandled = false;
         let fallbackAnnouncementChannelId: string | undefined;
@@ -42,17 +63,23 @@ const cancelmovie: Command = {
                 await movieRepo.closePoll(activePoll.id);
                 actions.push("Active movie poll set inactive");
 
-                if (activePoll.channelId && activePoll.messageId) {
+                if (activePoll.messageId) {
                     try {
-                        const pollChannel = await interaction.client.channels.fetch(activePoll.channelId);
-                        if (pollChannel?.isTextBased()) {
-                            const pollMessage = await pollChannel.messages.fetch(activePoll.messageId);
-                            await pollMessage.edit({
+                        const pollMessageContext = await fetchMessageFromChannels(
+                            activePoll.messageId,
+                            activePoll.channelId,
+                            guildConfig?.channels?.movieNight
+                        );
+
+                        if (pollMessageContext) {
+                            await pollMessageContext.message.edit({
                                 content: `❌ This movie poll was cancelled by <@${interaction.user.id}>.`,
                                 embeds: [],
                                 components: [],
                             });
                             actions.push("Poll message updated to show cancellation");
+                        } else {
+                            console.info("[CancelMovie] Poll message no longer exists; skipping edit.");
                         }
                     } catch (err) {
                         console.warn("[CancelMovie] Failed to update poll message:", err);
@@ -72,18 +99,24 @@ const cancelmovie: Command = {
                 await movieRepo.createMovieEvent(completedEvent);
                 actions.push("Movie night event marked as cancelled");
 
-                if (latestEvent.channelId && latestEvent.announcementMessageId) {
+                if (latestEvent.announcementMessageId) {
                     try {
-                        const announcementChannel = await interaction.client.channels.fetch(latestEvent.channelId);
-                        if (announcementChannel?.isTextBased()) {
-                            const announcementMessage = await announcementChannel.messages.fetch(latestEvent.announcementMessageId);
-                            await announcementMessage.edit({
+                        const announcementContext = await fetchMessageFromChannels(
+                            latestEvent.announcementMessageId,
+                            latestEvent.channelId,
+                            guildConfig?.channels?.movieNight
+                        );
+
+                        if (announcementContext) {
+                            await announcementContext.message.edit({
                                 content: cancellationMessage,
                                 embeds: [],
                                 components: [],
                             });
                             actions.push("Movie night announcement updated to show cancellation");
                             announcementHandled = true;
+                        } else {
+                            console.info("[CancelMovie] Announcement message no longer exists; skipping edit.");
                         }
                     } catch (err) {
                         console.warn("[CancelMovie] Failed to update movie night announcement message:", err);

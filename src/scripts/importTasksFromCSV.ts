@@ -101,8 +101,12 @@ export async function importTasksFromCsv(guildId: string, filePath: string) {
 }
 
 // CLI runner for local use
-if (process.argv[1]!.includes("importTasksFromCsv")) {
-  const guildId = process.env.DISCORD_GUILD_ID!;
+const invokedDirectly = Boolean(
+  process.argv[1] && /importTasksFromCSV/i.test(process.argv[1]!)
+);
+
+if (invokedDirectly) {
+  const guildId = process.env.DISCORD_GUILD_ID;
   const filePath = path.resolve("./src/data/tasks.csv");
 
   if (!guildId) {
@@ -110,5 +114,15 @@ if (process.argv[1]!.includes("importTasksFromCsv")) {
     process.exit(1);
   }
 
-  importTasksFromCsv(guildId, filePath).catch(console.error);
+  importTasksFromCsv(guildId, filePath)
+    .then(({ newCount, skipped, total }) => {
+      console.log(
+        `📥 Finished processing ${total} rows for guild ${guildId} (new: ${newCount}, skipped: ${skipped})`
+      );
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("❌ Task import failed:", err);
+      process.exit(1);
+    });
 }

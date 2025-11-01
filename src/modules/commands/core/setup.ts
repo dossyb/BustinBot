@@ -17,7 +17,7 @@ const setup: Command = {
 
         const guild = interaction.guild!;
         const guildId = interaction.guildId!;
-        const guildConfig = await services.guilds.get(guildId);
+        const guildConfig = await services.guilds.ensureExists(guildId, interaction.user.id);
         const current = guildConfig?.channels ?? {};
 
         const announceChannelName = current.announcements

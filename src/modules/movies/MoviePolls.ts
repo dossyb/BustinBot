@@ -109,6 +109,7 @@ async function createAndSendMoviePoll(
     })) as Message;
 
     poll.messageId = message.id;
+    poll.channelId = message.channelId;
     await movieRepo.createPoll(poll);
 
     await scheduleActivePollClosure(services, client);

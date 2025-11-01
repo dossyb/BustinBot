@@ -81,11 +81,13 @@ describe('Bot startup smoke test', () => {
         }));
 
         // ---- Env setup ----
+        process.env.BOT_MODE = 'dev';
         process.env.DISCORD_TOKEN_DEV = 'token';
         process.env.DISCORD_CLIENT_ID = 'client';
+        process.env.DISCORD_CLIENT_ID_DEV = 'client';
         process.env.DISCORD_GUILD_ID = 'guild';
 
         // ---- Run main index (startup) ----
         await expect(import('../../index')).resolves.not.toThrow();
-    });
+    }, 10000);
 });

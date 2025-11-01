@@ -18,11 +18,27 @@ export class GuildService {
     }
 
     async update(guildId: string, data: Partial<Guild>): Promise<void> {
-        await this.repo.updateGuild(guildId, data);
-
         const existing = this.cache.get(guildId);
 
-        // base structure (everything that's always required)
+        const defaultRoles = {
+            admin: process.env.ADMIN_ROLE_NAME || "BustinBot Admin",
+            movieAdmin: "",
+            movieUser: "",
+            taskAdmin: "",
+            taskUser: "",
+        };
+        const defaultChannels = {
+            announcements: "",
+            botArchive: "",
+            botLog: "",
+            taskChannel: "",
+            taskVerification: "",
+            movieNight: "",
+            movieVC: "",
+        };
+        const defaultSetup = { core: false, movie: false, task: false };
+
+        // Build merged base from existing (or defaults), then overlay *incoming* data.*
         const mergedBase: Omit<Guild, "updatedBy" | "updatedAt"> = {
             id: guildId,
             toggles: {
@@ -30,40 +46,33 @@ export class GuildService {
                 leaguesEnabled: existing?.toggles?.leaguesEnabled ?? false,
                 ...(data.toggles ?? {}),
             },
-            roles: existing?.roles ?? {
-                admin: "",
-                movieAdmin: "",
-                movieUser: "",
-                taskAdmin: "",
-                taskUser: "",
+            roles: {
+                ...(existing?.roles ?? defaultRoles),
+                ...(data.roles ?? {}),
             },
-            channels: existing?.channels ?? {
-                announcements: "",
-                botArchive: "",
-                botLog: "",
-                taskChannel: "",
-                taskVerification: "",
-                movieNight: "",
-                movieVC: "",
+            channels: {
+                ...(existing?.channels ?? defaultChannels),
+                ...(data.channels ?? {}),
             },
-            setupComplete: existing?.setupComplete ?? {
-                core: false,
-                movie: false,
-                task: false,
+            setupComplete: {
+                ...(existing?.setupComplete ?? defaultSetup),
+                ...(data.setupComplete ?? {}),
             },
-            timezone: data.timezone ?? existing?.timezone ?? 'UTC',
+            timezone: data.timezone ?? existing?.timezone ?? "UTC",
         };
 
-        // optional fields must be *conditionally* added
         const meta: Partial<Pick<Guild, "updatedBy" | "updatedAt">> = {};
         const updatedBy = data.updatedBy ?? existing?.updatedBy;
         const updatedAt = data.updatedAt ?? existing?.updatedAt;
-
         if (updatedBy !== undefined) meta.updatedBy = updatedBy;
         if (updatedAt !== undefined) meta.updatedAt = updatedAt;
 
         const merged: Guild = { ...mergedBase, ...meta };
 
+        // Write the fully-merged payload
+        await this.repo.updateGuild(guildId, merged);
+
+        // Update cache
         this.cache.set(guildId, merged);
     }
 
@@ -86,7 +95,7 @@ export class GuildService {
                 [key.split(".").pop()!]: enabled,
             },
             roles: existing?.roles ?? {
-                admin: "",
+                admin: process.env.ADMIN_ROLE_NAME || "BustinBot Admin",
                 movieAdmin: "",
                 movieUser: "",
                 taskAdmin: "",
@@ -153,4 +162,14 @@ export class GuildService {
 
         return guildConfig;
     }
+
+    async ensureExists(guildId: string, userId: string) {
+        let guild = await this.get(guildId);
+        if (!guild) {
+            await this.update(guildId, { updatedBy: userId, updatedAt: new Date() as any });
+            guild = await this.get(guildId);
+        }
+        return guild;
+    }
+
 }

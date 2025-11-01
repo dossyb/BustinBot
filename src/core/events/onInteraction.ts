@@ -18,6 +18,30 @@ export async function handleInteraction(
             return;
         }
 
+    const isSetupCommand = command.name === 'setup';
+
+    if (isSetupCommand) {
+        // Manual hardcoded admin role check
+        const member = interaction.member as GuildMember;
+        const adminRoleName = "BustinBot Admin";
+
+        const hasAdminRole = member.roles.cache.some(
+            role => role.name === adminRoleName || role.id === adminRoleName
+        );
+
+        if (!hasAdminRole) {
+            await interaction.reply({
+                content: `Only members with the **${adminRoleName}** role can run \`/setup\`. Please have a server admin create and assign this role first.`,
+                flags: 1 << 6,
+            });
+            return;
+        }
+
+        // Run setup freely, without Firestore dependency
+        await command.execute({ interaction, services });
+        return;
+    }
+
         // Role-based permission logic
         if (
             command.allowedRoles.length > 0 &&
@@ -27,7 +51,7 @@ export async function handleInteraction(
             const guildConfig = await services.guilds.requireConfig(interaction);
             if (!guildConfig) return;
 
-            const guildRoles = guildConfig.roles ?? {};
+            const guildRoles = guildConfig!.roles ?? {};
             const userRoleIds = member.roles.cache.map(role => role.id);
             const userRoleNames = member.roles.cache.map(role => role.name);
 
@@ -66,8 +90,6 @@ export async function handleInteraction(
 
         const requiredModule = command.module;
         const moduleReady = setupMap[requiredModule];
-
-        const isSetupCommand = command.name === 'setup';
 
         if (!setupMap.core && !isSetupCommand) {
             await interaction.reply({ content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: 1 << 6 });

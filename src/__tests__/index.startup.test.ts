@@ -8,6 +8,9 @@ const mockCommands = new Map<string, any>();
 const loadCommands = vi.fn(async () => mockCommands);
 vi.mock('../core/services/CommandService', () => ({ loadCommands }));
 
+const registerGuildCommands = vi.fn().mockResolvedValue(undefined);
+vi.mock('../utils/registerCommands', () => ({ registerGuildCommands }));
+
 const scheduleActivePollClosure = vi.fn().mockResolvedValue(undefined);
 vi.mock('../modules/movies/MoviePollScheduler', () => ({ scheduleActivePollClosure }));
 
@@ -49,6 +52,10 @@ const Routes = {
 };
 const restPut = vi.fn().mockResolvedValue(undefined);
 class MockREST {
+    static latest: MockREST | null = null;
+    constructor() {
+        MockREST.latest = this;
+    }
     public token: string | null = null;
     setToken(token: string) {
         this.token = token;
@@ -91,8 +98,10 @@ const originalEnv = { ...process.env };
 
 describe('index startup script', () => {
     beforeEach(() => {
+        process.env.BOT_MODE = 'dev';
         process.env.DISCORD_TOKEN_DEV = 'dev-token';
         process.env.DISCORD_CLIENT_ID = 'client-id';
+        process.env.DISCORD_CLIENT_ID_DEV = 'client-id';
         process.env.DISCORD_GUILD_ID = 'env-guild';
 
         mockConfig.mockClear();
@@ -140,13 +149,12 @@ describe('index startup script', () => {
         expect((loadCommands.mock.calls as any)[0]?.[0]).toMatch(/modules[\\/]+commands$/);
         expect(getAllGuilds).toHaveBeenCalled();
 
-        expect(Routes.applicationGuildCommands).toHaveBeenCalledWith('client-id', 'guild-1');
-        expect(restPut).toHaveBeenCalledWith(
-            'route:client-id:guild-1',
+        expect(registerGuildCommands).toHaveBeenCalledWith(
             expect.objectContaining({
-                body: expect.arrayContaining([
-                    expect.objectContaining({ name: 'slash-cmd' }),
-                ]),
+                guildId: 'guild-1',
+                modulesDir: expect.stringMatching(/modules[\/]+commands$/),
+                clientId: 'client-id',
+                token: 'dev-token',
             })
         );
 
