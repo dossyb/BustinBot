@@ -14,8 +14,8 @@ import fs from "fs";
 import path from "path";
 import type { ServiceContainer } from "core/services/ServiceContainer";
 import { getFilename, getDirname } from 'utils/PathUtils';
-const __filename = getFilename(import.meta.url);
-const __dirname = getDirname(import.meta.url);
+const filename = getFilename(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 interface Announcement {
     title: string;
@@ -74,7 +74,7 @@ const announce: Command = {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const announcementsPath = path.join(__dirname, "../../../data/announcements.json");
+        const announcementsPath = path.join(dirname, "../../../data/announcements.json");
         if (!fs.existsSync(announcementsPath)) {
             await interaction.editReply({
                 content: "announcements.json not found.",

@@ -3,8 +3,8 @@ import { config } from 'dotenv';
 import path from 'path';
 import type { Command } from '../models/Command';
 import { getFilename, getDirname } from 'utils/PathUtils';
-const __filename = getFilename(import.meta.url);
-const __dirname = getDirname(import.meta.url);
+const filename = getFilename(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 config();
 
@@ -43,7 +43,7 @@ function resolveGuildId(provided?: string | null) {
 }
 
 async function prepareCommands(modulesDir?: string) {
-    const directory = modulesDir ?? path.join(__dirname, '..', 'modules', 'commands');
+    const directory = modulesDir ?? path.join(dirname, '..', 'modules', 'commands');
     const commands = await loadCommands(directory);
     const slashCommands = [...commands.values()]
         .filter((cmd) => cmd.slashData)

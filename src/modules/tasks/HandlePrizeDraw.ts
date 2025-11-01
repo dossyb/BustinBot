@@ -74,9 +74,7 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const firstDrawCutoff = new Date("2025-11-12T00:00:00Z");
     if (nowISO < firstDrawCutoff.toISOString()) {
         try {
-            const { users: v1Users } = await import("../../data/legacy-finaldraw.json", {
-                assert: { type: "json" },
-            });
+            const { users: v1Users } = require("../../data/legacy-finaldraw.json");
 
             console.log(`[PrizeDraw] Merging ${v1Users.length} carryover submissions from v1...`);
 

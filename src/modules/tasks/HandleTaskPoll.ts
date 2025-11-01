@@ -6,14 +6,14 @@ import { TaskCategory } from '../../models/Task';
 import { selectTasksForCategory } from './TaskSelector';
 import type { ServiceContainer } from 'core/services/ServiceContainer';
 import { getFilename, getDirname } from 'utils/PathUtils';
-const __filename = getFilename(import.meta.url);
-const __dirname = getDirname(import.meta.url);
+const filename = getFilename(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 const categoryIcons: Record<TaskCategory, string> = {
-    [TaskCategory.PvM]: path.resolve(__dirname, '../../assets/icons/task_pvm.png'),
-    [TaskCategory.Skilling]: path.resolve(__dirname, '../../assets/icons/task_skilling.png'),
-    [TaskCategory.MinigameMisc]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'),
-    [TaskCategory.Leagues]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'), // temp
+    [TaskCategory.PvM]: path.resolve(dirname, '../../assets/icons/task_pvm.png'),
+    [TaskCategory.Skilling]: path.resolve(dirname, '../../assets/icons/task_skilling.png'),
+    [TaskCategory.MinigameMisc]: path.resolve(dirname, '../../assets/icons/task_minigame.png'),
+    [TaskCategory.Leagues]: path.resolve(dirname, '../../assets/icons/task_minigame.png'), // temp
 };
 
 const activeVotes = new Map<string, Map<string, number>>(); // messageId -> Map<taskId, voteCount>

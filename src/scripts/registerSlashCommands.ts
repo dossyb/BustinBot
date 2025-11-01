@@ -1,11 +1,11 @@
 import path from 'path';
 import { registerSlashCommands } from '../utils/registerCommands';
 import { getFilename, getDirname } from 'utils/PathUtils';
-const __dirname = getDirname(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 try {
     await registerSlashCommands({
-        modulesDir: path.join(__dirname, '..', 'modules', 'commands'),
+        modulesDir: path.join(dirname, '..', 'modules', 'commands'),
     });
     console.log('✅ Slash command registration complete.');
     process.exit(0);

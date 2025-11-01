@@ -5,14 +5,14 @@ import type { Task } from "../../models/Task";
 import { TaskCategory } from "../../models/Task";
 import { TaskInstructions } from "./TaskInstructions";
 import { getFilename, getDirname } from 'utils/PathUtils';
-const __filename = getFilename(import.meta.url);
-const __dirname = getDirname(import.meta.url);
+const filename = getFilename(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 const categoryIcons: Record<TaskCategory, string> = {
-    [TaskCategory.PvM]: path.resolve(__dirname, '../../assets/icons/task_pvm.png'),
-    [TaskCategory.Skilling]: path.resolve(__dirname, '../../assets/icons/task_skilling.png'),
-    [TaskCategory.MinigameMisc]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'),
-    [TaskCategory.Leagues]: path.resolve(__dirname, '../../assets/icons/task_minigame.png'), // temp
+    [TaskCategory.PvM]: path.resolve(dirname, '../../assets/icons/task_pvm.png'),
+    [TaskCategory.Skilling]: path.resolve(dirname, '../../assets/icons/task_skilling.png'),
+    [TaskCategory.MinigameMisc]: path.resolve(dirname, '../../assets/icons/task_minigame.png'),
+    [TaskCategory.Leagues]: path.resolve(dirname, '../../assets/icons/task_minigame.png'), // temp
 };
 
 export function getTaskDisplayName(task: Task, selectedAmount?: number): string {
@@ -117,7 +117,7 @@ export function buildPrizeDrawEmbed(winnerId: string, totalSubmissions: number, 
     const formattedStart = new Date(start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
     const formattedEnd = new Date(end).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    const prizeIconPath = path.resolve(__dirname, '../../assets/icons/task_prize.png');
+    const prizeIconPath = path.resolve(dirname, '../../assets/icons/task_prize.png');
 
     const tierDisplay = tierCounts
         ? `🥉 ${tierCounts.bronze} 🥈 ${tierCounts.silver} 🥇 ${tierCounts.gold}`

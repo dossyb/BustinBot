@@ -15,7 +15,7 @@ import { handleMovieInteraction } from './modules/movies/MovieInteractionHandler
 import { initMovieScheduler } from 'modules/movies/MovieScheduler';
 import { SchedulerStatusReporter } from 'core/services/SchedulerStatusReporter';
 import { getDirname } from 'utils/PathUtils';
-const __dirname = getDirname(import.meta.url);
+const dirname = getDirname(import.meta.url);
 
 // Load environment variables (only for global secrets)
 config();
@@ -34,7 +34,7 @@ const client = new Client({
 // Load commands from /modules/commands recursively
 (async () => {
     console.log('Loading commands...');
-    const commands = await loadCommands(path.join(__dirname, 'modules', 'commands'));
+    const commands = await loadCommands(path.join(dirname, 'modules', 'commands'));
     console.log(`Loaded ${commands.size} commands.`);
 
     const guildRepo = new GuildRepository();
@@ -67,7 +67,7 @@ const client = new Client({
     if (shouldSyncGuildCommands && primaryGuildId && syncToken && syncClientId) {
         try {
             await registerGuildCommands({
-                modulesDir: path.join(__dirname, 'modules', 'commands'),
+                modulesDir: path.join(dirname, 'modules', 'commands'),
                 guildId: primaryGuildId,
                 token: syncToken,
                 clientId: syncClientId,
