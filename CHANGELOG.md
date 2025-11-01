@@ -1,3 +1,62 @@
+## [2.0.0](https://github.com/dossyb/BustinBot/compare/v1.2.6...v2.0.0) (2025-11-01)
+
+### Features
+
+* **core:** Add set timezone button for guild ([c2fed57](https://github.com/dossyb/BustinBot/commit/c2fed577a5eb4b726513c473b7e97f8007c48746))
+* **core:** add support and help commands ([c317cda](https://github.com/dossyb/BustinBot/commit/c317cda470b388931114517bd9b805153ff8d2ca))
+* **core:** implement bot channel setup command ([69d60ee](https://github.com/dossyb/BustinBot/commit/69d60eed1fe56429d39665940dd1d53157abf4ec))
+* **core:** implement data access layer ([c11e4ad](https://github.com/dossyb/BustinBot/commit/c11e4ad095e9dcaf80b706e41ab2573b57c3d47a))
+* **core:** implement dynamic custom emote handling ([58ea0fe](https://github.com/dossyb/BustinBot/commit/58ea0fe9c18b0201394b8335f4a3e88a50cca740))
+* **core:** implement schedule reports in console ([d895b04](https://github.com/dossyb/BustinBot/commit/d895b04864b0cb08fc3b74f8147112a0cdc38cef))
+* **core:** implement setup validation on commands ([5246f82](https://github.com/dossyb/BustinBot/commit/5246f82725b8a37d01980ae373c679bf4f6efb3a))
+* **core:** implement user stats tracking ([a4455e9](https://github.com/dossyb/BustinBot/commit/a4455e9230ea80483adcc3bd440dce1f102f192c))
+* **core:** implement version announcement command ([457c5d7](https://github.com/dossyb/BustinBot/commit/457c5d76880b78cb63ba02bba4c2ead7859b353a))
+* **core:** rework botstatus command into botinfo ([052544e](https://github.com/dossyb/BustinBot/commit/052544ef7a79e5ed8be3b473250c75a916a74bf2))
+* **movie:** add DM notifications for movie submitters ([f72b154](https://github.com/dossyb/BustinBot/commit/f72b154675d88382263e2d8a0b6dd37998d71f99))
+* **movie:** implement admin command for testing TMDb API calls ([eff193c](https://github.com/dossyb/BustinBot/commit/eff193c012e3d676b39b1b2e6d182e78f8a5cb84))
+* **movie:** implement flow between movie picking and movie night ([5ba873a](https://github.com/dossyb/BustinBot/commit/5ba873a43e2eb101fcf6b7d3d3704a5e26a93104))
+* **movie:** implement movie attendance tracking ([cc9209f](https://github.com/dossyb/BustinBot/commit/cc9209fa568a13228b1c9882ffa6e5969603826c))
+* **movie:** implement movie channels and roles setup command ([2b33abf](https://github.com/dossyb/BustinBot/commit/2b33abf69d05982efa96db9340ec3503540716e6))
+* **movie:** implement movie lifecycle handling ([b3bd877](https://github.com/dossyb/BustinBot/commit/b3bd8773f21d63b496995729541ef618081b4285))
+* **movie:** implement movie list functionality ([4216468](https://github.com/dossyb/BustinBot/commit/42164682e2d3e31c3a7017aa726c2b2e431b5a45))
+* **movie:** implement movie night scheduling ([1886170](https://github.com/dossyb/BustinBot/commit/1886170a443d7404afdc0f20e3354086b489eff9))
+* **movie:** implement pickmovie command for movie night ([35d2ddf](https://github.com/dossyb/BustinBot/commit/35d2ddf86b2b421d4aaf5fe859d3978fb73d0cee))
+* **movie:** implement read and delete commands for added movies ([6bb56bb](https://github.com/dossyb/BustinBot/commit/6bb56bbae159b0b47a15752b2ce5549c90780eca))
+* **movie:** implement scheduling and reminder logic ([701f778](https://github.com/dossyb/BustinBot/commit/701f77838863c6fef2542fe513b77e03c500c270))
+* **movie:** implement user commands for viewing movie data ([3e3a9c0](https://github.com/dossyb/BustinBot/commit/3e3a9c0c2bd88f4097c63a87b17f0c806c4b10ee))
+* **task:** add task prize draw DM functionality ([c8f4d89](https://github.com/dossyb/BustinBot/commit/c8f4d89b1f04a172f8fcc3a4a943fe2bc703510a))
+* **task:** add tiered submission verification and live task embeds ([d76d25d](https://github.com/dossyb/BustinBot/commit/d76d25df29f7d9cde419093dd3fcd0dd094506a1))
+* **task:** add toggle for Leagues tasks ([0b78655](https://github.com/dossyb/BustinBot/commit/0b7865524913f25a462a08a317f0b0bd94c7fe0e))
+* **task:** complete task system rework ([033b257](https://github.com/dossyb/BustinBot/commit/033b2570ffcbfc15ee1e76258e4e379df9e86871))
+* **task:** implement admin command for task updates ([aa6c680](https://github.com/dossyb/BustinBot/commit/aa6c6808f75b7c4cddfc7fbcd44860bc7102d947))
+* **task:** implement admin-level manual task commands ([6e1e4cb](https://github.com/dossyb/BustinBot/commit/6e1e4cbbdcfb982070557d89048e11e518eaa4f7))
+* **task:** implement command to add keywords ([1d1f854](https://github.com/dossyb/BustinBot/commit/1d1f854bad2820dcc18426bc0b887843d93e8030))
+* **task:** implement new task submission/verification flow ([c6b36b9](https://github.com/dossyb/BustinBot/commit/c6b36b911fed11e4898c074155c3001ecc549bfd))
+* **task:** implement task channels and roles setup command ([ff905e0](https://github.com/dossyb/BustinBot/commit/ff905e094914404eda901507760adde4e6d0c171))
+* **task:** implement task feedback system ([fb249d3](https://github.com/dossyb/BustinBot/commit/fb249d373ac44da6f469bc2c27d9741eb2b53a7d))
+* **task:** implement task import command ([f3851e0](https://github.com/dossyb/BustinBot/commit/f3851e0c1830c153e0f363b35e765a28498efc20))
+* **task:** implement task keyword logic ([ab005ba](https://github.com/dossyb/BustinBot/commit/ab005ba5febffdb5287752f1d5ed0e66d6495189))
+* **task:** implement task poll functionality ([3f29ad4](https://github.com/dossyb/BustinBot/commit/3f29ad43b21ce022c3226c4803cdc80d1bdb4435))
+* **task:** implement task prize draw functionality ([f2ac420](https://github.com/dossyb/BustinBot/commit/f2ac42034d7d1d590bde7708a83b70241ad05939))
+* **task:** implement toggleable task scheduler with test timings ([6499d35](https://github.com/dossyb/BustinBot/commit/6499d3522ea121c1a51ed3112f05c0616f16ec8b))
+* **task:** persist scheduler toggle state in Firestore ([5009127](https://github.com/dossyb/BustinBot/commit/5009127efc6dde92f9137563717eba19ef9acb5a))
+* **task:** update embeds to show completions by tier ([bd2e574](https://github.com/dossyb/BustinBot/commit/bd2e5749ac49955d43469c7bb7eba1ba57822923))
+
+### Bug Fixes
+
+* **core:** fix numerous setup issues ([2dddb2e](https://github.com/dossyb/BustinBot/commit/2dddb2e8b885b2b8e224dd4b6ee061e59b287533))
+* **core:** fix slash command registration logic ([eb2e5a0](https://github.com/dossyb/BustinBot/commit/eb2e5a03a5996bf5958953c9a958a2bae25f3cf9))
+* **core:** implement minor bug fixes ([cbdae40](https://github.com/dossyb/BustinBot/commit/cbdae400b251cb4a606bb2ed0992387a47c866d7))
+* **movie:** fix numerous movie module bugs ([26489fb](https://github.com/dossyb/BustinBot/commit/26489fb00c66f2e58c3c927cc399b882453c0796))
+* **movie:** fix regression in movie module from Firestore integration ([9d8ca17](https://github.com/dossyb/BustinBot/commit/9d8ca1725bf2b355985b87a99d3a8d0bf783b82f))
+* **movie:** fix several minor movie module bugs ([2e1c0a7](https://github.com/dossyb/BustinBot/commit/2e1c0a7cf609121261a10d597657d14562013d12))
+* **task:** fix regression in task module from Firestore integration ([39aad3e](https://github.com/dossyb/BustinBot/commit/39aad3edb044e9d90039df9fbf51ea0275c3d584))
+* **task:** fix several minor task module bugs ([3323588](https://github.com/dossyb/BustinBot/commit/3323588f9e1d507ba1c2704892b33084c1d71f8c))
+* **task:** improve task submission flow ([7ad46b2](https://github.com/dossyb/BustinBot/commit/7ad46b23741b586c0e91b9bfadc31e3483e31664))
+
+---
+
+## Legacy (Pre-2.0)
 # v1.0.0
 Initial release
 

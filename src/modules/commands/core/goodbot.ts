@@ -1,0 +1,38 @@
+import { replaceBustinEmote } from 'utils/EmoteHelper';
+import type { Command } from '../../../models/Command';
+import { CommandModule, CommandRole } from '../../../models/Command';
+import { SlashCommandBuilder, TextChannel } from 'discord.js';
+
+const goodbot: Command = {
+    name: 'goodbot',
+    description: 'Praise BustinBot.',
+    module: CommandModule.Core,
+    allowedRoles: [CommandRole.Everyone],
+
+    slashData: new SlashCommandBuilder()
+        .setName('goodbot')
+        .setDescription('Praise BustinBot.'),
+
+    async execute({ interaction, message, services }) {
+        const guild = message?.guild ?? interaction?.guild ?? null;
+        const emoji = replaceBustinEmote("🥹", guild);
+
+        await services?.botStats.incrementGoodBot();
+        const count = services?.botStats.getGoodBotCount();
+
+        const reply = `*BustinBot has been called a good bot ${count} time${count !== 1 ? 's' : ''}!*`;
+
+        if (message) {
+            await message.reply(emoji);
+            if (message.channel instanceof TextChannel) {
+                await message.channel.send(reply);
+            }
+            console.log(`${message.author.username} made BustinBot feel good!`);
+        } else if (interaction) {
+            await interaction.reply(`${emoji} ${reply}`);
+            console.log(`${interaction.user.username} made BustinBot feel good!`);
+        }
+    },
+};
+
+export default goodbot;

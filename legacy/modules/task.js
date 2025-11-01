@@ -2,7 +2,7 @@ const { log } = require('console');
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const emoteUtils = require('./utils/emote');
+const emoteUtils = require('../utils/emote');
 
 // File paths
 const pathTasks = './data/task/tasks.json';

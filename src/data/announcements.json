@@ -1,0 +1,21 @@
+{
+    "2.0.0": {
+        "title": "@everyone\n# BustinBot v2.0 is here!",
+        "intro": "The brand-new BustinBot has finally landed, rebuilt from the ground up for better performance, modularity and user-friendliness!",
+        "sections": [
+            {
+                "name": "## ❓ What's Changed",
+                "value": "- All commands are now slash commands! (e.g. /bustin) This allows each command to leverage Discord's interactive features for a cleaner user interface.\n- Most commands are now ephemeral, meaning only you can see the response and interactions. This keeps things private and declutters channels from command use.\n- A variety of handy commands are now available, including `/help` for command lists and feature details, `/stats` to see your personal BustinBot stats, and `/support` to find out how you can support the project."
+            },
+            {
+                "name": "## 🎥 Movie Nights",
+                "value": "- The movie module is now powered by TMDb; all movies you add to the list will automatically contain details about that movie, including synopsis, cast, runtime, poster and more!\n- All movie-related posts have been enriched with embeds, including preview cards for each movie in polls and a fully detailed 'Now Showing' card for movie night announcements.\n - BustinBot is sliding into your DMs! He'll reach out to let you know when your movie has been picked for the next movie night and when it's been removed from the list."
+            },
+            {
+                "name": "## 🗺️ OSRS Community Tasks",
+                "value": "- The task system has been completely reworked. Multiple tasks will run each week divided by category and each task will have three goal amounts displayed (Bronze, Silver and Gold), completion of each corresponding to additional prize rolls.\n- A new task list has been implemented containing almost 350 tasks over the three categories! Each task post will include buttons for thumbs up/down to provide feedback that automatically applies to future polls i.e. unpopular tasks have less chance of being polled.\n- Prize rolls are now fortnightly, providing more opportunity for rewards. Aim for Silver and Gold tier completions for higher chances of winning! \n- Task completion submissions are now handled via DMs - after clicking the 'Submit Screenshot' button for the respective task, drop your screenshots into BustinBot's DMs, he'll forward them to the Task Admins for assessment and you'll be privately notified when that submission has been approved/rejected.\n- Once the final v1 task has ended, #task-submissions channel will be rebranded to #task-discussion, separating it from the general OSRS chat."
+            }
+        ],
+        "footer": "Developed by dossyb • BustinBot v2.0.0"
+    }
+}

@@ -14,7 +14,7 @@ if (!token) {
     process.exit(1); // Exit if the token is missing
 }
 
-const emoteUtils = require('./modules/utils/emote');
+const emoteUtils = require('./utils/emote');
 const movieModule = require('./modules/movie');
 const taskModule = require('./modules/task');
 

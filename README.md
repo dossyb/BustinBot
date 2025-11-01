@@ -1,107 +1,81 @@
 # BustinBot
 
-**BustinBot** is a general-purpose Discord bot designed to enhance community engagement through a modular approach. The bot features submodules for specific functionalities, making it easy to expand and customize for various needs. Currently, the bot includes a **Movie Night Manager** and **Weekly Task Manager** to help organize and manage movie nights for your Discord server.
+**BustinBot** is a modular Discord bot built to power community events and engagement through it's two modules: a movie night manager and an Old School RuneScape community task manager. Its name and theme take inspiration from Ghostbusters, reflecting its mission to “bust” the ghosts of menial upkeep and keep communities lively and organized.
 
-## Features
+---
 
-- **Modular Design**: BustinBot is designed with submodules, allowing easy addition of new features without cluttering the main bot logic.
-- **Movie Night Manager**: Schedule and manage movie nights with a comprehensive set of commands, including adding, removing, and polling movies.
-- **Weekly Task Manager**: Facilitate community engagement with weekly task polls, announcements, and rewards for participation.
-- **Custom Role Requirements**: Commands are restricted to users with specific roles, ensuring only authorized members can access certain features.
+## ⚙️ Overview
 
-## Submodules
+BustinBot is designed for **scalable community management** with a focus on **automation, scheduling and functional UI**. All modules operate independently but share a unified service container and Firestore-based persistence layer.
 
-### 1. **Movie Night Manager**
-The Movie Night Manager allows members to suggest, vote on, and schedule movies for the community to watch together.
+### 🎥 Movie Module
+- Allows members to **add movies** to a shared watchlist, **vote** for the next movie and **watch** together at a scheduled time.
+- Admins can schedule a **date/time** for movie night anytime two weeks into the future and select movies either via search, random roll or a random/curated poll of up to 5 options.
+- Each movie has a rich embed powered by **TMDb** metadata.
+- Automatically archives completed movie nights and notifies the movie submitter via DM when their movie has been selected or archived.
 
-#### Key Features:
-- **Add Movies**: Members can suggest movies for the list.
-- **Remove Movies**: Members can remove movies they've added.
-- **List Movies**: View the current list of movies.
-- **Schedule Movie Nights**: Admins can schedule movie nights for specific dates and times.
-- **Poll Movies**: Run polls for members to vote on movies.
-- **Reminders**: Automatic reminders are sent before movie night starts.
+### 🗺️ Task Module
+- Automates weekly **Old School RuneScape** challenges categorised by PvM, Skilling, and Minigame/Misc.
+- Polls run every Sunday for 24 hours to determine the following week's tasks.
+- Tasks for each category run for a week starting Monday with three tiers of completion - Bronze, Silver and Gold.
+- Each successive tier corresponds to extra rolls in the fortnightly prize draw (every second Tuesday), incentivising participation.
+- Task submissions are verified using a screenshot and keyword system to ensure progress is only made during the event period.
+- Submissions are made via attachment uploads to the bot via DM which is forwarded to a private verification channel for admins to review and approve/reject.
 
-### 2. **Weekly Task Manager**
-The Weekly Task Manager allows community admins to organize and manage weekly tasks, offering voting, announcements, and rewards to enhance user engagement.
+## 🚀 Deployment
 
-#### Key Features:
-- **Weekly Polls**: Automatically posts a poll every Sunday at 12 am UTC for community members to vote on the next weekly task.
-- **Automatic Announcements**: Closes the poll and announces the selected task for the week.
-- **Completion Tracking**: Tracks user task completions and displays them upon request.
-- **Random Winner Selection**: Picks a winner among task participants, adding an element of fun and reward for involvement.
+BustinBot supports **development** and **production** modes, with instant guild command registration for dev and global propagation for production.
 
-## Installation
+### Prequisites
+- **Node.js** v20+
+- **npm** or **pnpm**
+- **Firestore** database configured with appropriate service account credentials
+- **Discord bot token** and application client ID
 
-### 1. Clone the Repository
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
 ```bash
-git clone https://github.com/your-repo/bustinbot.git
-cd bustinbot }
+DISCORD_TOKEN_DEV=your_dev_bot_token_here
+DISCORD_TOKEN_LIVE=your_live_bot_token_here
+DISCORD_CLIENT_ID_DEV=your_dev_client_id_here
+DISCORD_CLIENT_ID=your_live_client_id_here
+DISCORD_GUILD_ID=your_test_server_id_here
+BOT_MODE=dev # or 'prod'
+TMDB_API_KEY=your_tmdb_api_key_here
 ```
 
-### 2. Install Dependencies
+### Installation
 ```bash
 npm install
 ```
 
-### 3. Set Up Environment Variables
-Create a .env file in the root directory and include the following:
-```env
-DISCORD_TOKEN_DEV=your_dev_token
-DISCORD_TOKEN_LIVE=your_live_token
-BOT_MODE=dev_or_live
-```
-
-### 4. Run the bot
+### Running Locally
 ```bash
-node index.js
+npm run dev
 ```
-## Usage
 
-### General Commands:
-- `!bustin`: A simple ping command to test if the bot is online.
-- `!moviehelp`: Lists all available movie commands.
+This launches the bot with **guild-level command registration** for instant testing.
 
-### Movie Night Manager Commands:
+### Deploying to Production
+1. Set `BOT_MODE=prod` in your `.env`.
+2. Deploy the code your preferred hosting platform and configure accordingly - entry point is `index.ts`.
+3. Global commands will propagate automatically (can take up to 60 minutes).
+4. On your desired guild, run `/setup` to begin the setup process.
+5. Import any necessary stored data (e.g. task list, keywords) using `npx` and the stored import scripts.
+6. Run `/announce` once setup is complete to announce the bot's availability to server users.
 
-#### Standard User Commands:
-- `!addmovie <name>`: Add a movie to the list.
-- `!removemovie <name|number>`: Remove a movie you’ve added by name or number.
-- `!editmovie <number> <new name>`: Edit a movie you’ve added.
-- `!movielist`: View the current list of movies.
-- `!movie <name|number>`: View details about a specific movie.
-- `!currentmovie`: See the currently selected movie and scheduled movie night time.
-- `!moviecount`: Check how many movies you have left to add and see the ones you’ve suggested.
+## Attributions
+- [TMDb](https://www.themoviedb.org/) - Movie metadata and posters
+- [Freepik](https://www.freepik.com/) - Task category thumbnails
+- [Old School RuneScape](https://oldschool.runescape.com/) - Inspiration for weekly task system (fan-made, non-affiliated)
 
-#### Admin Commands:
-- `!movienight <YYYY-MM-DD HH:mm>`: Schedule a movie night.
-- `!selectmovie <name|number>`: Select a movie for movie night.
-- `!pollmovie <amount>`: Run a poll to vote on a set number of movies.
-- `!pollclose`: Close the active poll and select the winning movie.
-- `!cancelmovie`: Cancel the scheduled movie night.
-- `!endmovie`: End the movie night and remove the selected movie.
-- `!clearlist`: Clear the entire movie list.
+## Developer Notes
+- Written in **TypeScript** using **Discord.js v14**.
+- Includes comprehensive test coverage via **Vitest**.
+- Supports both manual and automated Firestore import/export scripts.
+- Designed for future modular expansion.
 
-### Weekly Task Manager Commands:
-These commands require admin privileges.
-
-- `!taskpoll`: Create a new task poll for the community to vote on.
-- `!announcetask`: Close the active poll and announce the active task for the current week.
-- `!rollwinner`: Randomly select a winner from the task submissions.
-- `!listtasks`: Display a list of all available tasks and their details.
-- `!activetask`: Show the details of the currently active task.
-- `!completions`: List all users and the number of tasks they have completed.
-- `!activepoll`: Display the active task poll and the current voting status.
-- `!settask <task ID> [amount]`: Set a specific task as the active one, with an optional amount. Should only be used ahead of the scheduled task announcement if the poll breaks.
-
-## Customization
-
-BustinBot’s modular design allows for easy extension. To add a new feature:
-1. Create a new submodule file (e.g., `giveaway.js`).
-2. Add specific functionality to your submodule.
-3. Update `index.js` to load and handle the new module.
-
-Each submodule should manage its own state and commands to keep the bot maintainable and flexible.
-
-
-
+## License
+This project is distributed under the MIT License.
