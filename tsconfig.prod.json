@@ -1,20 +1,15 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "module": "ES2020",
-        "target": "ES2020",
+        "target": "ES2022",
+        "module": "ES2022",
         "moduleResolution": "node",
-        "noEmitOnError": false,
-        "skipLibCheck": true,
+        "outDir": "dist",
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
-        "verbatimModuleSyntax": false,
-        "isolatedModules": false,
-        "removeComments": true,
-        "outDir": "dist",
-        "types": [
-            "node"
-        ]
+        "skipLibCheck": true,
+        "noEmitOnError": false,
+        "verbatimModuleSyntax": false
     },
     "exclude": [
         "**/*.test.ts",
