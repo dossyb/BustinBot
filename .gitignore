@@ -6,3 +6,4 @@ logs
 *.json
 coverage
 !announcements.json
+!tsconfig.prod.json

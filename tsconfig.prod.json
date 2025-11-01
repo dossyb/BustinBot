@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "outDir": "dist",
+    "noEmitOnError": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "removeComments": true
+  },
+  "exclude": [
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "vitest.config.ts"
+  ]
+}
