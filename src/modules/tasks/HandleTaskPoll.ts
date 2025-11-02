@@ -195,6 +195,16 @@ export async function postTaskPollForCategory(
     });
 
     collector.on('collect', async (interaction: ButtonInteraction) => {
+        try {
+            await interaction.deferUpdate();
+        } catch (err) {
+            if ((err as Error & { code?: number }).code === 10062) {
+                console.warn("[TaskPoll] Interaction already acknowledged or expired.");
+                return;
+            }
+            throw err;
+        }
+
         const userId = interaction.user.id;
         const voteId = interaction.customId.split('_').slice(2).join('_');
         const currentVotes = activeVotes.get(message.id);
@@ -208,7 +218,7 @@ export async function postTaskPollForCategory(
             updatedPoll = result.updatedPoll;
         } catch (err) {
             console.error("[TaskPoll] Failed to record vote transaction:", err);
-            await interaction.reply({ content: "An error occurred while recording your vote.", flags: 1 << 6 });
+            await interaction.followUp({ content: "An error occurred while recording your vote.", flags: 1 << 6 });
             return;
         }
 
@@ -240,7 +250,7 @@ export async function postTaskPollForCategory(
         const updatedEmbed = EmbedBuilder.from(embed)
             .setDescription(`${getVoteSummary(selectedTasks, currentVotes)}\n\n Poll closes ${timeString}`);
 
-        await interaction.update({ embeds: [updatedEmbed] });
+        await interaction.editReply({ embeds: [updatedEmbed] });
 
         poll.votes[userId] = voteId;
         await repo.createTaskPoll(poll);
