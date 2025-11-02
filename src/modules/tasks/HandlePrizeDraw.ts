@@ -8,6 +8,8 @@ import { buildPrizeDrawEmbed } from './TaskEmbeds.js';
 import { Client, TextChannel } from 'discord.js';
 import { isTextChannel } from '../../utils/ChannelUtils.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import fs from 'fs';
+import path from 'path';
 
 const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
 
@@ -74,7 +76,9 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const firstDrawCutoff = new Date("2025-11-12T00:00:00Z");
     if (nowISO < firstDrawCutoff.toISOString()) {
         try {
-            const { users: v1Users } = require("../../data/legacy-finaldraw.json");
+            const carryoverPath = path.resolve(process.cwd(), "data/legacy-finaldraw.json");
+            const fileContents = fs.readFileSync(carryoverPath, 'utf8');
+            const { users: v1Users } = JSON.parse(fileContents) as { users: Array<{ id: string; submissions: number }> };
 
             console.log(`[PrizeDraw] Merging ${v1Users.length} carryover submissions from v1...`);
 

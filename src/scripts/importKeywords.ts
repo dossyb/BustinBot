@@ -4,7 +4,7 @@ import { db } from '../core/database/firestore.js';
 import { Timestamp } from 'firebase-admin/firestore';
 import 'dotenv/config';
 
-const filePath = path.resolve('./src/data/keywords.json');
+const filePath = path.resolve(process.cwd(), 'data/keywords.json');
 
 const guildId = process.env.DISCORD_GUILD_ID;
 if (!guildId) {

@@ -12,10 +12,7 @@ import { CommandModule, CommandRole } from "../../../models/Command.js";
 import fs from "fs";
 import path from "path";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
-import { getFilename, getDirname } from '../../../utils/PathUtils.js';
 import { packageVersion } from "../../../utils/version.js";
-const filename = getFilename(import.meta.url);
-const dirname = getDirname(import.meta.url);
 
 interface Announcement {
     title: string;
@@ -74,7 +71,7 @@ const announce: Command = {
         if (!interaction) return;
         await interaction.deferReply({ flags: 1 << 6 });
 
-        const announcementsPath = path.join(dirname, "../../../data/announcements.json");
+        const announcementsPath = path.resolve(process.cwd(), "data/announcements.json");
         if (!fs.existsSync(announcementsPath)) {
             await interaction.editReply({
                 content: "announcements.json not found.",

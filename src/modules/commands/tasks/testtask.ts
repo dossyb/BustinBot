@@ -7,9 +7,6 @@ import { TaskCategory, type Task } from "../../../models/Task.js";
 import fs from "fs";
 import path from "path";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
-import { getFilename, getDirname } from '../../../utils/PathUtils.js';
-const filename = getFilename(import.meta.url);
-const dirname = getDirname(import.meta.url);
 
 const testtask: Command = {
     name: 'testtask',
@@ -24,7 +21,7 @@ const testtask: Command = {
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services?: ServiceContainer }) {
         if (!interaction) return;
 
-        const filePath = path.join(dirname, '../../../data/tasks.json');
+        const filePath = path.resolve(process.cwd(), 'data/tasks.json');
         const taskData: Task[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
         if (!taskData.length) {

@@ -11,6 +11,7 @@
         "noEmitOnError": false,
         "verbatimModuleSyntax": false,
         "declaration": false,
+        "declarationMap": false,
         "emitDeclarationOnly": false
     },
     "exclude": [

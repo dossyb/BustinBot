@@ -107,7 +107,7 @@ const invokedDirectly = Boolean(
 
 if (invokedDirectly) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const filePath = path.resolve("./src/data/tasks.csv");
+  const filePath = path.resolve(process.cwd(), "data/tasks.csv");
 
   if (!guildId) {
     console.error("❌ DISCORD_GUILD_ID missing from .env");

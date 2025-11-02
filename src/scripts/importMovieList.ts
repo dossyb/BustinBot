@@ -12,7 +12,7 @@ interface LegacyMovie {
 }
 
 const guildId = process.env.DISCORD_GUILD_ID!;
-const inputPath = path.resolve("./src/data/legacy-movies.json");
+const inputPath = path.resolve(process.cwd(), "data/legacy-movies.json");
 
 if (!guildId) {
     console.error("DISCORD_GUILD_ID missing from .env");

@@ -10,7 +10,7 @@ interface LegacyStat {
 }
 
 const guildId = process.env.DISCORD_GUILD_ID!;
-const inputPath = path.resolve("./src/data/legacy-taskstats.json");
+const inputPath = path.resolve(process.cwd(), "data/legacy-taskstats.json");
 
 if (!guildId) {
     console.error("DISCORD_GUILD_ID missing from .env");

@@ -1,8 +1,8 @@
 ﻿ID,Task Name,Category,Type,Skill,Bronze Amount,Silver Amount,Gold Amount,Weight,Short Name,XP per action,Min XP for Bronze,Min XP for Silver,Min XP for Gold,Wilderness Required?
-MIN001,Obtain Barrows pieces,Minigame/Misc,Drop,,3,6,10,50,Barrows,,,,,
+MIN001,Obtain Barrows pieces,Minigame/Misc,Drop,,1,4,8,50,Barrows,,,,,
 MIN002,Obtain Last Man Standing points,Minigame/Misc,Points,,30,75,150,50,LMS,,,,,
 MIN003,Obtain Brimhaven Agility Arena tickets,Minigame/Misc,Drop,,100,300,600,50,Brimhaven,,,,,
-MIN004,Obtain Pharaoh's Sceptres,Minigame/Misc,Drop,,1,3,5,50,Sceptres,,,,,
+MIN004,Obtain Pharaoh's Sceptres,Minigame/Misc,Drop,,1,2,3,50,Sceptres,,,,,
 MIN005,Kill Tempoross,Minigame/Misc,KC,,20,50,100,50,Tempoross,,,,,
 MIN006,Kill Wintertodt,Minigame/Misc,KC,,30,75,150,50,Wintertodt,,,,,
 MIN007,Obtain Guardians of the Rift points (both),Minigame/Misc,Points,,100,300,600,50,GOTR,,,,,

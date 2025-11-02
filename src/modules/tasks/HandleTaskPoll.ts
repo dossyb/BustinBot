@@ -5,15 +5,12 @@ import type { TaskPoll } from '../../models/TaskPoll.js';
 import { TaskCategory } from '../../models/Task.js';
 import { selectTasksForCategory } from './TaskSelector.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
-import { getFilename, getDirname } from '../../utils/PathUtils.js';
-const filename = getFilename(import.meta.url);
-const dirname = getDirname(import.meta.url);
-
+const assetIconDir = path.resolve(process.cwd(), 'assets/icons');
 const categoryIcons: Record<TaskCategory, string> = {
-    [TaskCategory.PvM]: path.resolve(dirname, '../../assets/icons/task_pvm.png'),
-    [TaskCategory.Skilling]: path.resolve(dirname, '../../assets/icons/task_skilling.png'),
-    [TaskCategory.MinigameMisc]: path.resolve(dirname, '../../assets/icons/task_minigame.png'),
-    [TaskCategory.Leagues]: path.resolve(dirname, '../../assets/icons/task_minigame.png'), // temp
+    [TaskCategory.PvM]: path.join(assetIconDir, 'task_pvm.png'),
+    [TaskCategory.Skilling]: path.join(assetIconDir, 'task_skilling.png'),
+    [TaskCategory.MinigameMisc]: path.join(assetIconDir, 'task_minigame.png'),
+    [TaskCategory.Leagues]: path.join(assetIconDir, 'task_minigame.png'), // temp
 };
 
 const activeVotes = new Map<string, Map<string, number>>(); // messageId -> Map<taskId, voteCount>
@@ -153,7 +150,7 @@ export async function postTaskPollForCategory(
             .setStyle(ButtonStyle.Secondary);
     });
 
-    const pollDuration = 60_000;
+    const pollDuration = 24 * 60 * 60 * 1000; // 24 hours
     const endTime = Date.now() + pollDuration;
     const timeString = `<t:${Math.floor(endTime / 1000)}:R>`
     const footerText = `Click a button below to vote.`;
