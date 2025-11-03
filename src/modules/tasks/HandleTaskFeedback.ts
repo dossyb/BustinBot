@@ -32,7 +32,8 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             }
             direction = parts[2];
             taskId = parts[3];
-            eventId = parts.slice(4).join('-');
+            const eventSuffix = parts.slice(4).join('-');
+            eventId = eventSuffix ? `${taskId}-${eventSuffix}` : taskId;
             isLegacy = true;
         }
 
@@ -48,16 +49,6 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
 
         const userId = interaction.user.id;
         let task = await repo.getTaskById(taskId);
-
-        if (!task && isLegacy && eventId && !eventId.includes('-')) {
-            const combinedId = `${taskId}-${eventId}`;
-            const combinedTask = await repo.getTaskById(combinedId);
-            if (combinedTask) {
-                task = combinedTask;
-                taskId = combinedId;
-                eventId = combinedId;
-            }
-        }
 
         if (!task) {
             await interaction.editReply({ content: 'Task not found.' });
