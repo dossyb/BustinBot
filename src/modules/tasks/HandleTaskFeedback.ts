@@ -11,6 +11,8 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         let taskId: string | undefined;
         let eventId: string | undefined;
 
+        let isLegacy = false;
+
         if (customId.includes('|')) {
             // New format: task-feedback|up|taskId|eventId
             const [prefix, parsedDirection, parsedTaskId, parsedEventId] = customId.split('|');
@@ -31,6 +33,7 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             direction = parts[2];
             taskId = parts[3];
             eventId = parts.slice(4).join('-');
+            isLegacy = true;
         }
 
         if (!taskId || !eventId) {
@@ -44,7 +47,18 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         }
 
         const userId = interaction.user.id;
-        const task = await repo.getTaskById(taskId);
+        let task = await repo.getTaskById(taskId);
+
+        if (!task && isLegacy && eventId && !eventId.includes('-')) {
+            const combinedId = `${taskId}-${eventId}`;
+            const combinedTask = await repo.getTaskById(combinedId);
+            if (combinedTask) {
+                task = combinedTask;
+                taskId = combinedId;
+                eventId = combinedId;
+            }
+        }
+
         if (!task) {
             await interaction.editReply({ content: 'Task not found.' });
             return;
