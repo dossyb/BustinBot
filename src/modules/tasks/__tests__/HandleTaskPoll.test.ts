@@ -113,7 +113,11 @@ describe('HandleTaskPoll collector behaviour', () => {
         const interaction = {
             user: { id: 'user-1', username: 'Alice' },
             customId: `vote_${TaskCategory.PvM}_task-1`,
-            update: vi.fn().mockResolvedValue(undefined),
+            deferred: false,
+            replied: false,
+            deferUpdate: vi.fn().mockResolvedValue(undefined),
+            editReply: vi.fn().mockResolvedValue(undefined),
+            followUp: vi.fn().mockResolvedValue(undefined),
         };
 
         await collectHandler?.(interaction as any);
@@ -127,7 +131,7 @@ describe('HandleTaskPoll collector behaviour', () => {
         expect(storedPoll.votes['user-1']).toBe('task-1');
 
         const firstUpdateDescription =
-            interaction.update.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description;
+            interaction.editReply.mock.calls[0]?.[0]?.embeds?.[0]?.data?.description;
         expect(firstUpdateDescription).toContain('**1 vote**');
 
         interaction.customId = `vote_${TaskCategory.PvM}_task-2`;
@@ -139,7 +143,7 @@ describe('HandleTaskPoll collector behaviour', () => {
         expect(taskRepo.createTaskPoll).toHaveBeenCalledTimes(3); // initial + two updates
 
         const secondUpdateDescription =
-            interaction.update.mock.calls[1]?.[0]?.embeds?.[0]?.data?.description;
+            interaction.editReply.mock.calls[1]?.[0]?.embeds?.[0]?.data?.description;
         expect(secondUpdateDescription).toContain('**1 vote**');
         expect(secondUpdateDescription).toContain('**0 votes**');
 

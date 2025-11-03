@@ -112,10 +112,15 @@ describe('Task submission lifecycle', () => {
             await handleAdminButton(interaction, services);
 
             expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Bronze, 'admin-1');
-            expect(mockedArchiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Bronze }));
+            expect(mockedArchiveSubmission).toHaveBeenCalledWith(
+                client,
+                expect.objectContaining({ status: SubmissionStatus.Bronze }),
+                services
+            );
             expect(mockedNotifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Bronze }));
             expect(mockedUpdateTaskCounter).toHaveBeenCalledWith(client, submission.taskEventId, submission.userId, repo, SubmissionStatus.Bronze);
             expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('approved'));
+            expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
         });
     });
 
@@ -140,8 +145,13 @@ describe('Task submission lifecycle', () => {
             await handleRejectionModal(modalInteraction, services);
 
             expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Rejected, 'admin-1');
-            expect(mockedArchiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected, rejectionReason: 'Too blurry' }));
+            expect(mockedArchiveSubmission).toHaveBeenCalledWith(
+                client,
+                expect.objectContaining({ status: SubmissionStatus.Rejected, rejectionReason: 'Too blurry' }),
+                services
+            );
             expect(mockedNotifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected }));
+            expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
             expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('Too blurry'));
         });
     });

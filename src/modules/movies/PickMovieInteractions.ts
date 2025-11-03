@@ -244,6 +244,10 @@ export async function handleMoviePollVote(services: ServiceContainer, interactio
         return;
     }
 
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: 1 << 6 });
+    }
+
     const userId = interaction.user.id;
 
     let firstTime = false;
@@ -254,7 +258,7 @@ export async function handleMoviePollVote(services: ServiceContainer, interactio
         updatedPoll = result.updatedPoll;
     } catch (err) {
         console.error("[MoviePollVote] Failed to record vote transaction:", err);
-        await interaction.reply({ content: "An error occurred while recording your vote.", flags: 1 << 6 });
+        await interaction.editReply({ content: "An error occurred while recording your vote." });
         return;
     }
 
@@ -284,7 +288,7 @@ export async function handleMoviePollVote(services: ServiceContainer, interactio
     });
 
     await (interaction.message as Message).edit({ embeds: updatedEmbeds });
-    await interaction.reply({ content: "Thank you for your vote!", flags: 1 << 6 });
+    await interaction.editReply({ content: "Thank you for your vote!" });
 }
 
 export async function handleManualPollInteraction(services: ServiceContainer, interaction: ButtonInteraction) {

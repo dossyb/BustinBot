@@ -16,7 +16,7 @@ export async function handleTaskInteraction(
     services: ServiceContainer
 ) {
     if (interaction.isButton()) {
-        if (interaction.customId.startsWith("task-feedback-")) {
+        if (interaction.customId.startsWith("task-feedback|")) {
             return handleTaskFeedback(interaction, services.tasks.repository);
         }
 

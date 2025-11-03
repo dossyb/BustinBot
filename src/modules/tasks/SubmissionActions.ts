@@ -1,4 +1,4 @@
-import { TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder, Client, Message } from 'discord.js';
+import { TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder, Client } from 'discord.js';
 import type { TaskSubmission } from '../../models/TaskSubmission.js';
 import { SubmissionStatus } from '../../models/TaskSubmission.js';
 import { buildSubmissionEmbed, buildArchiveEmbed, buildTaskEventEmbed } from './TaskEmbeds.js';
@@ -7,13 +7,30 @@ import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.j
 import { normaliseFirestoreDates } from '../../utils/DateUtils.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
-// Configurable constants (replace with environment variable later)
-const ADMIN_CHANNEL_NAME = 'task-admin';
-const ARCHIVE_CHANNEL_NAME = 'bot-archive';
+async function resolveTextChannel(client: Client, channelId?: string | null): Promise<TextChannel | null> {
+    if (!channelId) return null;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        return channel && isTextChannel(channel) ? channel : null;
+    } catch (err) {
+        console.warn(`[SubmissionActions] Failed to resolve channel ${channelId}:`, err);
+        return null;
+    }
+}
 
 export async function postToAdminChannel(client: Client, submission: TaskSubmission, services: ServiceContainer) {
-    const channel = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === ADMIN_CHANNEL_NAME) as TextChannel;
-    if (!channel) return;
+    const guildConfig = await services.guilds.get(services.guildId);
+    const verificationChannelId = guildConfig?.channels?.taskVerification;
+    if (!verificationChannelId) {
+        console.warn(`[SubmissionActions] Task verification channel not configured for guild ${services.guildId}.`);
+        return;
+    }
+
+    const channel = await resolveTextChannel(client, verificationChannelId);
+    if (!channel) {
+        console.warn(`[SubmissionActions] Unable to resolve task verification channel ${verificationChannelId}.`);
+        return;
+    }
 
     const taskEvent = await services.repos.taskRepo?.getTaskEventById(submission.taskEventId);
     if (!taskEvent) return;
@@ -85,9 +102,19 @@ export async function notifyUser(client: Client, submission: TaskSubmission) {
     }
 }
 
-export async function archiveSubmission(client: Client, submission: TaskSubmission) {
-    const archive = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === ARCHIVE_CHANNEL_NAME) as TextChannel;
-    if (!archive) return;
+export async function archiveSubmission(client: Client, submission: TaskSubmission, services: ServiceContainer) {
+    const guildConfig = await services.guilds.get(services.guildId);
+    const archiveChannelId = guildConfig?.channels?.botArchive;
+    if (!archiveChannelId) {
+        console.warn(`[SubmissionActions] Bot archive channel not configured for guild ${services.guildId}.`);
+        return;
+    }
+
+    const archive = await resolveTextChannel(client, archiveChannelId);
+    if (!archive) {
+        console.warn(`[SubmissionActions] Unable to resolve archive channel ${archiveChannelId}.`);
+        return;
+    }
 
     const embed = buildArchiveEmbed(
         submission,

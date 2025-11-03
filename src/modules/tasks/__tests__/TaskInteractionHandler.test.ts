@@ -64,7 +64,7 @@ describe('handleTaskInteraction', () => {
         const interaction: any = {
             ...baseInteraction(),
             isButton: () => true,
-            customId: 'task-feedback-up-task-1',
+            customId: 'task-feedback|up|task-1|event-1',
         };
 
         await handleTaskInteraction(interaction, {} as any, services);

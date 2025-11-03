@@ -35,6 +35,7 @@ const client = {
             find: vi.fn(),
             get: vi.fn(),
         },
+        fetch: vi.fn(),
     },
     users: {
         fetch: vi.fn(),
@@ -48,7 +49,11 @@ const taskRepo = {
 } as any;
 
 const services: any = {
+    guildId: 'guild-1',
     repos: { taskRepo },
+    guilds: {
+        get: vi.fn(),
+    },
 };
 
 beforeEach(() => {
@@ -61,12 +66,17 @@ describe('postToAdminChannel', () => {
             .mockResolvedValueOnce({ id: 'msg-1' })
             .mockResolvedValueOnce({ id: 'msg-2' });
         const adminChannel = {
-            name: 'task-admin',
+            name: 'task-verification',
             isTextBased: () => true,
             send: channelSend,
         };
 
-        client.channels.cache.find.mockReturnValue(adminChannel);
+        services.guilds.get.mockResolvedValue({
+            channels: {
+                taskVerification: 'task-verification-channel-id',
+            },
+        });
+        client.channels.fetch.mockResolvedValue(adminChannel);
         taskRepo.getTaskEventById.mockResolvedValue({
             id: 'event-1',
             task: { id: 'task-1', taskName: 'Task One' },
@@ -82,6 +92,7 @@ describe('postToAdminChannel', () => {
         await postToAdminChannel(client, submission as any, services);
 
         expect(buildSubmissionEmbed).toHaveBeenCalled();
+        expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
         expect(channelSend).toHaveBeenNthCalledWith(1, {
             embeds: [{ type: 'submission-embed' }],
             components: [expect.anything()],
@@ -137,14 +148,19 @@ describe('archiveSubmission', () => {
             send: archiveSend,
         };
 
-        client.channels.cache.find.mockReturnValue(archiveChannel);
+        services.guilds.get.mockResolvedValue({
+            channels: {
+                botArchive: 'archive-channel-id',
+            },
+        });
+        client.channels.fetch.mockResolvedValue(archiveChannel);
 
         await archiveSubmission(client, {
             userId: 'user-1',
             taskEventId: 'event-1',
             status: SubmissionStatus.Approved,
             screenshotUrls: ['https://img.png'],
-        } as any);
+        } as any, services);
 
         expect(buildArchiveEmbed).toHaveBeenCalled();
         expect(archiveSend).toHaveBeenCalledWith({

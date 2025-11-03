@@ -5,7 +5,7 @@ import { handleTaskFeedback } from '../HandleTaskFeedback.js';
 const interactionBase = () => {
     const editReply = vi.fn().mockResolvedValue(undefined);
     const interaction: any = {
-        customId: 'task-feedback-up-task-1',
+        customId: 'task-feedback|up|task-1|event-1',
         user: { id: 'user-1' },
         deferReply: vi.fn().mockResolvedValue(undefined),
         editReply,
@@ -58,7 +58,7 @@ describe('handleTaskFeedback', () => {
 
     it('updates vote direction and adjusts weight', async () => {
         const { interaction, editReply } = interactionBase();
-        interaction.customId = 'task-feedback-down-task-1';
+        interaction.customId = 'task-feedback|down|task-1|event-1';
         repo.getTaskById.mockResolvedValue({ id: 'task-1' });
         repo.getFeedbackForTask.mockResolvedValue([
             { taskId: 'task-1', userId: 'user-1', vote: 'up' },
@@ -75,7 +75,7 @@ describe('handleTaskFeedback', () => {
 
     it('rejects unknown feedback type', async () => {
         const { interaction, editReply } = interactionBase();
-        interaction.customId = 'task-feedback-sideways-task-1';
+        interaction.customId = 'task-feedback|sideways|task-1|event-1';
 
         await handleTaskFeedback(interaction as any, repo as any);
 

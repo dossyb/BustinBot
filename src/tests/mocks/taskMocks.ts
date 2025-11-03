@@ -34,7 +34,39 @@ export function createTaskServiceHarness(overrides: PartialRepo = {}) {
   const repo = createTaskRepoMock(overrides);
   const service = new TaskService(repo as any);
 
+  const guildConfig = {
+    id: 'guild-1',
+    channels: {
+      announcements: '',
+      botArchive: 'archive-channel-id',
+      botLog: '',
+      taskChannel: 'task-channel-id',
+      taskVerification: 'task-verification-channel-id',
+      movieNight: '',
+      movieVC: '',
+    },
+    roles: {
+      admin: '',
+      movieAdmin: '',
+      movieUser: '',
+      taskAdmin: '',
+      taskUser: '',
+    },
+    setupComplete: { core: true, movie: true, task: true },
+    toggles: { taskScheduler: false, leaguesEnabled: false },
+    timezone: 'UTC',
+  } as any;
+
+  const guildService = {
+    get: vi.fn().mockResolvedValue(guildConfig),
+    refresh: vi.fn().mockResolvedValue(guildConfig),
+    update: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([guildConfig]),
+    ensureExists: vi.fn().mockResolvedValue(guildConfig),
+  } as unknown as import("../../core/services/GuildService").GuildService;
+
   const services = {
+    guildId: 'guild-1',
     repos: { taskRepo: repo },
     tasks: service,
     // plain object mock is fine; no need to fake the private field
@@ -52,6 +84,7 @@ export function createTaskServiceHarness(overrides: PartialRepo = {}) {
       getGoodBotCount: vi.fn(() => 0),
       getBadBotCount: vi.fn(() => 0),
     } as unknown as import("../../core/services/BotStatsService").BotStatsService,
+    guilds: guildService,
   } as unknown as import("../../core/services/ServiceContainer").ServiceContainer; // 👈 double-cast here
 
   return { repo, service, services };
@@ -93,6 +126,11 @@ export function createAdminClientMock() {
         send: vi.fn().mockResolvedValue(undefined),
     };
 
+    const channelMap = new Map<string, any>([
+        ["task-verification-channel-id", adminChannel],
+        ["archive-channel-id", archiveChannel],
+    ]);
+
     const client: any = {
         channels: {
             cache: {
@@ -102,6 +140,7 @@ export function createAdminClientMock() {
                     return undefined;
                 }),
             },
+            fetch: vi.fn(async (id: string) => channelMap.get(id) ?? null),
         },
         users: {
             fetch: vi.fn().mockResolvedValue({ send: vi.fn().mockResolvedValue(undefined) }),

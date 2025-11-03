@@ -6,18 +6,40 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
     await interaction.deferReply({ flags: 1 << 6 });
 
     try {
-        const parts = interaction.customId.split('-');
-        const direction = parts[2];
-        const taskId = parts.slice(3).join('-');
-        const eventId = parts[4];
+        const customId = interaction.customId;
+        let direction: string | undefined;
+        let taskId: string | undefined;
+        let eventId: string | undefined;
+
+        if (customId.includes('|')) {
+            // New format: task-feedback|up|taskId|eventId
+            const [prefix, parsedDirection, parsedTaskId, parsedEventId] = customId.split('|');
+            if (prefix !== 'task-feedback') {
+                await interaction.editReply({ content: 'Invalid feedback action.' });
+                return;
+            }
+            direction = parsedDirection;
+            taskId = parsedTaskId;
+            eventId = parsedEventId;
+        } else {
+            // Legacy format: task-feedback-up-${taskId}-${eventId}
+            const parts = customId.split('-');
+            if (parts.length < 5 || parts[0] !== 'task' || parts[1] !== 'feedback') {
+                await interaction.editReply({ content: 'Invalid feedback action.' });
+                return;
+            }
+            direction = parts[2];
+            eventId = parts.pop();
+            taskId = parts.slice(3).join('-');
+        }
 
         if (!taskId || !eventId) {
-            await interaction.editReply({ content: 'Invalid task or event ID.', flags: 1 << 6 });
+            await interaction.editReply({ content: 'Invalid task or event ID.' });
             return;
         }
 
         if (direction !== 'up' && direction !== 'down') {
-            await interaction.editReply({ content: 'Unknown feedback type.'});
+            await interaction.editReply({ content: 'Unknown feedback type.' });
             return;
         }
 
@@ -53,6 +75,6 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         await interaction.editReply({ content: message });
     } catch (err) {
         console.error('[TaskFeedback] File error:', err);
-        await interaction.editReply({ content: 'Error reading task data.', flags: 1 << 6 });
+        await interaction.editReply({ content: 'Error reading task data.' });
     }
 }

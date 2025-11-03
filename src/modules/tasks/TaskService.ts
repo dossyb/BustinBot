@@ -10,6 +10,17 @@ import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
 const MAX_SCREENSHOTS = 10;
 
+async function resolveTextChannel(client: Client, channelId?: string | null): Promise<TextChannel | null> {
+    if (!channelId) return null;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        return channel && channel.isTextBased() ? (channel as TextChannel) : null;
+    } catch (err) {
+        console.warn(`[TaskService] Failed to resolve channel ${channelId}:`, err);
+        return null;
+    }
+}
+
 export class TaskService {
     private pendingTaskMap = new Map<string, string>();
     constructor(private repo: ITaskRepository) { }
@@ -70,7 +81,14 @@ export class TaskService {
         return submission;
     }
 
-    async updateSubmissionStatus(client: Client, submissionId: string, newStatus: SubmissionStatus.Approved | SubmissionStatus.Rejected, reviewedBy: string, rejectionReason?: string): Promise<TaskSubmission | null> {
+    async updateSubmissionStatus(
+        client: Client,
+        submissionId: string,
+        newStatus: SubmissionStatus.Approved | SubmissionStatus.Rejected,
+        reviewedBy: string,
+        services: ServiceContainer,
+        rejectionReason?: string
+    ): Promise<TaskSubmission | null> {
         const submission = await this.repo.getSubmissionById(submissionId);
         if (!submission) return null;
 
@@ -92,11 +110,13 @@ export class TaskService {
         await this.repo.createSubmission(submission);
 
         await notifyUser(client, submission);
-        await archiveSubmission(client, submission);
+        await archiveSubmission(client, submission, services);
         await updateTaskCounter(client, submission.taskEventId);
 
         // Delete original messages from admin channel
-        const adminChannel = client.channels.cache.find((c): c is TextChannel => isTextChannel(c) && c.name === 'task-admin');
+        const guildConfig = await services.guilds.get(services.guildId);
+        const verificationChannelId = guildConfig?.channels?.taskVerification;
+        const adminChannel = await resolveTextChannel(client, verificationChannelId);
         if (adminChannel) {
             if (submission.message) {
                 try {
@@ -123,7 +143,8 @@ export class TaskService {
         client: Client,
         submissionId: string,
         tier: 'bronze' | 'silver' | 'gold',
-        reviewedBy: string
+        reviewedBy: string,
+        services: ServiceContainer
     ): Promise<TaskSubmission | null> {
         const TIER_MAP = {
             bronze: { status: SubmissionStatus.Bronze, rolls: 1 },
@@ -165,13 +186,13 @@ export class TaskService {
 
         // Notify, archive, and update counters
         await notifyUser(client, submission);
-        await archiveSubmission(client, submission);
+        await archiveSubmission(client, submission, services);
         await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo, submission.status);
 
         // --- Cleanup original admin messages ---
-        const adminChannel = client.channels.cache.find(
-            (c): c is TextChannel => isTextChannel(c) && c.name === 'task-admin'
-        );
+        const guildConfig = await services.guilds.get(services.guildId);
+        const verificationChannelId = guildConfig?.channels?.taskVerification;
+        const adminChannel = await resolveTextChannel(client, verificationChannelId);
         if (adminChannel) {
             if (submission.message) {
                 try {

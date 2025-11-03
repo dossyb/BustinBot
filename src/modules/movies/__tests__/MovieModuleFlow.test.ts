@@ -191,26 +191,30 @@ describe("Movie module flows", () => {
         user: { id: "user-1" },
         client: {},
         message,
-        reply: vi.fn().mockResolvedValue(undefined),
+        deferred: false,
+        replied: false,
+        deferReply: vi.fn().mockResolvedValue(undefined),
+        editReply: vi.fn().mockResolvedValue(undefined),
       };
 
       await handleMoviePollVote(services, interaction);
       expect(movieRepo.voteInPollOnce).toHaveBeenCalledWith("poll-1", "user-1", "movie-2");
       expect(message.edit).toHaveBeenCalled();
       expect(userRepo.incrementStat).toHaveBeenCalledWith("user-1", "moviePollsVoted", 1);
-      expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
+      expect(interaction.deferReply).toHaveBeenCalledWith({ flags: 1 << 6 });
+      expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
 
       // Switch vote to first option
       interaction.customId = "movie_vote_0";
       message.edit.mockClear();
-      interaction.reply.mockClear();
+      interaction.editReply.mockClear();
       userRepo.incrementStat.mockClear();
 
       await handleMoviePollVote(services, interaction);
       expect(activePoll.votes["user-1"]).toBe("movie-1");
       expect(message.edit).toHaveBeenCalled();
       expect(userRepo.incrementStat).not.toHaveBeenCalled();
-      expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
+      expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("Thank you") }));
     });
   });
 

@@ -170,7 +170,8 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
                 interaction.client,
                 submissionId,
                 tier,
-                reviewerId
+                reviewerId,
+                services
             );
 
             if (!result) {
@@ -231,7 +232,14 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
         return;
     }
 
-    const updated = await services.tasks.updateSubmissionStatus(interaction.client, submissionId, SubmissionStatus.Rejected, reviewerId, reason);
+    const updated = await services.tasks.updateSubmissionStatus(
+        interaction.client,
+        submissionId,
+        SubmissionStatus.Rejected,
+        reviewerId,
+        services,
+        reason
+    );
 
     // Update the ephemeral reply
     await interaction.editReply({
@@ -239,14 +247,21 @@ export async function handleRejectionModal(interaction: ModalSubmitInteraction, 
     });
 
     // Post a visible message in the admin channel
-    const adminChannel = interaction.client.channels.cache.find(
-        (c): c is TextChannel => c.isTextBased() && "name" in c && c.name === "task-admin"
-    );
-
-    if (adminChannel) {
-        await adminChannel.send(
-            `❌ <@${reviewerId}> rejected submission for **${updated?.taskName ?? `Task ${updated?.taskEventId}`}** by <@${updated?.userId}>. Reason: ${reason || "No reason provided"}. Submission moved to archive channel.`
-        );
+    const guildConfig = await services.guilds.get(services.guildId);
+    const verificationChannelId = guildConfig?.channels?.taskVerification;
+    if (verificationChannelId) {
+        try {
+            const adminChannel = await interaction.client.channels.fetch(verificationChannelId);
+            if (adminChannel && adminChannel.isTextBased()) {
+                await (adminChannel as TextChannel).send(
+                    `❌ <@${reviewerId}> rejected submission for **${updated?.taskName ?? `Task ${updated?.taskEventId}`}** by <@${updated?.userId}>. Reason: ${reason || "No reason provided"}. Submission moved to archive channel.`
+                );
+            }
+        } catch (err) {
+            console.warn(`[TaskInteractions] Failed to notify task admins in channel ${verificationChannelId}:`, err);
+        }
+    } else {
+        console.warn(`[TaskInteractions] Task verification channel not configured for guild ${services.guildId}.`);
     }
 
 }

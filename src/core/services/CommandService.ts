@@ -19,13 +19,18 @@ async function loadCommandFiles(dir: string): Promise<void> {
             continue;
         }
 
-        // only load real JS command files (ignore .d.ts and tests)
-        const isCommandFile =
-            entry.endsWith(".js") &&
+        const ext = path.extname(entry);
+        const isJsCommand =
+            ext === ".js" &&
             !entry.endsWith(".d.ts") &&
-            !entry.endsWith(".test.js");
+            !entry.endsWith(".test.js") &&
+            !entry.endsWith(".js.map");
+        const isTsCommand =
+            ext === ".ts" &&
+            !entry.endsWith(".d.ts") &&
+            !entry.endsWith(".test.ts");
 
-        if (!isCommandFile) continue;
+        if (!isJsCommand && !isTsCommand) continue;
 
         try {
             const commandUrl = pathToFileURL(fullPath).href;
@@ -52,6 +57,7 @@ async function loadCommandFiles(dir: string): Promise<void> {
 }
 
 export async function loadCommands(commandsDir: string): Promise<Map<string, Command>> {
+    commandMap.clear();
     await loadCommandFiles(commandsDir);
     return commandMap;
 }
