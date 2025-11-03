@@ -29,8 +29,8 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
                 return;
             }
             direction = parts[2];
-            eventId = parts.pop();
-            taskId = parts.slice(3).join('-');
+            taskId = parts[3];
+            eventId = parts.slice(4).join('-');
         }
 
         if (!taskId || !eventId) {
