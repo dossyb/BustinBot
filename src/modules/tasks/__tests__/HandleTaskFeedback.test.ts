@@ -34,6 +34,7 @@ describe('handleTaskFeedback', () => {
 
         expect(repo.addFeedback).toHaveBeenCalledWith(expect.objectContaining({
             taskId: 'task-1',
+            eventId: 'event-1',
             userId: 'user-1',
             vote: 'up',
         }));
@@ -80,5 +81,49 @@ describe('handleTaskFeedback', () => {
         await handleTaskFeedback(interaction as any, repo as any);
 
         expect(editReply).toHaveBeenCalledWith({ content: 'Unknown feedback type.' });
+    });
+
+    it('supports legacy button ids with task and event segments', async () => {
+        const editReply = vi.fn().mockResolvedValue(undefined);
+        const interaction: any = {
+            customId: 'task-feedback-up-MIN001-MIN001-20251103',
+            user: { id: 'user-legacy' },
+            deferReply: vi.fn().mockResolvedValue(undefined),
+            editReply,
+        };
+
+        repo.getTaskById.mockResolvedValue({ id: 'MIN001' });
+        repo.getFeedbackForTask.mockResolvedValue([]);
+
+        await handleTaskFeedback(interaction as any, repo as any);
+
+        expect(repo.addFeedback).toHaveBeenCalledWith(expect.objectContaining({
+            taskId: 'MIN001',
+            eventId: 'MIN001-20251103',
+            vote: 'up',
+        }));
+        expect(repo.incrementWeight).toHaveBeenCalledWith('MIN001', 1);
+        expect(editReply).toHaveBeenCalledWith({ content: 'Thanks for your feedback!' });
+    });
+
+    it('supports legacy buttons without duplicated task segment', async () => {
+        const editReply = vi.fn().mockResolvedValue(undefined);
+        const interaction: any = {
+            customId: 'task-feedback-up-MIN002-20251103',
+            user: { id: 'user-legacy' },
+            deferReply: vi.fn().mockResolvedValue(undefined),
+            editReply,
+        };
+
+        repo.getTaskById.mockResolvedValue({ id: 'MIN002' });
+        repo.getFeedbackForTask.mockResolvedValue([]);
+
+        await handleTaskFeedback(interaction as any, repo as any);
+
+        expect(repo.addFeedback).toHaveBeenCalledWith(expect.objectContaining({
+            taskId: 'MIN002',
+            eventId: 'MIN002-20251103',
+        }));
+        expect(editReply).toHaveBeenCalledWith({ content: 'Thanks for your feedback!' });
     });
 });

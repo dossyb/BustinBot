@@ -33,7 +33,14 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             direction = parts[2];
             taskId = parts[3];
             const eventSuffix = parts.slice(4).join('-');
-            eventId = eventSuffix ? `${taskId}-${eventSuffix}` : taskId;
+            if (!eventSuffix) {
+                eventId = taskId;
+            } else if (eventSuffix.startsWith(`${taskId}-`)) {
+                // Some legacy buttons already embed the task id in the suffix.
+                eventId = eventSuffix;
+            } else {
+                eventId = `${taskId}-${eventSuffix}`;
+            }
             isLegacy = true;
         }
 

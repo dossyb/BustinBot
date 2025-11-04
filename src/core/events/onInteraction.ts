@@ -1,5 +1,5 @@
 import { GuildMember } from 'discord.js';
-import type { Interaction } from 'discord.js';
+import type { APIInteractionGuildMember, Interaction } from 'discord.js';
 import type { Command } from '../../models/Command.js';
 import { CommandModule, CommandRole } from '../../models/Command.js';
 import type { ServiceContainer } from '../services/ServiceContainer.js';
@@ -18,42 +18,60 @@ export async function handleInteraction(
             return;
         }
 
-    const isSetupCommand = command.name === 'setup';
+        const isSetupCommand = command.name === 'setup';
+        const rawMember = interaction.member;
 
-    if (isSetupCommand) {
-        // Manual hardcoded admin role check
-        const member = interaction.member as GuildMember;
-        const adminRoleName = "BustinBot Admin";
-
-        const hasAdminRole = member.roles.cache.some(
-            role => role.name === adminRoleName || role.id === adminRoleName
-        );
-
-        if (!hasAdminRole) {
+        if (!rawMember) {
             await interaction.reply({
-                content: `Only members with the **${adminRoleName}** role can run \`/setup\`. Please have a server admin create and assign this role first.`,
+                content: 'Unable to determine your server membership. Please try again from within the guild.',
                 flags: 1 << 6,
             });
             return;
         }
 
-        // Run setup freely, without Firestore dependency
-        await command.execute({ interaction, services });
-        return;
-    }
+        const guildMember = rawMember instanceof GuildMember ? rawMember : null;
+        const apiMember = rawMember as APIInteractionGuildMember;
+
+        const userRoleIds = guildMember
+            ? guildMember.roles.cache.map((role) => role.id)
+            : Array.isArray(apiMember.roles)
+            ? apiMember.roles
+            : [];
+
+        const userRoleNames = guildMember
+            ? guildMember.roles.cache.map((role) => role.name)
+            : [];
+
+        if (isSetupCommand) {
+            const adminRoleName = "BustinBot Admin";
+
+            const hasAdminRole =
+                guildMember?.roles.cache.some(
+                    (role) => role.name === adminRoleName || role.id === adminRoleName,
+                ) ?? false;
+
+            if (!hasAdminRole) {
+                await interaction.reply({
+                    content: `Only members with the **${adminRoleName}** role can run \`/setup\`. Please have a server admin create and assign this role first.`,
+                    flags: 1 << 6,
+                });
+                return;
+            }
+
+            // Run setup freely, without Firestore dependency
+            await command.execute({ interaction, services });
+            return;
+        }
 
         // Role-based permission logic
         if (
             command.allowedRoles.length > 0 &&
             !command.allowedRoles.includes(CommandRole.Everyone)
         ) {
-            const member = interaction.member as GuildMember;
             const guildConfig = await services.guilds.requireConfig(interaction);
             if (!guildConfig) return;
 
             const guildRoles = guildConfig!.roles ?? {};
-            const userRoleIds = member.roles.cache.map(role => role.id);
-            const userRoleNames = member.roles.cache.map(role => role.name);
 
             const hasRole = (configured?: string, fallbackEnv?: string) => {
                 const value = configured ?? fallbackEnv;

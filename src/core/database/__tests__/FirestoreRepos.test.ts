@@ -204,8 +204,7 @@ describe("PrizeDrawRepository Firestore interactions", () => {
         const winners: Record<TaskCategory, string[]> = {
             [TaskCategory.Skilling]: [],
             [TaskCategory.PvM]: [],
-            [TaskCategory.Minigame]: [],
-            [TaskCategory.Misc]: ["user-1"],
+            [TaskCategory.MinigameMisc]: ["user-1"],
             [TaskCategory.Leagues]: [],
         };
 

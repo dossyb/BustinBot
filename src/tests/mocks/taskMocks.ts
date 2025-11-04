@@ -63,7 +63,7 @@ export function createTaskServiceHarness(overrides: PartialRepo = {}) {
     update: vi.fn(),
     getAll: vi.fn().mockResolvedValue([guildConfig]),
     ensureExists: vi.fn().mockResolvedValue(guildConfig),
-  } as unknown as import("../../core/services/GuildService").GuildService;
+  } as unknown as import("../../core/services/GuildService.js").GuildService;
 
   const services = {
     guildId: 'guild-1',
@@ -83,9 +83,9 @@ export function createTaskServiceHarness(overrides: PartialRepo = {}) {
       getStats: vi.fn(() => null),
       getGoodBotCount: vi.fn(() => 0),
       getBadBotCount: vi.fn(() => 0),
-    } as unknown as import("../../core/services/BotStatsService").BotStatsService,
+    } as unknown as import("../../core/services/BotStatsService.js").BotStatsService,
     guilds: guildService,
-  } as unknown as import("../../core/services/ServiceContainer").ServiceContainer; // 👈 double-cast here
+  } as unknown as import("../../core/services/ServiceContainer.js").ServiceContainer; // 👈 double-cast here
 
   return { repo, service, services };
 }
