@@ -82,7 +82,21 @@ const client = new Client({
     client.on('messageCreate', async (message) => {
         try {
             if (message.channel.type === 1) {
-                const services = await getServices(message.guildId ?? primaryGuildId);
+                let services: Awaited<ReturnType<typeof createServiceContainer>> | undefined;
+
+                for (const existingServices of servicesByGuild.values()) {
+                    if (existingServices.tasks.hasPendingTask(message.author.id)) {
+                        services = existingServices;
+                        break;
+                    }
+                }
+
+                if (!services) {
+                    // Fall back to the guild the DM originated from (if tracked) or the primary guild.
+                    const fallbackGuild = message.guildId ?? primaryGuildId;
+                    services = await getServices(fallbackGuild);
+                }
+
                 await handleDirectMessage(message, client, services);
             } else if (message.guildId) {
                 const services = await getServices(message.guildId);

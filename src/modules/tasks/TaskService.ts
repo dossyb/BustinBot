@@ -242,6 +242,14 @@ export class TaskService {
         this.pendingTaskMap.set(userId, taskEventId);
     }
 
+    hasPendingTask(userId: string): boolean {
+        return this.pendingTaskMap.has(userId);
+    }
+
+    peekPendingTask(userId: string): string | undefined {
+        return this.pendingTaskMap.get(userId);
+    }
+
     consumePendingTask(userId: string): string | undefined {
         const taskId = this.pendingTaskMap.get(userId);
         this.pendingTaskMap.delete(userId);
