@@ -15,6 +15,8 @@ function createBaseRepo() {
         getSubmissionById: vi.fn(),
         getSubmissionByUserAndTask: vi.fn().mockResolvedValue(null),
         updateSubmissionStatus: vi.fn().mockResolvedValue(undefined),
+        addCompletedUser: vi.fn().mockResolvedValue(undefined),
+        removeCompletedUser: vi.fn().mockResolvedValue(undefined),
         getActiveTaskPoll: vi.fn(),
         getActiveEvent: vi.fn(),
         getAllTasks: vi.fn().mockResolvedValue([]),

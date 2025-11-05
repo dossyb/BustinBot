@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { GuildScopedRepository } from "./CoreRepo.js";
 import { db } from "./firestore.js";
 import type { Task } from "../../models/Task.js";
@@ -160,6 +160,23 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
             .get();
 
         return snapshot.docs.map((doc) => doc.data() as TaskEvent);
+    }
+    async addCompletedUser(taskEventId: string, userId: string): Promise<void> {
+        await this.eventsCollection.doc(taskEventId).set(
+            {
+                completedUserIds: FieldValue.arrayUnion(userId),
+            },
+            { merge: true }
+        );
+    }
+
+    async removeCompletedUser(taskEventId: string, userId: string): Promise<void> {
+        await this.eventsCollection.doc(taskEventId).set(
+            {
+                completedUserIds: FieldValue.arrayRemove(userId),
+            },
+            { merge: true }
+        );
     }
 
     private get submissionsCollection() {
