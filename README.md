@@ -58,13 +58,70 @@ npm run dev
 
 This launches the bot with **guild-level command registration** for instant testing.
 
-### Deploying to Production
-1. Set `BOT_MODE=prod` in your `.env`.
-2. Deploy the code your preferred hosting platform and configure accordingly - entry point is `index.ts`.
-3. Global commands will propagate automatically (can take up to 60 minutes).
-4. On your desired guild, run `/setup` to begin the setup process.
-5. Import any necessary stored data (e.g. task list, keywords) using `npx` and the stored import scripts.
-6. Run `/announce` once setup is complete to announce the bot's availability to server users.
+### 🚀 Deploying to Production
+
+1. **Set environment variables**
+
+   In your `.env` file (or platform dashboard), ensure at least:
+
+   ```env
+   BOT_MODE=prod
+   ```
+
+2. **Choose your hosting platform**
+
+   BustinBot runs on any Node.js 20+ environment with Git access.  
+   Common options include **Cybrancee**, **Pterodactyl**, **Railway**, and **Render**.
+
+3. **Set your startup command**
+
+   Configure the host’s entry point to:
+
+   ```bash
+   node start.cjs
+   ```
+
+   The bootstrap script will:
+   - Clone or update the repository from GitHub (branch from `GIT_BRANCH`)
+   - Preserve your `/data` and `/assets` folders (safe from `git clean`)
+   - Install dependencies (`npm ci --omit=dev`)
+   - Build the TypeScript source into `/dist`
+   - Launch the compiled bot (`node dist/index.js`)
+
+4. **Verify initial setup**
+
+   After the bot is online, confirm that global commands have propagated (this may take up to **60 minutes**).  
+   Then, in your desired guild, run:
+
+   ```
+   /setup
+   ```
+
+   to complete configuration.
+
+5. **Announce availability**
+
+   Once setup and data imports are complete, run:
+
+   ```
+   /announce
+   ```
+
+   to let your server users know BustinBot is live and ready.
+
+---
+
+**Redeploys:**  
+You can safely redeploy by restarting the container — `start.cjs` will automatically pull, rebuild, and relaunch the latest version of your configured branch without touching untracked runtime data.
+
+**Data safety:**  
+The bootstrap uses:
+
+```bash
+git clean -fdx -e data -e assets -e start.cjs
+```
+
+so your runtime data and assets are preserved between updates.
 
 ## Attributions
 - [TMDb](https://www.themoviedb.org/) - Movie metadata and posters
