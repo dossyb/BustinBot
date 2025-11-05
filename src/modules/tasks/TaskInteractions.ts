@@ -134,11 +134,30 @@ export async function handleDirectMessage(message: Message, client: Client, serv
 
 // STEP 4: Admin clicks Approve/Reject
 export async function handleAdminButton(interaction: ButtonInteraction, services: ServiceContainer) {
-    const [action, maybeTier, submissionId] = interaction.customId.split('_');
+    const customId = interaction.customId;
+    let action: string | undefined;
+    let submissionId: string | undefined;
+    let maybeTier: string | undefined;
+
+    if (customId.startsWith('reject_')) {
+        action = 'reject';
+        submissionId = customId.slice('reject_'.length).trim();
+    } else if (customId.startsWith('approve_')) {
+        action = 'approve';
+        const parts = customId.split('_');
+        maybeTier = parts[1];
+        submissionId = parts.slice(2).join('_').trim();
+    }
+
     if (!submissionId) {
         await interaction.reply({ content: "Submission ID missing from interaction.", flags: 1 << 6 });
         return;
     }
+    if (!action) {
+        await interaction.reply({ content: "Unknown task action.", flags: 1 << 6 });
+        return;
+    }
+
     const reviewerId = interaction.user.id;
 
     if (action === 'reject') {

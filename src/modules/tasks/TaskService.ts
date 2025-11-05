@@ -109,9 +109,25 @@ export class TaskService {
         await this.repo.updateSubmissionStatus(submissionId, newStatus, reviewedBy);
         await this.repo.createSubmission(submission);
 
-        await notifyUser(client, submission);
-        await archiveSubmission(client, submission, services);
-        await updateTaskCounter(client, submission.taskEventId);
+        await this.syncCompletedUsers(submission.taskEventId, submission.userId, newStatus !== SubmissionStatus.Rejected);
+
+        try {
+            await notifyUser(client, submission);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to DM user ${submission.userId} about ${submission.id}:`, err);
+        }
+
+        try {
+            await archiveSubmission(client, submission, services);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to archive submission ${submission.id}:`, err);
+        }
+
+        try {
+            await updateTaskCounter(client, submission.taskEventId);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to update counter for event ${submission.taskEventId}:`, err);
+        }
 
         // Delete original messages from admin channel
         const guildConfig = await services.guilds.get(services.guildId);
@@ -184,10 +200,26 @@ export class TaskService {
         await this.repo.updateSubmissionStatus(submissionId, submission.status, reviewedBy);
         await this.repo.createSubmission(submission);
 
+        await this.syncCompletedUsers(submission.taskEventId, submission.userId, true);
+
         // Notify, archive, and update counters
-        await notifyUser(client, submission);
-        await archiveSubmission(client, submission, services);
-        await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo, submission.status);
+        try {
+            await notifyUser(client, submission);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to DM user ${submission.userId} about ${submission.id}:`, err);
+        }
+
+        try {
+            await archiveSubmission(client, submission, services);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to archive submission ${submission.id}:`, err);
+        }
+
+        try {
+            await updateTaskCounter(client, submission.taskEventId, submission.userId, this.repo, submission.status);
+        } catch (err) {
+            console.warn(`[TaskService] Failed to update counter for event ${submission.taskEventId}:`, err);
+        }
 
         // --- Cleanup original admin messages ---
         const guildConfig = await services.guilds.get(services.guildId);
@@ -254,5 +286,17 @@ export class TaskService {
         const taskId = this.pendingTaskMap.get(userId);
         this.pendingTaskMap.delete(userId);
         return taskId;
+    }
+
+    private async syncCompletedUsers(taskEventId: string, userId: string, include: boolean): Promise<void> {
+        try {
+            if (include) {
+                await this.repo.addCompletedUser(taskEventId, userId);
+            } else {
+                await this.repo.removeCompletedUser(taskEventId, userId);
+            }
+        } catch (err) {
+            console.warn(`[TaskService] Failed to update completedUserIds for ${taskEventId}:`, err);
+        }
     }
 }
