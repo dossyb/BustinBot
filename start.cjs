@@ -23,6 +23,7 @@ if (!fs.existsSync(".git")) {
   run(`git clone -b ${BRANCH} ${REPO} .`);
 } else {
   console.log("🧹 Resetting existing repo...");
+  run("git update-index --assume-unchanged start.cjs", true);
   run("git reset --hard HEAD", true);
   run(`git clean -fdx -e data -e assets -e start.cjs -e .env -e .env.local`, true);
   run(`git fetch origin ${BRANCH}`, true);

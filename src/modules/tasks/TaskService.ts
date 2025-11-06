@@ -123,11 +123,6 @@ export class TaskService {
             console.warn(`[TaskService] Failed to archive submission ${submission.id}:`, err);
         }
 
-        try {
-            await updateTaskCounter(client, submission.taskEventId);
-        } catch (err) {
-            console.warn(`[TaskService] Failed to update counter for event ${submission.taskEventId}:`, err);
-        }
 
         // Delete original messages from admin channel
         const guildConfig = await services.guilds.get(services.guildId);

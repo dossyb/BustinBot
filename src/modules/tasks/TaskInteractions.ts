@@ -35,19 +35,20 @@ export async function handleSubmitButton(interaction: ButtonInteraction, service
     const userId = interaction.user.id;
 
     services.tasks.setPendingTask(userId, taskEventId);
+
+    await interaction.deferReply({ flags: 1 << 6 });
+
     try {
         await interaction.user.send(
             `Please upload your screenshot for **${taskName}** and include any notes/comments in the same message.`
         );
-        await interaction.reply({
+        await interaction.editReply({
             content: `Check your DMs to submit your screenshot for **${taskName}**!`,
-            flags: 1 << 6
         });
     } catch {
         services.tasks.consumePendingTask(userId);
-        await interaction.reply({
-            content: "I couldn't send you a DM. Please enable direct messages from server members and try again.",
-            flags: 1 << 6
+        await interaction.editReply({
+            content: "I couldn't send you a DM. Please enable direct messages from server members and try again."
         });
     }
 }

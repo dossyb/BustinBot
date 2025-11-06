@@ -12,7 +12,10 @@
         "verbatimModuleSyntax": false,
         "declaration": false,
         "declarationMap": false,
-        "emitDeclarationOnly": false
+        "emitDeclarationOnly": false,
+        "types": [
+            "node"
+        ]
     },
     "exclude": [
         "**/*.test.ts",
