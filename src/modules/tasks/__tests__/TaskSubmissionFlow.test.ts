@@ -122,6 +122,39 @@ describe('Task submission lifecycle', () => {
             expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('approved'));
             expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
         });
+
+        it('continues approval flow when archiving fails due to permissions', async () => {
+            const { service, repo, services } = createTaskServiceHarness();
+            const { client, adminChannel } = createAdminClientMock();
+
+            const submission = await service.createSubmission('user-1', 'event-1');
+            const stored = { ...submission, screenshotUrls: ['https://cdn/img.png'] };
+            repo.getSubmissionById.mockResolvedValue(stored);
+
+            mockedArchiveSubmission.mockRejectedValueOnce(new Error('Missing Permissions'));
+
+            await service.completeSubmission(client as any, submission.id, ['https://cdn/img.png'], services);
+
+            const interaction: any = {
+                customId: `approve_bronze_${submission.id}`,
+                user: { id: 'admin-1' },
+                client,
+                deferReply: vi.fn().mockResolvedValue(undefined),
+                editReply: vi.fn().mockResolvedValue(undefined),
+                reply: vi.fn().mockResolvedValue(undefined),
+                channel: adminChannel,
+                message: {
+                    embeds: [{ fields: [{ value: '<@user-1>' }, { value: submission.taskName }] }],
+                },
+            };
+
+            await expect(handleAdminButton(interaction, services)).resolves.not.toThrow();
+
+            expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Bronze, 'admin-1');
+            expect(mockedArchiveSubmission).toHaveBeenCalled();
+            expect(mockedUpdateTaskCounter).toHaveBeenCalledWith(client, submission.taskEventId, submission.userId, repo, SubmissionStatus.Bronze);
+            expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining('approved') }));
+        });
     });
 
     describe('Admin rejection flow', () => {
@@ -153,6 +186,33 @@ describe('Task submission lifecycle', () => {
             expect(mockedNotifyUser).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected }));
             expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
             expect(adminChannel.send).toHaveBeenCalledWith(expect.stringContaining('Too blurry'));
+        });
+
+        it('continues rejection flow when DM sending fails', async () => {
+            const { service, repo, services } = createTaskServiceHarness();
+            const { client } = createAdminClientMock();
+
+            const submission = await service.createSubmission('user-1', 'event-1');
+            const stored = { ...submission, screenshotUrls: ['https://cdn/img.png'] };
+            repo.getSubmissionById.mockResolvedValue(stored);
+
+            mockedNotifyUser.mockRejectedValueOnce(new Error('Cannot send messages to this user'));
+
+            const modalInteraction: any = {
+                customId: `reject_reason_${submission.id}`,
+                fields: { getTextInputValue: vi.fn().mockReturnValue('No proof') },
+                user: { id: 'admin-1' },
+                client,
+                deferReply: vi.fn().mockResolvedValue(undefined),
+                editReply: vi.fn().mockResolvedValue(undefined),
+            };
+
+            await expect(handleRejectionModal(modalInteraction, services)).resolves.not.toThrow();
+
+            expect(repo.updateSubmissionStatus).toHaveBeenCalledWith(submission.id, SubmissionStatus.Rejected, 'admin-1');
+            expect(mockedNotifyUser).toHaveBeenCalled();
+            expect(mockedArchiveSubmission).toHaveBeenCalledWith(client, expect.objectContaining({ status: SubmissionStatus.Rejected }), services);
+            expect(modalInteraction.editReply).toHaveBeenCalledWith({ content: "❌ Submission rejected and archived." });
         });
     });
 

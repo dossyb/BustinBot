@@ -106,6 +106,42 @@ describe('postToAdminChannel', () => {
         expect(submission.message).toBe('msg-1');
         expect(submission.screenshotMessage).toBe('msg-2');
     });
+
+    it('logs warning and exits when verification channel is not configured', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        services.guilds.get.mockResolvedValue({ channels: {} });
+
+        await expect(
+            postToAdminChannel(client, { taskEventId: 'event-1' } as any, services)
+        ).resolves.toBeUndefined();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[SubmissionActions] Task verification channel not configured for guild guild-1.'
+        );
+        expect(client.channels.fetch).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    it('logs warning when channel fetch fails due to permissions', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        services.guilds.get.mockResolvedValue({
+            channels: { taskVerification: 'task-verification-channel-id' },
+        });
+        client.channels.fetch.mockRejectedValueOnce(new Error('Missing Permissions'));
+        taskRepo.getTaskEventById.mockResolvedValue({
+            id: 'event-1',
+            task: { id: 'task-1', taskName: 'Task One' },
+        });
+
+        await expect(
+            postToAdminChannel(client, { taskEventId: 'event-1' } as any, services)
+        ).resolves.toBeUndefined();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[SubmissionActions] Unable to resolve task verification channel task-verification-channel-id.'
+        );
+        warnSpy.mockRestore();
+    });
 });
 
 describe('notifyUser', () => {
@@ -172,6 +208,20 @@ describe('archiveSubmission', () => {
             })
         );
     });
+
+    it('logs warning and exits when archive channel missing', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        services.guilds.get.mockResolvedValue({ channels: {} });
+
+        await expect(
+            archiveSubmission(client, { taskEventId: 'event-1' } as any, services)
+        ).resolves.toBeUndefined();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[SubmissionActions] Bot archive channel not configured for guild guild-1.'
+        );
+        warnSpy.mockRestore();
+    });
 });
 
 describe('updateTaskCounter', () => {
@@ -216,5 +266,37 @@ describe('updateTaskCounter', () => {
             components: ['row'],
             files: ['file'],
         });
+    });
+
+    it('logs warning when repository is missing', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        await updateTaskCounter(client, 'event-1');
+
+        expect(warnSpy).toHaveBeenCalledWith('[UpdateTaskCounter] Missing repository reference.');
+        warnSpy.mockRestore();
+    });
+
+    it('logs warning when task channel message cannot be fetched', async () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const event = {
+            id: 'event-1',
+            task: { taskName: 'Collect Herbs' },
+            channelId: 'channel-1',
+            messageId: 'message-1',
+            completionCounts: { bronze: 0, silver: 0, gold: 0 },
+        };
+
+        taskRepo.getTaskEventById.mockResolvedValue(event);
+        taskRepo.getSubmissionsForTask.mockResolvedValue([]);
+        client.channels.cache.get.mockReturnValue({
+            isTextBased: () => true,
+            messages: { fetch: vi.fn().mockRejectedValue(new Error('Missing Permissions')) },
+        });
+
+        await updateTaskCounter(client, 'event-1', 'user-1', taskRepo, SubmissionStatus.Bronze);
+
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
     });
 });
