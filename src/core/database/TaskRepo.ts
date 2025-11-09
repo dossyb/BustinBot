@@ -155,8 +155,8 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
 
     async getTaskEventsBetween(start: Date, end: Date): Promise<TaskEvent[]> {
         const snapshot = await this.eventsCollection
-            .where("createdAt", ">=", Timestamp.fromDate(start))
-            .where("createdAt", "<=", Timestamp.fromDate(end))
+            .where("endTime", ">=", Timestamp.fromDate(start))
+            .where("endTime", "<=", Timestamp.fromDate(end))
             .get();
 
         return snapshot.docs.map((doc) => doc.data() as TaskEvent);

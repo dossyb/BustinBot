@@ -8,6 +8,7 @@ import { buildPrizeDrawEmbed } from './TaskEmbeds.js';
 import { Client, TextChannel } from 'discord.js';
 import { isTextChannel } from '../../utils/ChannelUtils.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { normaliseFirestoreDates } from '../../utils/DateUtils.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,7 +27,16 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const now = new Date();
     const [start, end] = getPeriodRange(now, DEFAULT_PERIOD_DAYS);
 
-    const qualifyingEvents: TaskEvent[] = await taskRepo.getTaskEventsBetween(start, end);
+    const rawEvents = await taskRepo.getTaskEventsBetween(start, end);
+    const qualifyingEvents = rawEvents
+        .map(event => normaliseFirestoreDates<TaskEvent>(event))
+        .filter(event => {
+            const eventEnd = event.endTime;
+            if (!(eventEnd instanceof Date)) return false;
+            const endsAfterStart = eventEnd.getTime() >= start.getTime();
+            const endsBeforeOrAtNow = eventEnd.getTime() <= end.getTime();
+            return endsAfterStart && endsBeforeOrAtNow;
+        });
 
     if (!qualifyingEvents.length) {
         console.warn('[PrizeDraw] No task events found in range for snapshot.');

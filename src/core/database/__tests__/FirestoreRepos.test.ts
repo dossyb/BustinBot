@@ -188,8 +188,8 @@ describe("TaskRepository Firestore interactions", () => {
 
         expect(eventsStub.__queryCalls).toHaveLength(2);
         const [first, second] = eventsStub.__queryCalls;
-        expect(first).toMatchObject({ field: "createdAt", op: ">=" });
-        expect(second).toMatchObject({ field: "createdAt", op: "<=" });
+        expect(first).toMatchObject({ field: "endTime", op: ">=" });
+        expect(second).toMatchObject({ field: "endTime", op: "<=" });
         expect(first?.value).toEqual(expect.objectContaining({ __ts: start }));
         expect(second?.value).toEqual(expect.objectContaining({ __ts: end }));
     });

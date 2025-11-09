@@ -38,8 +38,8 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
 
         const taskRepo = {
             getTaskEventsBetween: vi.fn().mockResolvedValue([
-                { id: 'evt-1' },
-                { id: 'evt-2' },
+                { id: 'evt-1', endTime: new Date('2025-11-13T00:00:00Z') },
+                { id: 'evt-2', endTime: new Date('2025-11-14T00:00:00Z') },
             ]),
             getSubmissionsForTask: vi.fn().mockImplementation((eventId: string) => {
                 if (eventId === 'evt-1') {
@@ -91,6 +91,43 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
         });
 
         expect(snapshot).toEqual(persistedSnapshot);
+    });
+
+    it('ignores submissions from events that have not ended yet', async () => {
+        const prizeRepo = {
+            createPrizeDraw: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const taskRepo = {
+            getTaskEventsBetween: vi.fn().mockResolvedValue([
+                { id: 'evt-ended', endTime: new Date('2025-11-13T12:00:00Z') },
+                { id: 'evt-future', endTime: new Date('2025-11-20T12:00:00Z') },
+            ]),
+            getSubmissionsForTask: vi.fn().mockImplementation((eventId: string) => {
+                if (eventId === 'evt-ended') {
+                    return Promise.resolve([
+                        { userId: 'zoe', status: SubmissionStatus.Gold },
+                    ]);
+                }
+
+                return Promise.resolve([
+                    { userId: 'yvonne', status: SubmissionStatus.Gold },
+                ]);
+            }),
+        };
+
+        const snapshot = await generatePrizeDrawSnapshot(
+            prizeRepo as any,
+            taskRepo as any
+        );
+
+        expect(taskRepo.getSubmissionsForTask).toHaveBeenCalledTimes(1);
+        expect(taskRepo.getSubmissionsForTask).toHaveBeenCalledWith('evt-ended');
+
+        const persistedSnapshot = prizeRepo.createPrizeDraw.mock.calls[0]?.[0];
+        expect(persistedSnapshot?.taskEventIds).toEqual(['evt-ended']);
+        expect(persistedSnapshot?.participants).toEqual({ zoe: 1 });
+        expect(snapshot.totalEntries).toBe(1);
     });
 });
 
