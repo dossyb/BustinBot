@@ -1,6 +1,6 @@
 {
   "name": "bustinbot",
-  "version": "2.0.1",
+  "version": "2.0.0",
   "type": "module",
   "description": "**BustinBot** is a general-purpose Discord bot designed to enhance community engagement through a modular approach. The bot features submodules for specific functionalities, making it easy to expand and customize for various needs. Currently, the bot includes a **Movie Night Manager** and **Weekly Task Manager** to help organize and manage movie nights for your Discord server.",
   "main": "index.js",
