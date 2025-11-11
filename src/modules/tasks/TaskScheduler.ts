@@ -227,22 +227,40 @@ export function initTaskScheduler(
             { timezone: schedulerTimezone }
         );
 
+        const scheduleNextPrize = (reference: Date) => {
+            nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, reference);
+            if (nextPrizeTime) {
+                SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+            }
+        };
+
         prizeJob = cron.schedule(
             prizeExpression,
             async () => {
                 const now = new Date();
                 if (!isPrizeWeek(now)) {
-                    nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, now);
-                    if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+                    scheduleNextPrize(now);
                     return;
                 }
+
                 console.log('[TaskScheduler] Running prize draw...');
-                const channel = await getChannel(client, services);
-                if (channel) {
-                    await channel.send('🏆 Running prize draw. The winner is BustinBot!');
+                try {
+                    const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
+                    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id, services);
+
+                    if (!winner) {
+                        console.log('[PrizeDraw] No eligible entries - skipping announcement.');
+                    } else {
+                        const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
+                        if (!announced) {
+                            console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[TaskScheduler] Prize draw job failed:', err);
                 }
-                nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, now);
-                if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+
+                scheduleNextPrize(now);
             },
             { timezone: schedulerTimezone }
         );
@@ -254,8 +272,7 @@ export function initTaskScheduler(
         nextEventTime = getNextRunDate(eventExpr);
         if (nextEventTime) SchedulerStatusReporter.onNewTrigger('Task Event', nextEventTime);
 
-        nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek);
-        if (nextPrizeTime) SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+        scheduleNextPrize(new Date());
     }
     console.log('[TaskScheduler] Production mode schedule initialised.');
 }

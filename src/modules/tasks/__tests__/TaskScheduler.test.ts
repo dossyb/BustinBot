@@ -4,8 +4,19 @@ vi.mock("node-cron", async () => ({
     ...(await cronMockModule),
 }));
 
+vi.mock("../HandlePrizeDraw.js", () => ({
+    generatePrizeDrawSnapshot: vi.fn().mockResolvedValue({ id: 'snapshot-1' }),
+    rollWinnerForSnapshot: vi.fn().mockResolvedValue('winner-1'),
+    announcePrizeDrawWinner: vi.fn().mockResolvedValue(true),
+}));
+
 import { initTaskScheduler, stopTaskScheduler } from "../TaskScheduler.js";
 import { scheduledTasks } from "../../../tests/mocks/cronMock.js";
+import {
+    generatePrizeDrawSnapshot,
+    rollWinnerForSnapshot,
+    announcePrizeDrawWinner,
+} from "../HandlePrizeDraw.js";
 
 const mockClient: any = {};
 const mockServices: any = {
@@ -22,6 +33,7 @@ describe('TaskScheduler production schedules', () => {
     beforeEach(() => {
         scheduledTasks.length = 0;
         process.env.BOT_MODE = 'prod';
+        vi.clearAllMocks();
     });
 
     afterEach(() => {
@@ -45,18 +57,7 @@ describe('TaskScheduler production schedules', () => {
         process.env.DISCORD_GUILD_ID = "mockGuild";
         process.env.TASK_CHANNEL_ID = "mockChannel";
 
-        vi.resetModules();
-        vi.doMock("node-cron", async () => ({
-            ...(await cronMockModule),
-        }));
-
-        const mod = await import("../TaskScheduler.js");
-        const { initTaskScheduler, stopTaskScheduler } = mod as any;
-
-        const { scheduledTasks } = (await import("node-cron")) as any;
-
-        const fakeChannel = { send: vi.fn() };
-        const fakeGetChannel = vi.fn().mockResolvedValue(fakeChannel);
+        const fakeGetChannel = vi.fn().mockResolvedValue({ send: vi.fn() });
         const fakeGetWeek = vi.fn();
 
         initTaskScheduler(mockClient, mockServices, fakeGetChannel, fakeGetWeek);
@@ -68,16 +69,26 @@ describe('TaskScheduler production schedules', () => {
 
         fakeGetWeek.mockReturnValue(2);
         await prizeTask.callback();
-        expect(fakeChannel.send).toHaveBeenCalledWith(
-            expect.stringContaining("🏆")
+        expect(generatePrizeDrawSnapshot).toHaveBeenCalledTimes(1);
+        expect(rollWinnerForSnapshot).toHaveBeenCalledWith(
+            mockServices.repos.prizeRepo,
+            'snapshot-1',
+            mockServices
+        );
+        expect(announcePrizeDrawWinner).toHaveBeenCalledWith(
+            mockClient,
+            mockServices,
+            mockServices.repos.prizeRepo,
+            'snapshot-1'
         );
 
         fakeGetWeek.mockReturnValue(3);
-        fakeChannel.send.mockClear();
+        vi.clearAllMocks();
         await prizeTask.callback();
-        expect(fakeChannel.send).not.toHaveBeenCalled();
+        expect(generatePrizeDrawSnapshot).not.toHaveBeenCalled();
+        expect(rollWinnerForSnapshot).not.toHaveBeenCalled();
+        expect(announcePrizeDrawWinner).not.toHaveBeenCalled();
 
-        stopTaskScheduler();
         fakeGetWeek.mockReset();
     });
 });
