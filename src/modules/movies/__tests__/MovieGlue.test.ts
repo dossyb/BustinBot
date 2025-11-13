@@ -33,6 +33,7 @@ vi.mock('../MovieAttendance', () => ({
 }));
 
 const services: any = {
+    guildId: 'guild-1',
     repos: {
         movieRepo: {
             getActiveEvent: vi.fn(),

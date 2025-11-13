@@ -5,6 +5,7 @@ import { DateTime } from "luxon";
 // 🧩 Lazy imports are critical for fake timers to intercept setTimeout()
 let pollMovieWithList: any;
 let handleMoviePollVote: any;
+let saveCurrentMovie: any;
 let scheduleMovieReminders: any;
 let scheduleActivePollClosure: any;
 let removemovie: any;
@@ -48,7 +49,9 @@ describe("Movie module flows", () => {
     // 👇 Lazy import ensures modules see fake timers
     vi.resetModules();
     pollMovieWithList = (await import("../MoviePolls.js")).pollMovieWithList;
-    handleMoviePollVote = (await import("../PickMovieInteractions.js")).handleMoviePollVote;
+    const pickInteractions = await import("../PickMovieInteractions.js");
+    handleMoviePollVote = pickInteractions.handleMoviePollVote;
+    saveCurrentMovie = pickInteractions.saveCurrentMovie;
     scheduleMovieReminders = (await import("../MovieReminders.js")).scheduleMovieReminders;
     scheduleActivePollClosure = (await import("../MoviePollScheduler.js")).scheduleActivePollClosure;
     removemovie = (await import("../../commands/movies/removemovie.js")).default;
@@ -376,5 +379,79 @@ describe("Movie module flows", () => {
       await removemovie.execute({ interaction, services });
       expect(movieRepo.deleteMovie).toHaveBeenCalledWith("movie-1");
     });
+  });
+});
+
+describe("saveCurrentMovie", () => {
+  it("updates the active event with the selected movie", async () => {
+    const movieRepo = {
+      getActiveEvent: vi.fn().mockResolvedValue({
+        id: "event-1",
+        startTime: new Date(),
+        completed: false,
+        movie: { id: "placeholder" },
+      }),
+      createMovieEvent: vi.fn().mockResolvedValue(undefined),
+      upsertMovie: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const services: any = {
+      guildId: "guild-1",
+      repos: { movieRepo },
+    };
+
+    const movie = {
+      id: "movie-123",
+      title: "Chosen Movie",
+      addedBy: "user-1",
+      addedAt: new Date(),
+      watched: false,
+      runtime: 120,
+    };
+
+    await saveCurrentMovie(services, movie as any, "selector-1");
+
+    expect(movieRepo.upsertMovie).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "movie-123",
+        selectedBy: "selector-1",
+        watched: false,
+      })
+    );
+    expect(movieRepo.createMovieEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "event-1",
+        movie: expect.objectContaining({
+          id: "movie-123",
+          runtime: 120,
+        }),
+      })
+    );
+  });
+
+  it("skips event updates if there is no active event", async () => {
+    const movieRepo = {
+      getActiveEvent: vi.fn().mockResolvedValue(null),
+      createMovieEvent: vi.fn(),
+      upsertMovie: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const services: any = {
+      guildId: "guild-1",
+      repos: { movieRepo },
+    };
+
+    const movie = {
+      id: "movie-456",
+      title: "Standalone Movie",
+      addedBy: "user-1",
+      addedAt: new Date(),
+      watched: false,
+    };
+
+    await saveCurrentMovie(services, movie as any, undefined);
+
+    expect(movieRepo.upsertMovie).toHaveBeenCalled();
+    expect(movieRepo.createMovieEvent).not.toHaveBeenCalled();
   });
 });

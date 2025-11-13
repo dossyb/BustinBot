@@ -18,12 +18,21 @@ export async function saveCurrentMovie(services: ServiceContainer, movie: Movie,
     }
     try {
         const { addedByDisplay, addedByDevId, ...movieData } = movie;
-        await movieRepo.upsertMovie({
+        const updatedMovie: Movie = {
             ...movieData,
             watched: false,
             selectedAt: new Date(),
             selectedBy,
-        });
+        };
+        await movieRepo.upsertMovie(updatedMovie);
+
+        const activeEvent = await movieRepo.getActiveEvent();
+        if (activeEvent && !activeEvent.completed) {
+            await movieRepo.createMovieEvent({
+                ...activeEvent,
+                movie: updatedMovie,
+            });
+        }
         console.log(`[MovieStorage] Saved current movie: ${movie.title}`);
     } catch (error) {
         console.error("[MovieStorage] Failed to save current movie:", error);

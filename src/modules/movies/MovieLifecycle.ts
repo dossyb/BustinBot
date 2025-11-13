@@ -4,16 +4,13 @@ import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 import { Client } from 'discord.js';
 import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance.js';
 import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
+import { resolveGuildContext } from './MovieLocalSelector.js';
 
 let autoEndTimeout: NodeJS.Timeout | null = null;
 
 async function notifySubmitterMovieEnded(client: Client, addedBy: string, finishedMovie: Movie, remainingSlots: number, services: ServiceContainer) {
     try {
-        const guilds = await services.guilds.getAll();
-        const guild = guilds[0];
-        const guildName = guild?.id
-            ? (await client.guilds.fetch(guild.id)).name
-            : "this server";
+        const { guildName } = await resolveGuildContext(client, services);
 
         const user = await client.users.fetch(addedBy);
         if (!user) return;
@@ -128,18 +125,17 @@ export async function scheduleMovieAutoEnd(services: ServiceContainer, startTime
 
         if (result.success && result.finishedMovie) {
             try {
-                const guilds = await services.guilds.getAll();
-                const guild = guilds[0];
-                if (!guild?.id) {
+                const { guildId } = await resolveGuildContext(client, services);
+                if (!guildId) {
                     console.warn("[MovieLifecycle] Could not identify guild for movie night end message.");
                     return;
                 }
 
-                const guildConfig = await services.guilds.get(guild.id);
+                const guildConfig = await services.guilds.get(guildId);
                 const movieChannelId = guildConfig?.channels?.movieNight;
 
                 if (movieChannelId) {
-                    const guildObj = await client.guilds.fetch(guild.id);
+                    const guildObj = await client.guilds.fetch(guildId);
                     const channel = await guildObj.channels.fetch(movieChannelId);
                     if (channel?.isTextBased()) {
                         await channel.send({

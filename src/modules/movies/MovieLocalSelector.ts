@@ -4,6 +4,27 @@ import { createMovieEmbed } from './MovieEmbeds.js';
 import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 
+export async function resolveGuildContext(client: Client, services: ServiceContainer): Promise<{ guildId: string | null; guildName: string; }> {
+    let guildId: string | undefined = services.guildId;
+
+    if (!guildId) {
+        const guilds = await services.guilds.getAll();
+        guildId = guilds[0]?.id;
+    }
+
+    if (!guildId) {
+        return { guildId: null, guildName: 'this server' };
+    }
+
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        return { guildId, guildName: guild.name };
+    } catch (err) {
+        console.warn(`[MovieGuildContext] Failed to resolve guild ${guildId}:`, err);
+        return { guildId, guildName: 'this server' };
+    }
+}
+
 export async function pickRandomMovie(services: ServiceContainer): Promise<Movie | null> {
     const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
@@ -47,11 +68,7 @@ export async function buildMovieEmbedWithMeta(
 
 export async function notifyMovieSubmitter(selectedMovie: Movie, client: Client, services: ServiceContainer) {
     if (!selectedMovie.addedBy) return;
-    const guilds = await services.guilds.getAll();
-    const guild = guilds[0];
-    const guildName = guild?.id
-        ? (await client.guilds.fetch(guild.id)).name
-        : "this server";
+    const { guildName } = await resolveGuildContext(client, services);
 
     try {
         const user = await client.users.fetch(selectedMovie.addedBy);

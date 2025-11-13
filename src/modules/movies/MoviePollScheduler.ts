@@ -66,7 +66,11 @@ export async function scheduleActivePollClosure(services: ServiceContainer, clie
             }
 
             const movie = latestEvent.movie;
-            const startTimeISO = latestEvent.startTime?.toString();
+            const startTimeISO = latestEvent.startTime instanceof Date
+                ? latestEvent.startTime.toISOString()
+                : typeof latestEvent.startTime === 'string'
+                    ? latestEvent.startTime
+                    : null;
 
             if (movie?.runtime && startTimeISO) {
                 console.log('[MoviePollScheduler] Scheduling auto-end post-poll with selected movie.');
