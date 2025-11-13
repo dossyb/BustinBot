@@ -74,16 +74,19 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
 
         expect(persistedSnapshot?.participants).toEqual({
             alice: 2,
-            carol: 1,
-            dave: 1,
+            carol: 2,
+            dave: 3,
         });
         expect(persistedSnapshot?.entries).toEqual([
             'alice',
             'alice',
             'carol',
+            'carol',
+            'dave',
+            'dave',
             'dave',
         ]);
-        expect(persistedSnapshot?.totalEntries).toBe(4);
+        expect(persistedSnapshot?.totalEntries).toBe(7);
         expect(persistedSnapshot?.tierCounts).toEqual({
             bronze: 1,
             silver: 1,
@@ -126,8 +129,33 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
 
         const persistedSnapshot = prizeRepo.createPrizeDraw.mock.calls[0]?.[0];
         expect(persistedSnapshot?.taskEventIds).toEqual(['evt-ended']);
-        expect(persistedSnapshot?.participants).toEqual({ zoe: 1 });
-        expect(snapshot.totalEntries).toBe(1);
+        expect(persistedSnapshot?.participants).toEqual({ zoe: 3 });
+        expect(snapshot.totalEntries).toBe(3);
+    });
+
+    it('respects stored prize roll overrides when status is stale', async () => {
+        const prizeRepo = {
+            createPrizeDraw: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const taskRepo = {
+            getTaskEventsBetween: vi.fn().mockResolvedValue([
+                { id: 'evt-1', endTime: new Date('2025-11-13T00:00:00Z') },
+            ]),
+            getSubmissionsForTask: vi.fn().mockResolvedValue([
+                { userId: 'max', status: SubmissionStatus.Bronze, prizeRolls: 2 },
+            ]),
+        };
+
+        const snapshot = await generatePrizeDrawSnapshot(
+            prizeRepo as any,
+            taskRepo as any
+        );
+
+        const persistedSnapshot = prizeRepo.createPrizeDraw.mock.calls[0]?.[0];
+        expect(persistedSnapshot?.participants).toEqual({ max: 2 });
+        expect(persistedSnapshot?.totalEntries).toBe(2);
+        expect(snapshot.entries).toEqual(['max', 'max']);
     });
 });
 

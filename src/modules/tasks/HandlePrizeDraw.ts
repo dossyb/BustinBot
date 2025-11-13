@@ -9,8 +9,6 @@ import { Client, TextChannel } from 'discord.js';
 import { isTextChannel } from '../../utils/ChannelUtils.js';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 import { normaliseFirestoreDates } from '../../utils/DateUtils.js';
-import fs from 'fs';
-import path from 'path';
 
 const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
 
@@ -56,9 +54,23 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
             s.status === SubmissionStatus.Gold
     );
 
+    const TIER_ROLLS: Partial<Record<SubmissionStatus, number>> = {
+        [SubmissionStatus.Approved]: 1,
+        [SubmissionStatus.Bronze]: 1,
+        [SubmissionStatus.Silver]: 2,
+        [SubmissionStatus.Gold]: 3,
+    };
+
     const participants: Record<string, number> = {};
+    const entries: string[] = [];
     for (const submission of filtered) {
-        participants[submission.userId] = (participants[submission.userId] || 0) + 1;
+        const rolls = submission.prizeRolls ?? TIER_ROLLS[submission.status] ?? 0;
+        if (rolls <= 0) continue;
+
+        participants[submission.userId] = (participants[submission.userId] || 0) + rolls;
+        for (let i = 0; i < rolls; i++) {
+            entries.push(submission.userId);
+        }
     }
 
     const tierCounts = {
@@ -67,6 +79,8 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         gold: filtered.filter(s => s.status === SubmissionStatus.Gold).length,
     };
 
+    const totalEntries = entries.length;
+
     const snapshot: PrizeDraw = {
         id: `${start.toISOString().slice(0, 10)}_to_${end.toISOString().slice(0, 10)}`,
         start: start.toISOString(),
@@ -74,35 +88,9 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         snapshotTakenAt: new Date().toISOString(),
         taskEventIds: Array.from(new Set(qualifyingEvents.map(event => event.id))),
         participants,
-        entries: filtered.map((submission) => submission.userId),
-        totalEntries: filtered.length,
+        entries,
+        totalEntries,
         tierCounts,
-    }
-
-    // TEMP: Remove after first draw
-    // Inlcude final v1 task completions in first prize draw
-    const nowISO = new Date().toISOString();
-
-    const firstDrawCutoff = new Date("2025-11-12T00:00:00Z");
-    if (nowISO < firstDrawCutoff.toISOString()) {
-        try {
-            const carryoverPath = path.resolve(process.cwd(), "data/legacy-finaldraw.json");
-            const fileContents = fs.readFileSync(carryoverPath, 'utf8');
-            const { users: v1Users } = JSON.parse(fileContents) as { users: Array<{ id: string; submissions: number }> };
-
-            console.log(`[PrizeDraw] Merging ${v1Users.length} carryover submissions from v1...`);
-
-            for (const { id, submissions } of v1Users) {
-                snapshot.participants[id] = (snapshot.participants[id] || 0) + submissions;
-
-                for (let i = 0; i < submissions; i++) snapshot.entries.push(id);
-                snapshot.totalEntries += submissions;
-            }
-
-            console.log("[PrizeDraw] Carryover merge complete. Total entries now:", snapshot.totalEntries);
-        } catch (err) {
-            console.warn("[PrizeDraw] Failed to merge v1 submissions:", err);
-        }
     }
 
     // Persist snapshot
