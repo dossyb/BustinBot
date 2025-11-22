@@ -44,16 +44,16 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
             getSubmissionsForTask: vi.fn().mockImplementation((eventId: string) => {
                 if (eventId === 'evt-1') {
                     return Promise.resolve([
-                        { userId: 'alice', status: SubmissionStatus.Approved },
-                        { userId: 'alice', status: SubmissionStatus.Bronze },
-                        { userId: 'bob', status: SubmissionStatus.Pending },
+                        { userId: 'alice', taskEventId: 'evt-1', status: SubmissionStatus.Approved },
+                        { userId: 'alice', taskEventId: 'evt-1', status: SubmissionStatus.Bronze },
+                        { userId: 'bob', taskEventId: 'evt-1', status: SubmissionStatus.Pending },
                     ]);
                 }
 
                 return Promise.resolve([
-                    { userId: 'carol', status: SubmissionStatus.Silver },
-                    { userId: 'dave', status: SubmissionStatus.Gold },
-                    { userId: 'erin', status: SubmissionStatus.Rejected },
+                    { userId: 'carol', taskEventId: 'evt-2', status: SubmissionStatus.Silver },
+                    { userId: 'dave', taskEventId: 'evt-2', status: SubmissionStatus.Gold },
+                    { userId: 'erin', taskEventId: 'evt-2', status: SubmissionStatus.Rejected },
                 ]);
             }),
         };
@@ -73,12 +73,11 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
         expect(persistedSnapshot).toBeDefined();
 
         expect(persistedSnapshot?.participants).toEqual({
-            alice: 2,
+            alice: 1,
             carol: 2,
             dave: 3,
         });
         expect(persistedSnapshot?.entries).toEqual([
-            'alice',
             'alice',
             'carol',
             'carol',
@@ -86,7 +85,7 @@ describe('HandlePrizeDraw.generatePrizeDrawSnapshot', () => {
             'dave',
             'dave',
         ]);
-        expect(persistedSnapshot?.totalEntries).toBe(7);
+        expect(persistedSnapshot?.totalEntries).toBe(6);
         expect(persistedSnapshot?.tierCounts).toEqual({
             bronze: 1,
             silver: 1,

@@ -61,9 +61,24 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
         [SubmissionStatus.Gold]: 3,
     };
 
+    // Deduplicate submissions so a user only gets the highest tier per task
+    const userBestSubmissions = new Map<string, typeof filtered[number]>();
+    for (const submission of filtered) {
+        const key = `${submission.userId}-${submission.taskEventId}`;
+        const existing = userBestSubmissions.get(key);
+        const currentRolls = submission.prizeRolls ?? TIER_ROLLS[submission.status] ?? 0;
+        const existingRolls = existing ? (existing.prizeRolls ?? TIER_ROLLS[existing.status] ?? 0) : 0;
+
+        if (!existing || currentRolls >= existingRolls) {
+            userBestSubmissions.set(key, submission);
+        }
+    }
+
+    const deduplicatedSubmissions = Array.from(userBestSubmissions.values());
+
     const participants: Record<string, number> = {};
     const entries: string[] = [];
-    for (const submission of filtered) {
+    for (const submission of deduplicatedSubmissions) {
         const rolls = submission.prizeRolls ?? TIER_ROLLS[submission.status] ?? 0;
         if (rolls <= 0) continue;
 
@@ -74,9 +89,9 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     }
 
     const tierCounts = {
-        bronze: filtered.filter(s => s.status === SubmissionStatus.Bronze).length,
-        silver: filtered.filter(s => s.status === SubmissionStatus.Silver).length,
-        gold: filtered.filter(s => s.status === SubmissionStatus.Gold).length,
+        bronze: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Bronze).length,
+        silver: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Silver).length,
+        gold: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Gold).length,
     };
 
     const totalEntries = entries.length;
