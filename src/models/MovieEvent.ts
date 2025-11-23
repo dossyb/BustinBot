@@ -13,8 +13,11 @@ export interface MovieEvent {
     // The movie being watched
     movie: Movie;
 
-    // Discord channel ID where the event is taking place
+    // Discord text channel ID where the event is announced
     channelId: string;
+
+    // Discord voice channel ID attendees should join
+    voiceChannelId?: string;
 
     // Role ID to ping when announcing
     roleId?: string;

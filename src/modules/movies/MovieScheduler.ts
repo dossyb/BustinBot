@@ -109,10 +109,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         }
     }
 
-    // Auto-end scheduling (if runtime known)
-    if (movie?.runtime) {
-        scheduleMovieAutoEnd(services, utcDateTime.toISO()!, movie.runtime, interaction.client);
-    }
+    const startISO = utcDateTime.toISO()!;
 
     // Build embed
     const readableDate = localDateTime.toFormat("cccc, dd LLLL yyyy");
@@ -169,8 +166,13 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
     }
 
     const movieRoleId = guildConfig.roles?.movieUser;
+    const voiceChannelId = guildConfig.channels?.movieVC;
     const role = movieRoleId ? guild.roles.cache.get(movieRoleId) : null;
     const mention = role ? `<@&${role.id}>` : '';
+
+    if (!voiceChannelId) {
+        console.warn("[MovieScheduler] No movie voice channel configured; attendance tracking will be disabled for this event.");
+    }
 
     // Prepare movie event record; announcement details filled after send
     const eventId = `event-${Date.now()}`;
@@ -180,6 +182,7 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         startTime: utcDateTime.toJSDate(),
         movie: movie ?? { id: "TBD", title: "TBD", addedBy: interaction.user.id, addedAt: new Date(), watched: false },
         channelId: pollChannelId || interaction.channelId || "",
+        voiceChannelId,
         hostedBy: interaction.user.id,
         completed: false,
         ...(movieRoleId ? { roleId: movieRoleId } : {}),
@@ -193,11 +196,19 @@ export async function handleMovieNightTime(interaction: ModalSubmitInteraction, 
         announcementChannelId = sent.channelId;
     }
 
+    // Avoid spreading an undefined voiceChannelId (MovieEvent expects a string); exclude it and re-add only if defined.
+    const { voiceChannelId: _voiceChannelId, ...eventWithoutVoice } = baseEvent;
     await movieRepo.createMovieEvent({
-        ...baseEvent,
+        ...eventWithoutVoice,
+        ...(_voiceChannelId ? { voiceChannelId: _voiceChannelId } : {}),
         channelId: announcementChannelId,
         ...(announcementMessageId ? { announcementMessageId } : {}),
     });
+
+    // Auto-end scheduling (if runtime known) after the event is persisted
+    if (movie?.runtime) {
+        scheduleMovieAutoEnd(services, startISO, movie.runtime, interaction.client);
+    }
 
     // Schedule reminders
     await scheduleMovieReminders(services, utcDateTime, interaction.client);

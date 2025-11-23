@@ -3,6 +3,8 @@ import type { Reminder } from "../../models/Reminder.js";
 import type { Client, TextChannel } from 'discord.js';
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
 
+const reminderTimers = new Map<string, NodeJS.Timeout>();
+
 export function getPendingReminders(movieStart: DateTime, now: DateTime = DateTime.utc()): Reminder[] {
     const reminderOffsets = [
         { label: '2 hours before', offset: { hours: 2 } },
@@ -92,7 +94,13 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
             continue;
         }
 
-        setTimeout(async () => {
+        const timerKey = getReminderKey(guildId, label, sendAt);
+        const existingTimer = reminderTimers.get(timerKey);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        const timer = setTimeout(async () => {
             try {
                 // Retrieve current state from Firestore
                 const [activePoll, latestEvent] = await Promise.all([
@@ -149,8 +157,11 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
                 );
             } catch (err) {
                 console.error(`[MovieReminders] Failed to send reminder:`, err);
+            } finally {
+                reminderTimers.delete(timerKey);
             }
         }, delayMs);
+        reminderTimers.set(timerKey, timer);
 
         console.log(
             `[MovieReminders] Scheduled "${label}" in ${Math.round(
@@ -158,4 +169,8 @@ export async function scheduleMovieReminders(services: ServiceContainer, movieSt
             )} min(s)`
         );
     }
+}
+
+function getReminderKey(guildId: string | undefined, label: string, sendAt: DateTime): string {
+    return `${guildId ?? 'global'}:${label}:${sendAt.toMillis()}`;
 }

@@ -246,7 +246,7 @@ export async function closeActiveMoviePoll(services: ServiceContainer, client: C
     await movieRepo.closePoll(activePoll.id);
 
     // Save the selected movie as current
-    await saveCurrentMovie(services, winningMovie, closedBy);
+    await saveCurrentMovie(services, winningMovie, closedBy, client);
     await notifyMovieSubmitter(winningMovie, client, services);
 
     const baseMessage = tieBreak

@@ -1,4 +1,4 @@
-import { ButtonInteraction, ModalSubmitInteraction, ActionRowBuilder, Message, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, StringSelectMenuInteraction } from "discord.js";
+import { ButtonInteraction, ModalSubmitInteraction, ActionRowBuilder, Message, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, StringSelectMenuInteraction, Client } from "discord.js";
 import Fuse from 'fuse.js';
 import type { Movie } from "../../models/Movie.js";
 import type { MoviePoll } from "../../models/MoviePoll.js";
@@ -9,8 +9,9 @@ import { getManualPollSession, changeManualPollPage, clearManualPollSession, upd
 import { pollMovieRandom, pollMovieWithList } from "./MoviePolls.js";
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
 import { notifyMovieSubmitter } from "./MovieLocalSelector.js";
+import { scheduleMovieAutoEnd } from "./MovieLifecycle.js";
 
-export async function saveCurrentMovie(services: ServiceContainer, movie: Movie, selectedBy?: string) {
+export async function saveCurrentMovie(services: ServiceContainer, movie: Movie, selectedBy?: string, client?: Client) {
     const movieRepo = services.repos.movieRepo;
     if (!movieRepo) {
         console.error("[MovieStorage] Movie repository not found in services.");
@@ -28,10 +29,22 @@ export async function saveCurrentMovie(services: ServiceContainer, movie: Movie,
 
         const activeEvent = await movieRepo.getActiveEvent();
         if (activeEvent && !activeEvent.completed) {
-            await movieRepo.createMovieEvent({
+            const guildConfig = services.guildId ? await services.guilds.get(services.guildId) : null;
+            const voiceChannelId = activeEvent.voiceChannelId ?? guildConfig?.channels?.movieVC;
+            const updatedEvent = {
                 ...activeEvent,
                 movie: updatedMovie,
-            });
+                ...(voiceChannelId ? { voiceChannelId } : {}),
+            };
+            await movieRepo.createMovieEvent(updatedEvent);
+
+            if (client && updatedMovie.runtime && updatedEvent.startTime) {
+                const start =
+                    updatedEvent.startTime instanceof Date
+                        ? updatedEvent.startTime
+                        : new Date(updatedEvent.startTime);
+                await scheduleMovieAutoEnd(services, start.toISOString(), updatedMovie.runtime, client);
+            }
         }
         console.log(`[MovieStorage] Saved current movie: ${movie.title}`);
     } catch (error) {
@@ -104,7 +117,7 @@ export async function handleMoviePickChooseModalSubmit(services: ServiceContaine
         return;
     }
 
-    await saveCurrentMovie(services, selectedMovie, interaction.user.id);
+    await saveCurrentMovie(services, selectedMovie, interaction.user.id, interaction.client);
     await notifyMovieSubmitter(selectedMovie, interaction.client, services);
 
     const embed = createMovieEmbed(selectedMovie);
@@ -166,7 +179,7 @@ export async function handleConfirmRandomMovie(services: ServiceContainer, inter
         return;
     }
 
-    await saveCurrentMovie(services, selectedMovie, interaction.user.id);
+    await saveCurrentMovie(services, selectedMovie, interaction.user.id, interaction.client);
     await notifyMovieSubmitter(selectedMovie, interaction.client, services);
 
     if (!embed) {

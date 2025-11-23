@@ -27,9 +27,11 @@ vi.mock('../MovieScheduler', () => ({
 
 const initAttendanceTracking = vi.fn();
 const finaliseAttendance = vi.fn().mockResolvedValue([]);
+const getActiveVoiceMemberIds = vi.fn().mockResolvedValue([]);
 vi.mock('../MovieAttendance', () => ({
     initAttendanceTracking,
     finaliseAttendance,
+    getActiveVoiceMemberIds,
 }));
 
 const services: any = {
@@ -71,6 +73,8 @@ beforeEach(() => {
     showMovieManualPollMenuSpy.mockClear();
     initAttendanceTracking.mockClear();
     finaliseAttendance.mockClear();
+    getActiveVoiceMemberIds.mockClear();
+    getActiveVoiceMemberIds.mockResolvedValue([]);
 
     Object.values(services.repos.movieRepo).forEach((fn: any) => fn.mockClear?.());
     Object.values(services.guilds).forEach((fn: any) => fn.mockClear?.());
@@ -263,6 +267,7 @@ describe('MovieLifecycle.scheduleMovieAutoEnd', () => {
 
         services.repos.movieRepo.getActiveEvent.mockResolvedValue({
             channelId: 'channel-123',
+            voiceChannelId: 'voice-123',
             movie: { title: 'Auto Movie', addedBy: 'user-1' },
         });
         services.repos.movieRepo.getAllMovies.mockResolvedValue([
@@ -271,18 +276,56 @@ describe('MovieLifecycle.scheduleMovieAutoEnd', () => {
         services.repos.movieRepo.upsertMovie.mockResolvedValue(undefined);
         services.repos.movieRepo.createMovieEvent.mockResolvedValue(undefined);
         services.guilds.getAll.mockResolvedValue([{ id: 'guild-1' }]);
-        services.guilds.get.mockResolvedValue({ channels: { movieNight: 'channel-123' } });
+        services.guilds.get.mockResolvedValue({ channels: { movieNight: 'channel-123', movieVC: 'voice-123' } });
+        getActiveVoiceMemberIds.mockResolvedValueOnce(['seed-user']);
 
         try {
             const startISO = new Date(Date.now() + 60_000).toISOString();
 
             await scheduleMovieAutoEnd(services, startISO, 0, client);
             await Promise.resolve();
-            expect(initAttendanceTracking).toHaveBeenCalled();
+            expect(initAttendanceTracking).toHaveBeenCalledWith({
+                channelId: 'voice-123',
+                startTime: expect.any(Date),
+                client,
+                initialUserIds: ['seed-user'],
+            });
 
             await Promise.all(pending);
             expect(services.repos.movieRepo.upsertMovie).toHaveBeenCalled();
             expect(services.repos.movieRepo.createMovieEvent).toHaveBeenCalled();
+        } finally {
+            setTimeoutSpy.mockRestore();
+        }
+    });
+    it('falls back to guild-configured voice channel when event is missing voiceChannelId', async () => {
+        services.repos.movieRepo.getActiveEvent.mockResolvedValue({
+            channelId: 'channel-abc',
+            movie: { title: 'Fallback Movie', addedBy: 'user-2' },
+        });
+        services.repos.movieRepo.getAllMovies.mockResolvedValue([
+            { id: 'movie-2', title: 'Another Movie', addedBy: 'user-2', watched: false },
+        ]);
+        services.repos.movieRepo.upsertMovie.mockResolvedValue(undefined);
+        services.repos.movieRepo.createMovieEvent.mockResolvedValue(undefined);
+        services.guilds.get.mockResolvedValue({ channels: { movieNight: 'channel-abc', movieVC: 'voice-fallback' } });
+        getActiveVoiceMemberIds.mockResolvedValueOnce(['fallback-seed']);
+
+        const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation(((cb: any) => {
+            cb();
+            return 0 as any;
+        }) as any);
+
+        const fallbackClient: any = { guilds: { fetch: vi.fn() } };
+        try {
+            const startISO = new Date(Date.now() + 60_000).toISOString();
+            await scheduleMovieAutoEnd(services, startISO, 0, fallbackClient);
+            expect(initAttendanceTracking).toHaveBeenCalledWith({
+                channelId: 'voice-fallback',
+                startTime: expect.any(Date),
+                client: fallbackClient,
+                initialUserIds: ['fallback-seed'],
+            });
         } finally {
             setTimeoutSpy.mockRestore();
         }

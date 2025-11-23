@@ -2,7 +2,7 @@ import type { Movie } from '../../models/Movie.js';
 import { DateTime } from 'luxon';
 import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
 import { Client } from 'discord.js';
-import { initAttendanceTracking, finaliseAttendance } from './MovieAttendance.js';
+import { initAttendanceTracking, finaliseAttendance, getActiveVoiceMemberIds } from './MovieAttendance.js';
 import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
 import { resolveGuildContext } from './MovieLocalSelector.js';
 
@@ -98,15 +98,29 @@ export async function scheduleMovieAutoEnd(services: ServiceContainer, startTime
         return;
     }
 
+    const startDateTime = DateTime.fromISO(startTimeISO);
     const latestEvent = await movieRepo.getActiveEvent();
     if (!latestEvent) {
         console.warn("[MovieLifecycle] No active movie event found; skipping attendance tracking init.");
     } else {
-        initAttendanceTracking(latestEvent.channelId, DateTime.fromISO(startTimeISO).toJSDate());
+        const guildConfig = services.guildId ? await services.guilds.get(services.guildId) : null;
+        const voiceChannelId = latestEvent.voiceChannelId ?? guildConfig?.channels?.movieVC ?? null;
+
+        if (!voiceChannelId) {
+            console.warn(`[MovieLifecycle] Active movie event ${latestEvent.id} has no voice channel configured; attendance tracking disabled.`);
+        } else {
+            const initialMembers = await getActiveVoiceMemberIds(client, voiceChannelId);
+            initAttendanceTracking({
+                channelId: voiceChannelId,
+                startTime: startDateTime.toJSDate(),
+                client,
+                initialUserIds: initialMembers,
+            });
+        }
     }
 
     const bufferMinutes = 30;
-    const endTime = DateTime.fromISO(startTimeISO).plus({ minutes: runtimeMinutes + bufferMinutes });
+    const endTime = startDateTime.plus({ minutes: runtimeMinutes + bufferMinutes });
     const now = DateTime.utc();
     const msUntilEnd = endTime.diff(now).as('milliseconds');
 

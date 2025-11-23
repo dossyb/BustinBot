@@ -384,12 +384,15 @@ describe("Movie module flows", () => {
 
 describe("saveCurrentMovie", () => {
   it("updates the active event with the selected movie", async () => {
+    const { scheduleMovieAutoEnd } = vi.mocked(await import("../MovieLifecycle.js")) as any;
+    scheduleMovieAutoEnd.mockClear();
     const movieRepo = {
       getActiveEvent: vi.fn().mockResolvedValue({
         id: "event-1",
         startTime: new Date(),
         completed: false,
         movie: { id: "placeholder" },
+        voiceChannelId: undefined,
       }),
       createMovieEvent: vi.fn().mockResolvedValue(undefined),
       upsertMovie: vi.fn().mockResolvedValue(undefined),
@@ -398,7 +401,11 @@ describe("saveCurrentMovie", () => {
     const services: any = {
       guildId: "guild-1",
       repos: { movieRepo },
+      guilds: {
+        get: vi.fn().mockResolvedValue({ channels: { movieVC: "voice-123" } }),
+      },
     };
+    const client: any = { tag: "MovieBot" };
 
     const movie = {
       id: "movie-123",
@@ -409,7 +416,7 @@ describe("saveCurrentMovie", () => {
       runtime: 120,
     };
 
-    await saveCurrentMovie(services, movie as any, "selector-1");
+    await saveCurrentMovie(services, movie as any, "selector-1", client);
 
     expect(movieRepo.upsertMovie).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -421,11 +428,18 @@ describe("saveCurrentMovie", () => {
     expect(movieRepo.createMovieEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "event-1",
+        voiceChannelId: "voice-123",
         movie: expect.objectContaining({
           id: "movie-123",
           runtime: 120,
         }),
       })
+    );
+    expect(scheduleMovieAutoEnd).toHaveBeenCalledWith(
+      services,
+      expect.any(String),
+      120,
+      client
     );
   });
 
@@ -439,6 +453,7 @@ describe("saveCurrentMovie", () => {
     const services: any = {
       guildId: "guild-1",
       repos: { movieRepo },
+      guilds: { get: vi.fn() },
     };
 
     const movie = {

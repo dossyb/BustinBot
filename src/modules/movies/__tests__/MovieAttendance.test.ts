@@ -42,7 +42,7 @@ describe('MovieAttendance', () => {
         const client = new EventEmitter() as unknown as Client;
         registerVoiceListeners(client);
 
-        initAttendanceTracking('movie-vc', new Date());
+        initAttendanceTracking({ channelId: 'movie-vc', startTime: new Date() });
 
         client.emit('voiceStateUpdate', makeVoiceState('user1', null), makeVoiceState('user1', 'movie-vc'));
 
@@ -62,7 +62,7 @@ describe('MovieAttendance', () => {
     it('does not count attendees below the threshold', async () => {
         const client = new EventEmitter() as unknown as Client;
         registerVoiceListeners(client);
-        initAttendanceTracking('movie-vc', new Date());
+        initAttendanceTracking({ channelId: 'movie-vc', startTime: new Date() });
 
         client.emit('voiceStateUpdate', makeVoiceState('user2', null), makeVoiceState('user2', 'movie-vc'));
         vi.advanceTimersByTime(10 * 60 * 1000);
@@ -75,5 +75,18 @@ describe('MovieAttendance', () => {
 
         expect(attendees).toEqual([]);
         expect(incrementStat).not.toHaveBeenCalled();
+    });
+
+    it('counts users already in channel when tracking starts via seeding', async () => {
+        initAttendanceTracking({ channelId: 'movie-vc', startTime: new Date(), initialUserIds: ['seed-user'] });
+
+        vi.advanceTimersByTime(31 * 60 * 1000);
+
+        const incrementStat = vi.fn().mockResolvedValue(undefined);
+        const services = createServices(incrementStat);
+        const attendees = await finaliseAttendance(services);
+
+        expect(attendees).toEqual(['seed-user']);
+        expect(incrementStat).toHaveBeenCalledWith('seed-user', 'moviesAttended', 1);
     });
 });
