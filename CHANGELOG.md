@@ -1,3 +1,32 @@
+## [2.0.1](https://github.com/dossyb/BustinBot/compare/v2.0.0...v2.0.1) (2025-11-24)
+
+### Bug Fixes
+
+* **core:** adjust Luxon type handling and extension usage ([ae1bfc4](https://github.com/dossyb/BustinBot/commit/ae1bfc41f5bb878a2cbcbb76afcba129136eb8ec))
+* **core:** align build to ES2022 modules and silence Luxon types ([8d450e0](https://github.com/dossyb/BustinBot/commit/8d450e04cc58df69406cb3c4620ad0a2424f59cb))
+* **core:** extract asset and data folders from src ([d6bbed4](https://github.com/dossyb/BustinBot/commit/d6bbed4f15f131c846799e975e8f752861b20fc6))
+* **core:** fix all build issues to compile with Node16 ([604f005](https://github.com/dossyb/BustinBot/commit/604f005708b8f4a8a11498a6420e01d968067ae8))
+* **core:** fix CommandService file filter to ignore dist ([75b07ae](https://github.com/dossyb/BustinBot/commit/75b07ae36e3ab41f63ca6d2622262d0fea613829))
+* **core:** fix Discord token handling logic ([9e14d39](https://github.com/dossyb/BustinBot/commit/9e14d39078f653027ac884276219ccc5f206a3f1))
+* **core:** fix duplicate declare PathUtils error ([b569f82](https://github.com/dossyb/BustinBot/commit/b569f82dbd7e67392d9f27c29746e93288c623f4))
+* **core:** fix Firestore credential handling ([8d25f82](https://github.com/dossyb/BustinBot/commit/8d25f82c152b1776691747bf822d91f5d558ff48))
+* **core:** fix import.meta.url usage ([c7ee82f](https://github.com/dossyb/BustinBot/commit/c7ee82f2308a9b62e34eae2bb20f9c6a9fa559bd))
+* **core:** hotfix DM-guild relationship handling ([b4ae6ca](https://github.com/dossyb/BustinBot/commit/b4ae6ca99f32f21af6fc0feae68ed7fb46c7b7f6))
+* **core:** implement hotfixes for production build regression ([95708b9](https://github.com/dossyb/BustinBot/commit/95708b934d0dbc1a0098dec78c1070cb07120976))
+* **movie:** fix movie event attendance tracking ([53aec50](https://github.com/dossyb/BustinBot/commit/53aec5029ed61184321ed2d8945fc36ae256ed05))
+* **movie:** fix movie guild-scoping bug ([21a7960](https://github.com/dossyb/BustinBot/commit/21a79604affa5edee3275251d9c25501ffe21d46))
+* **task:** additional hotfix for task event ID resolution ([7ff43b4](https://github.com/dossyb/BustinBot/commit/7ff43b421ae7d3d4466233227ead16fb4aa62d92))
+* **task:** additional production task ID hotfix ([961c8dd](https://github.com/dossyb/BustinBot/commit/961c8dd0493e698697a040e0c688b8dd29531c08))
+* **task:** fix prize draw entry duplication bug ([8fbe960](https://github.com/dossyb/BustinBot/commit/8fbe960a4ae73c3b6c68891d051bb69cee8ec2f0))
+* **task:** fix prize draw submission filtering logic ([dc13f3a](https://github.com/dossyb/BustinBot/commit/dc13f3ab6dfc675e824b553a3b2a0db988acd594))
+* **task:** fix prize draw weighting ([d89d7c0](https://github.com/dossyb/BustinBot/commit/d89d7c00eb2723fae656008f639d4742eabf5b09))
+* **task:** fix task draw scheduling issue ([ec7cdab](https://github.com/dossyb/BustinBot/commit/ec7cdab04aa2f55d52b89b9dc0d7772d3f84fc9f))
+* **task:** fix task submission bugs ([6cb2695](https://github.com/dossyb/BustinBot/commit/6cb269516cdbb9e764412197131852ee6f66c6ae))
+* **task:** fix taskEvent bug not storing completedUserIds ([23bd38c](https://github.com/dossyb/BustinBot/commit/23bd38c7bdc39c6d320ee983974c62f691cd8f95))
+* **task:** hotfix bot crash on vote for 24 hr poll ([2654acc](https://github.com/dossyb/BustinBot/commit/2654acc3e009c17a74bc11f02e5356c1643e41a2))
+* **task:** hotfix task event ID resolution ([ad6bd95](https://github.com/dossyb/BustinBot/commit/ad6bd952cc09dad49896e11921159118ebee1a10))
+* **task:** hotfix task submission DM reply failure ([a79dd5d](https://github.com/dossyb/BustinBot/commit/a79dd5d9afaa3144de7f9c0b65d2c61673ff550a))
+
 ## [2.0.0](https://github.com/dossyb/BustinBot/compare/v1.2.6...v2.0.0) (2025-11-01)
 
 ### Features
