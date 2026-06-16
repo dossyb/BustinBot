@@ -1,7 +1,7 @@
 import type { Client, Guild } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
-import type { TaskLeaderboard, TaskLeaderboardChampions, TaskLeaderboardEntry, TaskLeaderboardId, TaskLeaderboardPeriod } from "../../models/TaskLeaderboard.js";
+import type { TaskLeaderboard, TaskLeaderboardChampions, TaskLeaderboardEntry, TaskLeaderboardId, TaskLeaderboardPendingPeriod, TaskLeaderboardPeriod, TaskTierCounts } from "../../models/TaskLeaderboard.js";
 import type { TaskEvent } from "../../models/TaskEvent.js";
 import type { UserStats } from "../../models/UserStats.js";
 import { SubmissionStatus } from "../../models/TaskSubmission.js";
@@ -26,6 +26,48 @@ const STATUS_POINTS: Partial<Record<SubmissionStatus, number>> = {
 export function getStatusPoints(status?: SubmissionStatus): number {
     if (!status) return 0;
     return STATUS_POINTS[status] ?? 0;
+}
+
+type LeaderboardTier = keyof typeof TIER_POINTS;
+
+function inferPreviousTierFromDelta(tier: LeaderboardTier, amount: number): LeaderboardTier | null {
+    const previousPoints = TIER_POINTS[tier] - amount;
+    const previous = Object.entries(TIER_POINTS).find(([, points]) => points === previousPoints);
+    return (previous?.[0] as LeaderboardTier | undefined) ?? null;
+}
+
+function applyTierCountDelta(
+    tierCounts: Record<string, TaskTierCounts> | undefined,
+    userId: string,
+    tier: LeaderboardTier,
+    amount: number
+): Record<string, TaskTierCounts> {
+    const updated = structuredClone(tierCounts ?? {});
+    updated[userId] ??= { bronze: 0, silver: 0, gold: 0 };
+
+    const previousTier = inferPreviousTierFromDelta(tier, amount);
+    if (previousTier) {
+        updated[userId][previousTier] = Math.max(0, updated[userId][previousTier] - 1);
+    }
+    updated[userId][tier] += 1;
+
+    return updated;
+}
+
+function incrementPendingPeriodPoints(
+    pendingPeriod: TaskLeaderboardPendingPeriod,
+    userId: string,
+    amount: number,
+    tier: LeaderboardTier
+): TaskLeaderboardPendingPeriod {
+    return {
+        ...pendingPeriod,
+        points: {
+            ...pendingPeriod.points,
+            [userId]: (pendingPeriod.points[userId] ?? 0) + amount,
+        },
+        tierCounts: applyTierCountDelta(pendingPeriod.tierCounts, userId, tier, amount),
+    };
 }
 
 const DEFAULT_PERIOD_EVENTS = 4;
@@ -287,11 +329,31 @@ export async function incrementPeriodicPoints(
     if (!period) return;
 
     if (!period.eventIds.includes(taskEventId)) {
+        if (leaderboard?.pendingPeriod?.period.eventIds.includes(taskEventId)) {
+            const pendingPeriod = incrementPendingPeriodPoints(
+                leaderboard.pendingPeriod,
+                userId,
+                amount,
+                tier
+            );
+            try {
+                await repo.updateLeaderboard("periodic", {
+                    pendingPeriod,
+                    updatedAt: new Date().toISOString(),
+                });
+            } catch (err) {
+                console.warn(`[TaskLeaderboards] Failed to increment pending periodic points for ${userId}:`, err);
+            }
+        }
         return;
     }
 
     try {
         await repo.incrementPoints("periodic", userId, amount);
+        const previousTier = inferPreviousTierFromDelta(tier, amount);
+        if (previousTier) {
+            await repo.incrementTierCount("periodic", userId, previousTier, -1);
+        }
         await repo.incrementTierCount("periodic", userId, tier, 1);
     } catch (err) {
         console.warn(`[TaskLeaderboards] Failed to increment periodic points for ${userId}:`, err);
@@ -322,6 +384,30 @@ export async function registerPeriodicTaskEvent(
 
     const uniqueCount = await getUniquePeriodCount(services, leaderboard.period.eventIds);
     if (uniqueCount >= leaderboard.period.length) {
+        const nextIndex = leaderboard.period.index + 1;
+        const pendingPeriod = leaderboard.pendingPeriod ?? {
+            period: {
+                length: await resolvePeriodLength(services),
+                eventIds: [],
+                startedAt: new Date().toISOString(),
+                index: nextIndex,
+            },
+            points: {},
+            tierCounts: {},
+        };
+
+        if (pendingPeriod.period.eventIds.includes(taskEventId)) return;
+
+        await repo.updateLeaderboard("periodic", {
+            pendingPeriod: {
+                ...pendingPeriod,
+                period: {
+                    ...pendingPeriod.period,
+                    eventIds: [...pendingPeriod.period.eventIds, taskEventId],
+                },
+            },
+            updatedAt: new Date().toISOString(),
+        });
         return;
     }
 
@@ -398,8 +484,9 @@ export async function finalizePeriodicLeaderboard(
         .slice(0, 10)
         .map((entry) => ({ userId: entry.userId, points: entry.points }));
 
+    const pendingPeriod = leaderboard.pendingPeriod;
+
     await repo.updateLeaderboard("periodic", {
-        points: {},
         completedPeriod: {
             index: leaderboard.period.index,
             eventIds: leaderboard.period.eventIds,
@@ -410,12 +497,14 @@ export async function finalizePeriodicLeaderboard(
         },
         period: {
             ...leaderboard.period,
-            eventIds: [],
-            startedAt: now,
+            eventIds: pendingPeriod?.period.eventIds ?? [],
+            startedAt: pendingPeriod?.period.startedAt ?? now,
             index: nextIndex,
-            length: nextLength,
+            length: pendingPeriod?.period.length ?? nextLength,
         },
-        tierCounts: {},
+        points: pendingPeriod?.points ?? {},
+        tierCounts: pendingPeriod?.tierCounts ?? {},
+        pendingPeriod: null,
         updatedAt: now,
     });
 }
