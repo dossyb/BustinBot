@@ -27,6 +27,12 @@ export interface TaskLeaderboardCompletedPeriod {
     tierCounts?: Record<string, TaskTierCounts>;
 }
 
+export interface TaskLeaderboardPendingPeriod {
+    period: TaskLeaderboardPeriod;
+    points: Record<string, number>;
+    tierCounts?: Record<string, TaskTierCounts>;
+}
+
 export interface TaskLeaderboardChampions {
     first?: string[];
     second?: string[];
@@ -43,5 +49,6 @@ export interface TaskLeaderboard {
     updatedAt: string;
     period?: TaskLeaderboardPeriod;
     completedPeriod?: TaskLeaderboardCompletedPeriod;
+    pendingPeriod?: TaskLeaderboardPendingPeriod | null;
     champions?: TaskLeaderboardChampions;
 }

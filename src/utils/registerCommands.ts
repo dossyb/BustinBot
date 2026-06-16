@@ -25,6 +25,7 @@ function resolveClientId(provided?: string | null) {
     if (process.env.BOT_MODE === 'dev' && process.env.DISCORD_CLIENT_ID_DEV) {
         return process.env.DISCORD_CLIENT_ID_DEV;
     }
+    console.log('Registering commands for live client ID, using DISCORD_CLIENT_ID if set.');
     return process.env.DISCORD_CLIENT_ID ?? process.env.DISCORD_CLIENT_ID_DEV ?? null;
 }
 
@@ -35,6 +36,7 @@ function resolveToken(targetClientId: string | null, provided?: string | null) {
         return process.env.DISCORD_TOKEN_DEV ?? process.env.DISCORD_TOKEN_LIVE ?? null;
     }
 
+    console.log('Registering commands for live client ID, using live token if available.');
     return process.env.DISCORD_TOKEN_LIVE ?? process.env.DISCORD_TOKEN_DEV ?? null;
 }
 
@@ -69,6 +71,10 @@ export async function registerSlashCommands(options: RegisterCommandOptions = {}
     const slashCommands = await prepareCommands(options.modulesDir);
     if (!slashCommands) return;
 
+    console.log(
+        `[SlashRegister] Mode=${process.env.BOT_MODE ?? 'unset'} | Resolved client ID=${resolvedClientId}`
+    );
+
     const rest = new REST({ version: '10' }).setToken(resolvedToken);
 
     console.log(`🌍 Registering ${slashCommands.length} commands globally...`);
@@ -93,6 +99,10 @@ export async function registerGuildCommands(options: RegisterCommandOptions = {}
 
     const slashCommands = await prepareCommands(options.modulesDir);
     if (!slashCommands) return;
+
+    console.log(
+        `[SlashRegister] Mode=${process.env.BOT_MODE ?? 'unset'} | Resolved client ID=${resolvedClientId} | Guild=${resolvedGuildId}`
+    );
 
     const rest = new REST({ version: '10' }).setToken(resolvedToken);
 

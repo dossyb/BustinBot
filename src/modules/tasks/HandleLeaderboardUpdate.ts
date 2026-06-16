@@ -142,7 +142,7 @@ async function buildTopTenTableLines(
     );
     const nameMap = new Map(nameEntries);
 
-    const MAX_NAME_LENGTH = 18;
+    const MAX_NAME_LENGTH = 14;
     const rankCounts = new Map<number, number>();
     for (const entry of entries) {
         rankCounts.set(entry.rank, (rankCounts.get(entry.rank) ?? 0) + 1);
@@ -504,7 +504,7 @@ export async function postPeriodicLeaderboardUpdate(
     const progress = activeLeaderboard.period
         ? await resolvePeriodicProgress(services, activeLeaderboard.period)
         : { elapsed: 0, total: 0 };
-    const progressLine = `Week ${progress.elapsed} of ${activeLeaderboard.period?.length}`;
+    const progressLine = `Week ${progress.elapsed + 1} of ${activeLeaderboard.period?.length}`;
 
     const embed = new EmbedBuilder()
         .setTitle("🏆 Current Leaderboard Standings")
