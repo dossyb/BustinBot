@@ -143,6 +143,7 @@ async function buildTopTenTableLines(
     const nameMap = new Map(nameEntries);
 
     const MAX_NAME_LENGTH = 14;
+    const separator = " ";
     const rankCounts = new Map<number, number>();
     for (const entry of entries) {
         rankCounts.set(entry.rank, (rankCounts.get(entry.rank) ?? 0) + 1);
@@ -174,10 +175,24 @@ async function buildTopTenTableLines(
     const silverWidth = Math.max("S".length, ...rows.map((row) => row.silver.length));
     const goldWidth = Math.max("G".length, ...rows.map((row) => row.gold.length));
 
-    const header = `${"Rank".padEnd(rankWidth)}  ${"Name".padEnd(nameWidth)}  ${"Pts".padStart(pointsWidth)}  ${"B".padStart(bronzeWidth)}  ${"S".padStart(silverWidth)}  ${"G".padStart(goldWidth)}`;
+    const header = [
+        "Rank".padEnd(rankWidth),
+        "Name".padEnd(nameWidth),
+        "Pts".padStart(pointsWidth),
+        "B".padStart(bronzeWidth),
+        "S".padStart(silverWidth),
+        "G".padStart(goldWidth),
+    ].join(separator);
     const body = rows.map(
         (row) =>
-            `${row.rankLabel.padEnd(rankWidth)}  ${row.name.padEnd(nameWidth)}  ${row.points.padStart(pointsWidth)}  ${row.bronze.padStart(bronzeWidth)}  ${row.silver.padStart(silverWidth)}  ${row.gold.padStart(goldWidth)}`
+            [
+                row.rankLabel.padEnd(rankWidth),
+                row.name.padEnd(nameWidth),
+                row.points.padStart(pointsWidth),
+                row.bronze.padStart(bronzeWidth),
+                row.silver.padStart(silverWidth),
+                row.gold.padStart(goldWidth),
+            ].join(separator)
     );
 
     return ["```", header, ...body, "```"];
@@ -344,6 +359,7 @@ export async function postWeeklyLeaderboardSnapshot(
 
     const embed = new EmbedBuilder()
         .setTitle("🏆 Current Leaderboard Standings")
+        .setDescription("Leaderboard points are tallied from approved task submissions for the current period.")
         .setColor(0xa60000)
         .addFields(
             {
@@ -508,6 +524,7 @@ export async function postPeriodicLeaderboardUpdate(
 
     const embed = new EmbedBuilder()
         .setTitle("🏆 Current Leaderboard Standings")
+        .setDescription("Leaderboard points are tallied from approved task submissions for the current period.")
         .setColor(0xa60000)
         .addFields(
             {

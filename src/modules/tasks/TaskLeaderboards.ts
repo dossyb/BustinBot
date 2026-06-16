@@ -853,7 +853,9 @@ export async function buildLeaderboardMessage(
     );
     const nameMap = new Map(nameEntries);
 
-    const MAX_NAME_LENGTH = 18;
+    const showStreak = view === "lifetime";
+    const MAX_NAME_LENGTH = showStreak ? 10 : 14;
+    const separator = " ";
     const rankCounts = new Map<number, number>();
     for (const entry of topEntries) {
         rankCounts.set(entry.rank, (rankCounts.get(entry.rank) ?? 0) + 1);
@@ -878,7 +880,6 @@ export async function buildLeaderboardMessage(
         };
     });
 
-    const showStreak = view === "lifetime";
     if (formattedRows.length > 0) {
         const rankWidth = Math.max("Rank".length, ...formattedRows.map((row) => row.rankLabel.length));
         const nameWidth = Math.max("Name".length, ...formattedRows.map((row) => row.name.length));
@@ -887,16 +888,46 @@ export async function buildLeaderboardMessage(
         const silverWidth = Math.max("S".length, ...formattedRows.map((row) => row.silver.length));
         const goldWidth = Math.max("G".length, ...formattedRows.map((row) => row.gold.length));
         if (showStreak) {
-            const streakWidth = Math.max("Streak".length, ...formattedRows.map((row) => row.streak.length));
-            const header = `${"Rank".padEnd(rankWidth)}  ${"Name".padEnd(nameWidth)}  ${"Pts".padStart(pointsWidth)}  ${"B".padStart(bronzeWidth)}  ${"S".padStart(silverWidth)}  ${"G".padStart(goldWidth)}  ${"Streak".padStart(streakWidth)}`;
+            const streakWidth = Math.max("Str".length, ...formattedRows.map((row) => row.streak.length));
+            const header = [
+                "Rank".padEnd(rankWidth),
+                "Name".padEnd(nameWidth),
+                "Pts".padStart(pointsWidth),
+                "B".padStart(bronzeWidth),
+                "S".padStart(silverWidth),
+                "G".padStart(goldWidth),
+                "Str".padStart(streakWidth),
+            ].join(separator);
             const rows = formattedRows.map((row) =>
-                `${row.rankLabel.padEnd(rankWidth)}  ${row.name.padEnd(nameWidth)}  ${row.points.padStart(pointsWidth)}  ${row.bronze.padStart(bronzeWidth)}  ${row.silver.padStart(silverWidth)}  ${row.gold.padStart(goldWidth)}  ${row.streak.padStart(streakWidth)}`
+                [
+                    row.rankLabel.padEnd(rankWidth),
+                    row.name.padEnd(nameWidth),
+                    row.points.padStart(pointsWidth),
+                    row.bronze.padStart(bronzeWidth),
+                    row.silver.padStart(silverWidth),
+                    row.gold.padStart(goldWidth),
+                    row.streak.padStart(streakWidth),
+                ].join(separator)
             );
             lines = ["```", header, ...rows, "```"];
         } else {
-            const header = `${"Rank".padEnd(rankWidth)}  ${"Name".padEnd(nameWidth)}  ${"Pts".padStart(pointsWidth)}  ${"B".padStart(bronzeWidth)}  ${"S".padStart(silverWidth)}  ${"G".padStart(goldWidth)}`;
+            const header = [
+                "Rank".padEnd(rankWidth),
+                "Name".padEnd(nameWidth),
+                "Pts".padStart(pointsWidth),
+                "B".padStart(bronzeWidth),
+                "S".padStart(silverWidth),
+                "G".padStart(goldWidth),
+            ].join(separator);
             const rows = formattedRows.map((row) =>
-                `${row.rankLabel.padEnd(rankWidth)}  ${row.name.padEnd(nameWidth)}  ${row.points.padStart(pointsWidth)}  ${row.bronze.padStart(bronzeWidth)}  ${row.silver.padStart(silverWidth)}  ${row.gold.padStart(goldWidth)}`
+                [
+                    row.rankLabel.padEnd(rankWidth),
+                    row.name.padEnd(nameWidth),
+                    row.points.padStart(pointsWidth),
+                    row.bronze.padStart(bronzeWidth),
+                    row.silver.padStart(silverWidth),
+                    row.gold.padStart(goldWidth),
+                ].join(separator)
             );
             lines = ["```", header, ...rows, "```"];
         }
@@ -929,6 +960,7 @@ export async function buildLeaderboardMessage(
         );
 
     if (view === "periodic" && leaderboard.period) {
+        embed.setDescription("Leaderboard points are tallied from approved task submissions for the current period.");
         embed.setFooter({
             text: `Task events elapsed: ${periodicProgress?.elapsed ?? 0}/${leaderboard.period.length}`,
         });
