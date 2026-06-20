@@ -25,6 +25,8 @@ export async function handleTaskPollVoteInteraction(
     interaction: ButtonInteraction,
     services: ServiceContainer
 ) {
+    await interaction.deferReply({ flags: 1 << 6 });
+
     const [, categoryRaw, voteId] = interaction.customId.split('_');
     const category = categoryRaw as TaskCategory | undefined;
     if (!category || !voteId) {
@@ -37,8 +39,6 @@ export async function handleTaskPollVoteInteraction(
         await interaction.reply({ content: "Task repository unavailable.", flags: 1 << 6 });
         return;
     }
-
-    await interaction.deferReply({ flags: 1 << 6 });
 
     const poll = await taskRepo.getTaskPollById(interaction.message.id);
     if (!poll?.isActive) {
