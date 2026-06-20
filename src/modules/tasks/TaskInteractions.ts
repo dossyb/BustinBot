@@ -18,6 +18,8 @@ const TIER_STAT_MAP: Record<string, keyof UserStats> = {
 
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction, services: ServiceContainer) {
+    await interaction.deferReply({ flags: 1 << 6 });
+    
     const parts = interaction.customId.split('-');
     const taskEventId = parts.slice(2).join('-');
 
@@ -45,8 +47,6 @@ export async function handleSubmitButton(interaction: ButtonInteraction, service
     const userId = interaction.user.id;
 
     services.tasks.setPendingTask(userId, taskEventId);
-
-    await interaction.deferReply({ flags: 1 << 6 });
 
     try {
         await interaction.user.send(
