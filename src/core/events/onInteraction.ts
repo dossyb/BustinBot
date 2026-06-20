@@ -6,6 +6,54 @@ import type { ServiceContainer } from '../services/ServiceContainer.js';
 import { setupService } from '../services/SetupService.js';
 import { createTimezoneModal, timezoneService } from '../services/TimezoneService.js';
 
+const EPHEMERAL_FLAGS = 1 << 6;
+const slashAckPatched = Symbol('slashAckPatched');
+
+function stripReplyOnlyOptions(options: unknown) {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) return options;
+    const { flags, ephemeral, ...rest } = options as Record<string, unknown>;
+    return rest;
+}
+
+async function respondToInteraction(interaction: any, options: any) {
+    if (interaction.deferred && !interaction.replied) {
+        return interaction.editReply(stripReplyOnlyOptions(options));
+    }
+
+    if (interaction.deferred || interaction.replied) {
+        return interaction.followUp(options);
+    }
+
+    return interaction.reply(options);
+}
+
+function patchSlashCommandAcknowledgement(interaction: any) {
+    if (interaction[slashAckPatched]) return;
+
+    const originalDeferReply = interaction.deferReply.bind(interaction);
+    const originalReply = interaction.reply.bind(interaction);
+    const originalEditReply = interaction.editReply.bind(interaction);
+
+    interaction.deferReply = async (options?: unknown) => {
+        if (interaction.deferred || interaction.replied) return undefined;
+        return originalDeferReply(options);
+    };
+
+    interaction.reply = async (options: unknown) => {
+        if (interaction.deferred && !interaction.replied) {
+            return originalEditReply(stripReplyOnlyOptions(options));
+        }
+
+        if (interaction.deferred || interaction.replied) {
+            return interaction.followUp(options);
+        }
+
+        return originalReply(options);
+    };
+
+    interaction[slashAckPatched] = true;
+}
+
 export async function handleInteraction(
     interaction: Interaction,
     commands: Map<string, Command>,
@@ -14,17 +62,20 @@ export async function handleInteraction(
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
         if (!command) {
-            await interaction.reply({ content: 'Command not found.', flags: 1 << 6 });
+            await interaction.reply({ content: 'Command not found.', flags: EPHEMERAL_FLAGS });
             return;
         }
+
+        patchSlashCommandAcknowledgement(interaction);
+        await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
 
         const isSetupCommand = command.name === 'setup';
         const rawMember = interaction.member;
 
         if (!rawMember) {
-            await interaction.reply({
+            await respondToInteraction(interaction, {
                 content: 'Unable to determine your server membership. Please try again from within the guild.',
-                flags: 1 << 6,
+                flags: EPHEMERAL_FLAGS,
             });
             return;
         }
@@ -51,9 +102,9 @@ export async function handleInteraction(
                 ) ?? false;
 
             if (!hasAdminRole) {
-                await interaction.reply({
+                await respondToInteraction(interaction, {
                     content: `Only members with the **${adminRoleName}** role can run \`/setup\`. Please have a server admin create and assign this role first.`,
-                    flags: 1 << 6,
+                    flags: EPHEMERAL_FLAGS,
                 });
                 return;
             }
@@ -96,7 +147,7 @@ export async function handleInteraction(
             });
 
             if (!roleMatch) {
-                await interaction.reply({ content: "You don't have permission to use this command.", flags: 1 << 6 });
+                await respondToInteraction(interaction, { content: "You don't have permission to use this command.", flags: EPHEMERAL_FLAGS });
                 return;
             }
         }
@@ -110,7 +161,7 @@ export async function handleInteraction(
         const moduleReady = setupMap[requiredModule];
 
         if (!setupMap.core && !isSetupCommand) {
-            await interaction.reply({ content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: 1 << 6 });
+            await respondToInteraction(interaction, { content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: EPHEMERAL_FLAGS });
             return;
         }
 
@@ -126,7 +177,7 @@ export async function handleInteraction(
                     break;
             }
 
-            await interaction.reply({ content: `This command can't be used yet! An admin needs to run \`${setupCommandHint}\` to configure its required channels and roles first.`, flags: 1 << 6 });
+            await respondToInteraction(interaction, { content: `This command can't be used yet! An admin needs to run \`${setupCommandHint}\` to configure its required channels and roles first.`, flags: EPHEMERAL_FLAGS });
             return;
         }
 
@@ -144,11 +195,7 @@ export async function handleInteraction(
             await command.execute({ interaction, services });
         } catch (error) {
             console.error(`[Slash Command Error]: ${command.name}`, error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: 'There was an error executing that command.', flags: 1 << 6 });
-            } else {
-                await interaction.followUp({ content: 'There was an error executing that command.', flags: 1 << 6 });
-            }
+            await respondToInteraction(interaction, { content: 'There was an error executing that command.', flags: EPHEMERAL_FLAGS });
         }
         return;
     }

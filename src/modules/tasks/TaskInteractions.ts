@@ -19,26 +19,25 @@ const TIER_STAT_MAP: Record<string, keyof UserStats> = {
 // STEP 1: "Submit Screenshot" button clicked on task embed
 export async function handleSubmitButton(interaction: ButtonInteraction, services: ServiceContainer) {
     await interaction.deferReply({ flags: 1 << 6 });
-    
+
     const parts = interaction.customId.split('-');
     const taskEventId = parts.slice(2).join('-');
 
     if (!taskEventId) {
-        await interaction.reply({ content: "Task ID missing from interaction.", flags: 1 << 6 });
+        await interaction.editReply({ content: "Task ID missing from interaction." });
         return;
     }
 
     const taskRepo = services.repos.taskRepo;
     if (!taskRepo) {
-        await interaction.reply({ content: "Task repository unavailable.", flags: 1 << 6 });
+        await interaction.editReply({ content: "Task repository unavailable." });
         return;
     }
 
     const taskEvent = await taskRepo.getTaskEventById(taskEventId);
     if (!taskEvent) {
-        await interaction.reply({
+        await interaction.editReply({
             content: "That task is no longer active. Please check the latest task announcement.",
-            flags: 1 << 6
         });
         return;
     }

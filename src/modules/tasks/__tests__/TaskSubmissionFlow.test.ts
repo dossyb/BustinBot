@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { SubmissionStatus } from '../../../models/TaskSubmission.js';
-import { handleDirectMessage, handleAdminButton, handleRejectionModal } from '../TaskInteractions.js';
+import { handleDirectMessage, handleAdminButton, handleRejectionModal, handleSubmitButton } from '../TaskInteractions.js';
 import { createTaskServiceHarness, createAdminClientMock } from '../../../tests/mocks/taskMocks.js';
 
 vi.mock('../../tasks/SubmissionActions', () => ({
@@ -41,6 +41,38 @@ describe('Task submission lifecycle', () => {
     });
 
     describe('Submission creation', () => {
+        it('defers submit button interactions before loading task event details', async () => {
+            const callOrder: string[] = [];
+            const { services, repo } = createTaskServiceHarness();
+            repo.getTaskEventById.mockImplementation(async () => {
+                callOrder.push('getTaskEventById');
+                return {
+                    id: 'event-1',
+                    task: { id: 'task-1', taskName: 'Defeat {amount} dragons' },
+                    selectedAmount: 25,
+                };
+            });
+
+            const interaction: any = {
+                customId: 'task-submit-event-1',
+                user: {
+                    id: 'user-1',
+                    send: vi.fn().mockResolvedValue(undefined),
+                },
+                deferReply: vi.fn().mockImplementation(async () => {
+                    callOrder.push('deferReply');
+                }),
+                editReply: vi.fn().mockResolvedValue(undefined),
+            };
+
+            await handleSubmitButton(interaction, services);
+
+            expect(callOrder).toEqual(['deferReply', 'getTaskEventById']);
+            expect(interaction.editReply).toHaveBeenCalledWith({
+                content: expect.stringContaining('Check your DMs'),
+            });
+        });
+
         it('creates, stores, and forwards a submission to the admin channel', async () => {
             const { repo, service, services } = createTaskServiceHarness({
                 getTaskEventById: vi.fn().mockResolvedValue({
