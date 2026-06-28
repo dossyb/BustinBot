@@ -174,6 +174,33 @@ describe('Task submission lifecycle', () => {
             expect(client.channels.fetch).toHaveBeenCalledWith('task-verification-channel-id');
         });
 
+        it('defers approval confirmation before loading submission state', async () => {
+            const callOrder: string[] = [];
+            const { service, repo, services } = createTaskServiceHarness();
+            const { client, adminChannel } = createAdminClientMock();
+
+            const submission = await service.createSubmission('user-1', 'event-1');
+            repo.getSubmissionById.mockImplementation(async () => {
+                callOrder.push('getSubmissionById');
+                return { ...submission, screenshotUrls: ['https://cdn/img.png'] };
+            });
+
+            const confirmInteraction: any = {
+                customId: `review-confirm|approve|bronze|${submission.id}`,
+                user: { id: 'admin-1' },
+                client,
+                deferUpdate: vi.fn().mockImplementation(async () => {
+                    callOrder.push('deferUpdate');
+                }),
+                editReply: vi.fn().mockResolvedValue(undefined),
+                channel: adminChannel,
+            };
+
+            await handleAdminButton(confirmInteraction, services);
+
+            expect(callOrder.slice(0, 2)).toEqual(['deferUpdate', 'getSubmissionById']);
+        });
+
         it('continues approval flow when archiving fails due to permissions', async () => {
             const { service, repo, services } = createTaskServiceHarness();
             const { client, adminChannel } = createAdminClientMock();
@@ -277,7 +304,7 @@ describe('Task submission lifecycle', () => {
             await handleAdminButton(admin2Confirm, services);
 
             // Admin-2 should be rejected with a helpful message
-            expect(admin2Confirm.update).toHaveBeenCalledWith(
+            expect(admin2Confirm.editReply).toHaveBeenCalledWith(
                 expect.objectContaining({
                     content: expect.stringContaining('already approved at bronze tier or higher'),
                     components: [],
@@ -354,15 +381,14 @@ describe('Task submission lifecycle', () => {
             await handleAdminButton(admin1Confirm, services);
 
             // Should reject downgrade
-            expect(admin1Confirm.update).toHaveBeenCalledWith(
+            expect(admin1Confirm.editReply).toHaveBeenCalledWith(
                 expect.objectContaining({
                     content: expect.stringContaining('already approved at gold tier or higher'),
                     components: [],
                 })
             );
 
-            // Should not defer or update status
-            expect(admin1Confirm.deferUpdate).not.toHaveBeenCalled();
+            expect(admin1Confirm.deferUpdate).toHaveBeenCalled();
             expect(repo.updateSubmissionStatus).not.toHaveBeenCalled();
         });
     });
