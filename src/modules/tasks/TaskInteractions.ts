@@ -198,7 +198,6 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
             return;
         }
 
-        // Check current submission status to prevent race condition on concurrent approvals
         const taskRepo = services.repos.taskRepo;
         if (!taskRepo) {
             await interaction.update({
@@ -208,9 +207,15 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
             return;
         }
 
+        await interaction.deferUpdate();
+        await interaction.editReply({
+            content: `⏳ Processing approval...`,
+            components: [],
+        });
+
         const currentSubmission = await taskRepo.getSubmissionById(submissionId);
         if (!currentSubmission) {
-            await interaction.update({
+            await interaction.editReply({
                 content: 'Submission not found.',
                 components: [],
             });
@@ -223,18 +228,12 @@ export async function handleAdminButton(interaction: ButtonInteraction, services
         const requestedTierLevel = tierOrder[tier];
 
         if (currentTierLevel >= requestedTierLevel) {
-            await interaction.update({
+            await interaction.editReply({
                 content: `⚠️ This submission is already approved at ${currentSubmission.status === 'pending' ? 'pending' : currentSubmission.status} tier or higher. Another admin may have processed this.`,
                 components: [],
             });
             return;
         }
-
-        await interaction.deferUpdate();
-        await interaction.editReply({
-            content: `⏳ Processing approval...`,
-            components: [],
-        });
 
         const reviewerId = interaction.user.id;
 
