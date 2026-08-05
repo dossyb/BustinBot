@@ -165,6 +165,40 @@ describe("TaskLeaderboards initialisation", () => {
 });
 
 describe("TaskLeaderboards periodic submissions", () => {
+    it("keeps every category event from the fourth week in the completing period", async () => {
+        const events = [
+            ...[1, 2, 3].flatMap((week) =>
+                ["pvm", "skilling", "minigame"].map((category) =>
+                    createEvent(
+                        `week-${week}-${category}`,
+                        `2026-01-${String(week * 7 - 2).padStart(2, "0")}T00:00:00.000Z`,
+                        `2026-01-${String(week * 7 + 5).padStart(2, "0")}T00:00:00.000Z`
+                    )
+                )
+            ),
+            ...["pvm", "skilling", "minigame"].map((category) =>
+                createEvent(
+                    `week-4-${category}`,
+                    "2026-01-26T00:00:00.000Z",
+                    "2026-02-02T00:00:00.000Z"
+                )
+            ),
+            createEvent("week-5-pvm", "2026-02-02T00:00:00.000Z", "2026-02-09T00:00:00.000Z"),
+        ];
+        const taskLeaderboardRepo = createLeaderboardRepo();
+        const services = createServices(taskLeaderboardRepo, events);
+
+        await ensureTaskLeaderboardsInitialized(services as any);
+        for (const event of events) {
+            await registerPeriodicTaskEvent(services as any, event.id);
+        }
+
+        expect(taskLeaderboardRepo.current()?.period?.eventIds).toEqual(
+            events.slice(0, 12).map((event) => event.id)
+        );
+        expect(taskLeaderboardRepo.current()?.pendingPeriod?.period.eventIds).toEqual(["week-5-pvm"]);
+    });
+
     it("carries approved submissions from the 48-hour overlap into the following monthly leaderboard", async () => {
         const events = [
             createEvent("week-1", "2026-01-05T00:00:00.000Z", "2026-01-12T00:00:00.000Z"),

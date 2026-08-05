@@ -382,7 +382,32 @@ export async function registerPeriodicTaskEvent(
 
     if (leaderboard.period.eventIds.includes(taskEventId)) return;
 
-    const uniqueCount = await getUniquePeriodCount(services, leaderboard.period.eventIds);
+    const registeredEvents = await loadPeriodicEvents(services, [
+        ...leaderboard.period.eventIds,
+        taskEventId,
+    ]);
+    const taskEvent = registeredEvents.find((event) => event.id === taskEventId);
+    const currentPeriodEvents = registeredEvents.filter((event) => event.id !== taskEventId);
+    const currentPeriodKeys = new Set(
+        currentPeriodEvents.map(resolvePeriodKey)
+    );
+
+    // A weekly task period contains multiple category event IDs. Once the first
+    // category fills the final week, the remaining categories must stay with it.
+    if (taskEvent && currentPeriodKeys.has(resolvePeriodKey(taskEvent))) {
+        await repo.updateLeaderboard("periodic", {
+            period: {
+                ...leaderboard.period,
+                eventIds: [...leaderboard.period.eventIds, taskEventId],
+            },
+            updatedAt: new Date().toISOString(),
+        });
+        return;
+    }
+
+    const uniqueCount = currentPeriodEvents.length > 0
+        ? currentPeriodKeys.size
+        : leaderboard.period.eventIds.length;
     if (uniqueCount >= leaderboard.period.length) {
         const nextIndex = leaderboard.period.index + 1;
         const pendingPeriod = leaderboard.pendingPeriod ?? {

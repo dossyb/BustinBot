@@ -17,7 +17,7 @@ export class TaskLeaderboardRepository extends GuildScopedRepository<TaskLeaderb
     }
 
     async updateLeaderboard(id: TaskLeaderboardId, data: Partial<TaskLeaderboard>): Promise<void> {
-        await this.collection.doc(id).set(data, { merge: true });
+        await this.collection.doc(id).update(data);
     }
 
     async incrementPoints(id: TaskLeaderboardId, userId: string, amount: number): Promise<void> {
