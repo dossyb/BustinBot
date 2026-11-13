@@ -1,9 +1,8 @@
-import { ButtonInteraction } from 'discord.js';
-import type { TaskFeedback } from '../../models/TaskFeedback.js';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
+import { ButtonInteraction, MessageFlags } from "discord.js";
+import type { TaskService } from "./TaskService.js";
 
-export async function handleTaskFeedback(interaction: ButtonInteraction, repo: ITaskRepository) {
-    await interaction.deferReply({ flags: 1 << 6 });
+export async function handleTaskFeedback(interaction: ButtonInteraction, tasks: TaskService) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
         const customId = interaction.customId;
@@ -11,13 +10,11 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
         let taskId: string | undefined;
         let eventId: string | undefined;
 
-        let isLegacy = false;
-
-        if (customId.includes('|')) {
+        if (customId.includes("|")) {
             // New format: task-feedback|up|taskId|eventId
-            const [prefix, parsedDirection, parsedTaskId, parsedEventId] = customId.split('|');
-            if (prefix !== 'task-feedback') {
-                await interaction.editReply({ content: 'Invalid feedback action.' });
+            const [prefix, parsedDirection, parsedTaskId, parsedEventId] = customId.split("|");
+            if (prefix !== "task-feedback") {
+                await interaction.editReply({ content: "Invalid feedback action." });
                 return;
             }
             direction = parsedDirection;
@@ -25,14 +22,14 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             eventId = parsedEventId;
         } else {
             // Legacy format: task-feedback-up-${taskId}-${eventId}
-            const parts = customId.split('-');
-            if (parts.length < 5 || parts[0] !== 'task' || parts[1] !== 'feedback') {
-                await interaction.editReply({ content: 'Invalid feedback action.' });
+            const parts = customId.split("-");
+            if (parts.length < 5 || parts[0] !== "task" || parts[1] !== "feedback") {
+                await interaction.editReply({ content: "Invalid feedback action." });
                 return;
             }
             direction = parts[2];
             taskId = parts[3];
-            const eventSuffix = parts.slice(4).join('-');
+            const eventSuffix = parts.slice(4).join("-");
             if (!eventSuffix) {
                 eventId = taskId;
             } else if (eventSuffix.startsWith(`${taskId}-`)) {
@@ -41,52 +38,44 @@ export async function handleTaskFeedback(interaction: ButtonInteraction, repo: I
             } else {
                 eventId = `${taskId}-${eventSuffix}`;
             }
-            isLegacy = true;
         }
 
         if (!taskId || !eventId) {
-            await interaction.editReply({ content: 'Invalid task or event ID.' });
+            await interaction.editReply({ content: "Invalid task or event ID." });
             return;
         }
 
-        if (direction !== 'up' && direction !== 'down') {
-            await interaction.editReply({ content: 'Unknown feedback type.' });
+        if (direction !== "up" && direction !== "down") {
+            await interaction.editReply({ content: "Unknown feedback type." });
             return;
         }
 
         const userId = interaction.user.id;
-        let task = await repo.getTaskById(taskId);
+        const task = await tasks.repository.getTaskById(taskId);
 
         if (!task) {
-            await interaction.editReply({ content: 'Task not found.' });
+            await interaction.editReply({ content: "Task not found." });
             return;
         }
 
-        const allFeedback = await repo.getFeedbackForTask(taskId);
-        const existing = allFeedback.find(
-            (entry) => entry.userId === userId && entry.taskId === taskId
-        );
+        const previous = await tasks.repository.voteOnTaskOnce({ taskId, eventId, userId, vote: direction });
         let message: string;
 
-        if (!existing) {
+        if (!previous) {
             // First time vote
-            const feedback: TaskFeedback = { id: Date.now().toString(), taskId, eventId, userId, vote: direction };
-            await repo.addFeedback(feedback);
-            await repo.incrementWeight(taskId, direction === "up" ? +1 : -1);
-            message = 'Thanks for your feedback!';
-        } else if (existing.vote === direction) {
+            await tasks.incrementWeight(taskId, direction === "up" ? +1 : -1);
+            message = "Thanks for your feedback!";
+        } else if (previous === direction) {
             // Same vote again
-            message = `You already gave this task a ${direction === 'up' ? '👍' : '👎'} for this event.`;
+            message = `You already gave this task a ${direction === "up" ? "👍" : "👎"}.`;
         } else {
             // Changed vote
-            existing.vote = direction;
-            await repo.addFeedback(existing); 
-            await repo.incrementWeight(taskId, direction === "up" ? +2 : -2);
+            await tasks.incrementWeight(taskId, direction === "up" ? +2 : -2);
             message = "Feedback updated!";
         }
         await interaction.editReply({ content: message });
     } catch (err) {
-        console.error('[TaskFeedback] File error:', err);
-        await interaction.editReply({ content: 'Error reading task data.' });
+        console.error("[TaskFeedback] File error:", err);
+        await interaction.editReply({ content: "Error reading task data." });
     }
 }

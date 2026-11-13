@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
@@ -23,16 +23,18 @@ const taskboard: Command = {
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
 
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
             const sub = interaction.options.getSubcommand();
-            if (sub === "final") {
-                await postFinalLeaderboardSnapshot(interaction.client, services);
-                await interaction.editReply("Final leaderboard posted.");
+            const posted =
+                sub === "final"
+                    ? await postFinalLeaderboardSnapshot(interaction.client, services)
+                    : await postWeeklyLeaderboardSnapshot(interaction.client, services);
+            if (!posted) {
+                await interaction.editReply("Couldn't post the leaderboard: the task channel isn't set up or I can't reach it.");
             } else {
-                await postWeeklyLeaderboardSnapshot(interaction.client, services);
-                await interaction.editReply("Leaderboard update posted.");
+                await interaction.editReply(sub === "final" ? "Final leaderboard posted." : "Leaderboard update posted.");
             }
         } catch (err) {
             console.error("[TaskBoard Command Error]", err);

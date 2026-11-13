@@ -1,19 +1,19 @@
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import path from 'path';
-import fs from 'fs';
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import path from "path";
+import fs from "fs";
 
 const args = process.argv.slice(2);
-if (args.length < 1) {
-    console.error('Usage: npx tsx src/scripts/resetGuildDocument.ts <GUILD_ID> [--keep]');
+const guildId = args[0];
+if (!guildId) {
+    console.error("Usage: npx tsx src/scripts/resetGuildDocument.ts <GUILD_ID> [--keep]");
     process.exit(1);
 }
 
-const guildId = args[0];
-const keepOriginal = args.includes('--keep');
+const keepOriginal = args.includes("--keep");
 
 // Load service account key (adjust if your key path differs)
-const serviceAccountPath = './src/config/bustinbot-3840f-firebase-adminsdk-fbsvc-39e719dd30.json';
+const serviceAccountPath = "./src/config/bustinbot-3840f-firebase-adminsdk-fbsvc-39e719dd30.json";
 if (!fs.existsSync(serviceAccountPath)) {
     console.error(`Service account key not found at ${serviceAccountPath}`);
     process.exit(1);
@@ -27,7 +27,7 @@ initializeApp({
 const db = getFirestore();
 
 async function cloneGuildDocument(guildId: string) {
-    const guildRef = db.collection('guilds').doc(guildId);
+    const guildRef = db.collection("guilds").doc(guildId);
     const snapshot = await guildRef.get();
 
     if (!snapshot.exists) {
@@ -42,9 +42,9 @@ async function cloneGuildDocument(guildId: string) {
     }
 
     // Create a timestamped backup document ID
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupId = `${guildId}-backup-${timestamp}`;
-    const backupRef = db.collection('guilds').doc(backupId);
+    const backupRef = db.collection("guilds").doc(backupId);
 
     console.log(`🔄 Backing up guild ${guildId} → ${backupId}`);
     await backupRef.set(data);
@@ -68,15 +68,15 @@ async function cloneGuildDocument(guildId: string) {
         console.log(`🗑️  Deleting original guild document (${guildId})...`);
         await guildRef.delete();
     } else {
-        console.log('⚠️  Keeping original guild document (--keep specified)');
+        console.log("⚠️  Keeping original guild document (--keep specified)");
     }
 
     console.log(`✅ Guild backup completed successfully: ${backupId}`);
 }
 
-cloneGuildDocument(guildId!)
+cloneGuildDocument(guildId)
     .then(() => process.exit(0))
     .catch((err) => {
-        console.error('❌ Error during guild reset:', err);
+        console.error("❌ Error during guild reset:", err);
         process.exit(1);
     });

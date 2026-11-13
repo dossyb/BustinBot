@@ -1,41 +1,43 @@
-import { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
+import { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import { DateTime } from "luxon";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import { resolveGuildTimezone } from "../../movies/MovieScheduler.js";
 
 const movienight: Command = {
-    name: 'movienight',
+    name: "movienight",
     description: "Schedule the next movie night.",
     module: CommandModule.Movie,
     allowedRoles: [CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()
-        .setName('movienight')
-        .setDescription('Schedule the next movie night.'),
+        .setName("movienight")
+        .setDescription("Schedule the next movie night."),
 
-    async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
 
-        const today = new Date();
+        const today = DateTime.now().setZone(await resolveGuildTimezone(services)).startOf("day");
         const options = Array.from({ length: 14 }, (_, i) => {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
+            const date = today.plus({ days: i });
             return {
-                label: date.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' }),
-                value: date.toISOString().split("T")[0] as string,
+                label: date.toLocaleString({ weekday: "short", month: "short", day: "numeric" }, { locale: "en-AU" }),
+                value: date.toFormat("yyyy-MM-dd"),
             };
         });
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('movienight-select-date')
-            .setPlaceholder('Select a date for movie night...')
+            .setCustomId("movienight-select-date")
+            .setPlaceholder("Select a date for movie night...")
             .addOptions(options);
 
         const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
         await interaction.reply({
-            content: '📆 Choose a date for the next movie night:',
+            content: "📆 Choose a date for the next movie night:",
             components: [row],
-            flags: 1 << 6
+            flags: MessageFlags.Ephemeral
         });
     }
 };

@@ -1,7 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 import { resetPeriodicLeaderboard } from "../../tasks/TaskLeaderboards.js";
 
 const taskperiod: Command = {
@@ -36,13 +35,13 @@ const taskperiod: Command = {
                 .setDescription("Start a fresh periodic leaderboard so the next task event is counted as the first.")
         ),
 
-    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services?: ServiceContainer }) {
-        if (!interaction || !services) return;
+    async execute({ interaction, services }) {
+        if (!interaction) return;
 
-        const guildId = interaction.guildId!;
+        const guildId = interaction.guildId;
         const subcommand = interaction.options.getSubcommand();
 
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
             if (subcommand === "set") {

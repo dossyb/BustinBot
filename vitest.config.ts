@@ -1,20 +1,33 @@
 import { defineConfig } from "vitest/config";
-import path from "path";
 
 export default defineConfig({
-    resolve: {
-        alias: {
-            "@tests": path.resolve(__dirname, "./src/tests"),
-            core: path.resolve(__dirname, "./src/core"),
-            models: path.resolve(__dirname, "./src/models"),
-            modules: path.resolve(__dirname, "./src/modules"),
-            utils: path.resolve(__dirname, "./src/utils"),
-        },
-    },
     test: {
-        globals: true,
         environment: "node",
-        setupFiles: ["./src/tests/setup.ts"],
-        coverage: { provider: "v8", reporter: ["text", "html"] },
+        setupFiles: ["./test/setup.ts"],
+        env: { BOT_MODE: "test" },
+        unstubGlobals: true,
+        unstubEnvs: true,
+        restoreMocks: true,
+        silent: "passed-only",
+        projects: [
+            {
+                extends: true,
+                test: {
+                    name: "unit",
+                    include: ["test/unit/**/*.test.ts"],
+                },
+            },
+            {
+                extends: true,
+                test: {
+                    name: "integration",
+                    include: ["test/integration/**/*.test.ts"],
+                    env: {
+                        METADATA_SERVER_DETECTION: "none",
+                        TMDB_API_KEY: "test-key",
+                    },
+                },
+            },
+        ],
     },
 });

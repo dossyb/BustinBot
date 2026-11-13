@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import { replaceBustinEmote } from "../../../utils/EmoteHelper.js";
@@ -56,7 +56,7 @@ const help: Command = {
                 text: `BustinBot ${packageVersion} • Developed by dossyb`,
             });
 
-        await interaction.reply({ embeds: [embed], flags: 1 << 6 });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 };
 

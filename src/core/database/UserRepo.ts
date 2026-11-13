@@ -1,12 +1,12 @@
-import { db } from "./firestore.js";
 import { GuildScopedRepository } from "./CoreRepo.js";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import type { IUserRepository } from "./interfaces/IUserRepo.js";
 import type { UserStats } from "../../models/UserStats.js";
+import { userStatsConverter } from "./converters.js";
 
 export class UserRepository extends GuildScopedRepository<UserStats> implements IUserRepository {
-    constructor(guildId: string) {
-        super(guildId, 'userStats');
+    constructor(db: Firestore, guildId: string) {
+        super(db, guildId, "userStats", userStatsConverter);
     }
 
     private createDefaultUserStats(userId: string): UserStats {
@@ -37,12 +37,12 @@ export class UserRepository extends GuildScopedRepository<UserStats> implements 
 
     async getAllUsers(): Promise<UserStats[]> {
         const snapshot = await this.collection.get();
-        return snapshot.docs.map((doc) => doc.data() as UserStats);
+        return snapshot.docs.map((doc) => doc.data());
     }
 
     async getUserById(userId: string): Promise<UserStats | null> {
         const doc = await this.collection.doc(userId).get();
-        return doc.exists ? (doc.data() as UserStats) : null;
+        return doc.data() ?? null;
     }
 
     async createUser(user: UserStats): Promise<void> {
@@ -59,7 +59,7 @@ export class UserRepository extends GuildScopedRepository<UserStats> implements 
 
     async clearAllUsers(): Promise<void> {
         const snapshot = await this.collection.get();
-        const batch = db.batch();
+        const batch = this.db.batch();
         snapshot.docs.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
     }

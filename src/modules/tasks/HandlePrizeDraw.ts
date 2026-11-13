@@ -1,26 +1,22 @@
-import type { IPrizeDrawRepository } from '../../core/database/interfaces/IPrizeDrawRepo.js';
-import type { ITaskRepository } from '../../core/database/interfaces/ITaskRepo.js';
-import type { PrizeDraw } from '../../models/PrizeDraw.js';
-import type { TaskEvent } from '../../models/TaskEvent.js';
-import { TaskCategory } from '../../models/Task.js';
-import type { TaskSubmission } from '../../models/TaskSubmission.js';
-import { SubmissionStatus } from '../../models/TaskSubmission.js';
-import { buildPrizeDrawEmbed } from './TaskEmbeds.js';
-import { Client, TextChannel } from 'discord.js';
-import { isTextChannel } from '../../utils/ChannelUtils.js';
-import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
-import { normaliseFirestoreDates } from '../../utils/DateUtils.js';
-import { isMentionSuppressed, withSuppressedMentions } from '../../utils/MentionUtils.js';
+import { sample } from "es-toolkit";
+import { DateTime } from "luxon";
+import type { IPrizeDrawRepository } from "../../core/database/interfaces/IPrizeDrawRepo.js";
+import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo.js";
+import type { PrizeDraw } from "../../models/PrizeDraw.js";
+import type { TaskSubmission } from "../../models/TaskSubmission.js";
+import { SubmissionStatus } from "../../models/TaskSubmission.js";
+import { buildPrizeDrawEmbed } from "./TaskEmbeds.js";
+import type { Client } from "discord.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { isMentionSuppressed, withSuppressedMentions } from "../../utils/MentionUtils.js";
+import { configuredChannel } from "../../utils/ChannelUtils.js";
+import { eventCountsForMember } from "./TaskLeaderboards.js";
 
-const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? '14');
+const DEFAULT_PERIOD_DAYS = parseInt(process.env.PRIZE_PERIOD_DAYS ?? "14");
 
 function getPeriodRange(endDate: Date, days: number): [Date, Date] {
-    const end = new Date(endDate);
-    end.setUTCHours(23, 59, 59, 999);
-    const start = new Date(end);
-    start.setUTCDate(end.getUTCDate() - days + 1);
-    start.setUTCHours(0, 0, 0, 0);
-    return [start, end];
+    const end = DateTime.fromJSDate(endDate, { zone: "utc" }).endOf("day");
+    return [end.minus({ days: days - 1 }).startOf("day").toJSDate(), end.toJSDate()];
 }
 
 function isSubmissionApprovedLike(status: SubmissionStatus): boolean {
@@ -32,9 +28,8 @@ function isSubmissionApprovedLike(status: SubmissionStatus): boolean {
     );
 }
 
-function parseDateInput(value: unknown): Date | null {
-    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-    if (typeof value === 'string') {
+function parseDateInput(value: string | null): Date | null {
+    if (typeof value === "string") {
         const parsed = new Date(value);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
@@ -67,8 +62,8 @@ async function getCarryOverSubmissions(
     if (!previousDraw) return [];
 
     const previousDrawEnd = parseDateInput(previousDraw.end);
-    const previousDrawRolledAt = parseDateInput(previousDraw.rolledAt ?? null);
-    if (!previousDrawEnd || !previousDrawRolledAt) return [];
+    const previousSnapshotTakenAt = parseDateInput(previousDraw.snapshotTakenAt);
+    if (!previousDrawEnd || !previousSnapshotTakenAt) return [];
 
     const previousEventIds = previousDraw.taskEventIds ?? [];
     if (!previousEventIds.length) return [];
@@ -79,18 +74,16 @@ async function getCarryOverSubmissions(
 
     return previousEventSubmissions
         .flat()
-        .map((submission) => normaliseFirestoreDates<TaskSubmission>(submission))
         .filter((submission) => isSubmissionApprovedLike(submission.status))
         .filter((submission) => {
-            const submittedAt = parseDateInput(submission.submittedAt ?? null);
-            const reviewedAt = parseDateInput(submission.reviewedAt ?? null);
+            const { submittedAt, reviewedAt } = submission;
 
             if (!submittedAt || !reviewedAt) return false;
 
             const submittedBeforeOrAtPreviousWindowEnd = submittedAt.getTime() <= previousDrawEnd.getTime();
-            const reviewedAfterPreviousRoll = reviewedAt.getTime() > previousDrawRolledAt.getTime();
+            const reviewedAfterPreviousSnapshot = reviewedAt.getTime() > previousSnapshotTakenAt.getTime();
 
-            return submittedBeforeOrAtPreviousWindowEnd && reviewedAfterPreviousRoll;
+            return submittedBeforeOrAtPreviousWindowEnd && reviewedAfterPreviousSnapshot;
         });
 }
 
@@ -98,28 +91,17 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const now = new Date();
     const [start, end] = getPeriodRange(now, DEFAULT_PERIOD_DAYS);
 
-    const rawEvents = await taskRepo.getTaskEventsBetween(start, end);
-    const qualifyingEvents = rawEvents
-        .map(event => normaliseFirestoreDates<TaskEvent>(event))
-        .filter(event => {
-            const eventEnd = event.endTime;
-            if (!(eventEnd instanceof Date)) return false;
-            const endsAfterStart = eventEnd.getTime() >= start.getTime();
-            const endsBeforeOrAtNow = eventEnd.getTime() <= end.getTime();
-            return endsAfterStart && endsBeforeOrAtNow;
-        });
+    const qualifyingEvents = await taskRepo.getTaskEventsBetween(start, now);
 
     if (!qualifyingEvents.length) {
-        console.warn('[PrizeDraw] No task events found in range for snapshot.');
+        console.warn("[PrizeDraw] No task events found in range for snapshot.");
     }
 
     const submissionsPerEvent = await Promise.all(
         qualifyingEvents.map((event) => taskRepo.getSubmissionsForTask(event.id))
     );
 
-    const currentSubmissions = submissionsPerEvent
-        .flat()
-        .map((submission) => normaliseFirestoreDates<TaskSubmission>(submission));
+    const currentSubmissions = submissionsPerEvent.flat();
     const carryOverSubmissions = await getCarryOverSubmissions(prizeRepo, taskRepo, start);
 
     const filtered = [...currentSubmissions, ...carryOverSubmissions].filter((submission) =>
@@ -135,39 +117,39 @@ export async function generatePrizeDrawSnapshot(prizeRepo: IPrizeDrawRepository,
     const ROLLS_PER_SUBMISSION = 1;
 
     // Deduplicate submissions so a user only gets the highest tier per task
-    const userBestSubmissions = new Map<string, typeof filtered[number]>();
-    for (const submission of filtered) {
-        const key = `${submission.userId}-${submission.taskEventId}`;
-        const existing = userBestSubmissions.get(key);
-        const currentRank = STATUS_RANK[submission.status] ?? 0;
-        const existingRank = existing ? STATUS_RANK[existing.status] ?? 0 : 0;
-
-        if (!existing || currentRank >= existingRank) {
-            userBestSubmissions.set(key, submission);
-        }
-    }
-
-    const deduplicatedSubmissions = Array.from(userBestSubmissions.values());
+    const deduplicatedSubmissions = [...Map.groupBy(filtered, (submission) => `${submission.userId}-${submission.taskEventId}`).values()]
+        .map((submissions) => submissions.reduce((best, submission) =>
+            (STATUS_RANK[submission.status] ?? 0) >= (STATUS_RANK[best.status] ?? 0) ? submission : best
+        ));
     const deduplicatedEventIds = Array.from(
         new Set(
             deduplicatedSubmissions
                 .map((submission) => submission.taskEventId)
-                .filter((eventId): eventId is string => typeof eventId === 'string' && eventId.length > 0)
+                .filter((eventId): eventId is string => typeof eventId === "string" && eventId.length > 0)
         )
     );
     const qualifyingEventIds = qualifyingEvents.map((event) => event.id);
 
+    const events = new Map(qualifyingEvents.map((event) => [event.id, event]));
+    const countedSubmissions: TaskSubmission[] = [];
+    for (const submission of deduplicatedSubmissions) {
+        const event = events.get(submission.taskEventId) ?? await taskRepo.getTaskEventById(submission.taskEventId);
+        if (!event || await eventCountsForMember(taskRepo, event, submission.userId)) {
+            countedSubmissions.push(submission);
+        }
+    }
+
     const participants: Record<string, number> = {};
     const entries: string[] = [];
-    for (const submission of deduplicatedSubmissions) {
+    for (const submission of countedSubmissions) {
         participants[submission.userId] = (participants[submission.userId] || 0) + ROLLS_PER_SUBMISSION;
         entries.push(submission.userId);
     }
 
     const tierCounts = {
-        bronze: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Bronze).length,
-        silver: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Silver).length,
-        gold: deduplicatedSubmissions.filter(s => s.status === SubmissionStatus.Gold).length,
+        bronze: countedSubmissions.filter(s => s.status === SubmissionStatus.Bronze).length,
+        silver: countedSubmissions.filter(s => s.status === SubmissionStatus.Silver).length,
+        gold: countedSubmissions.filter(s => s.status === SubmissionStatus.Gold).length,
     };
 
     const totalEntries = entries.length;
@@ -197,34 +179,30 @@ export async function rollWinnerForSnapshot(prizeRepo: IPrizeDrawRepository, sna
     // Check if already rolled
     if (snapshot.winnerId) return snapshot.winnerId;
 
-    console.log('[PrizeDraw] Rolling for snapshot:', snapshot.id);
-    console.log('[PrizeDraw] Participants:', snapshot.participants);
-    console.log('[PrizeDraw] Total entries:', snapshot.totalEntries);
+    console.log("[PrizeDraw] Rolling for snapshot:", snapshot.id);
+    console.log("[PrizeDraw] Participants:", snapshot.participants);
+    console.log("[PrizeDraw] Total entries:", snapshot.totalEntries);
 
     const tickets: string[] = [];
     for (const [userId, count] of Object.entries(snapshot.participants)) {
         for (let i = 0; i < count; i++) tickets.push(userId);
     }
 
-    if (tickets.length === 0) return null;
+    if (!tickets.length) return null;
+    const winnerId = sample(tickets);
 
-    const winnerId = tickets[Math.floor(Math.random() * tickets.length)]!;
-    snapshot.winnerId = winnerId || '';
+    snapshot.winnerId = winnerId || "";
     snapshot.rolledAt = new Date().toISOString();
 
-    await prizeRepo.setWinners(snapshot.id, {} as Record<TaskCategory, string[]>, winnerId);
+    await prizeRepo.setWinner(snapshot.id, winnerId);
     console.log(`[PrizeDraw] Winner for ${snapshotId}: ${winnerId}`);
 
     const userRepo = services.repos.userRepo;
-    if (userRepo && winnerId) {
-        try {
-            await userRepo.incrementStat(winnerId, "taskPrizesWon", 1);
-            console.log(`[Stats] Incremented taskPrizesWon for ${winnerId}`);
-        } catch (err) {
-            console.warn(`[Stats] Failed to increment taskPrizesWon for ${winnerId}:`, err);
-        }
-    } else {
-        console.warn("[Stats] UserRepo unavailable or winnerId missing; skipping taskPrizesWon increment.");
+    try {
+        await userRepo.incrementStat(winnerId, "taskPrizesWon", 1);
+        console.log(`[Stats] Incremented taskPrizesWon for ${winnerId}`);
+    } catch (err) {
+        console.warn(`[Stats] Failed to increment taskPrizesWon for ${winnerId}:`, err);
     }
 
     return winnerId;
@@ -244,7 +222,7 @@ export async function announcePrizeDrawWinner(
 
     const guildId = services.guildId;
     if (!guildId) {
-        console.warn('[PrizeDraw] No guild ID available for announcement.');
+        console.warn("[PrizeDraw] No guild ID available for announcement.");
         return false;
     }
 
@@ -254,7 +232,7 @@ export async function announcePrizeDrawWinner(
         return false;
     }
 
-    let mention = '';
+    let mention = "";
     const guild = await client.guilds.fetch(guildId);
     const guildName = guild.name;
     const suppressMentions = await isMentionSuppressed(services.guilds, guildId);
@@ -263,10 +241,10 @@ export async function announcePrizeDrawWinner(
     if (role) {
         mention = `<@&${role.id}>`;
     } else {
-        console.warn('[PrizeDraw] Task user role not configured or not found.');
+        console.warn("[PrizeDraw] Task user role not configured or not found.");
     }
 
-    const fallbackWinner = snapshot.winnerId || 'Unknown User';
+    const fallbackWinner = snapshot.winnerId || "Unknown User";
     let winnerUsername = fallbackWinner;
     try {
         const winnerUser = await client.users.fetch(snapshot.winnerId);
@@ -287,32 +265,10 @@ export async function announcePrizeDrawWinner(
         snapshot.tierCounts
     );
 
-    let channel: TextChannel | undefined;
-    const taskChannelId = guildConfig.channels?.taskChannel;
-    if (taskChannelId) {
-        const fetched = await guild.channels.fetch(taskChannelId);
-        if (fetched && isTextChannel(fetched)) {
-            channel = fetched;
-        }
-    }
+    const channel = await configuredChannel(client, services, "taskChannel");
+    if (!channel) return false;
 
-    if (!channel) {
-        channel = client.channels.cache.find(
-            (c): c is TextChannel => isTextChannel(c) && "name" in c && c.name === 'weekly-task'
-        );
-    }
-
-    if (!channel) {
-        console.warn(`[PrizeDraw] Announcement channel not found.`);
-        return false;
-    }
-
-    if (suppressMentions) {
-        await channel.send(withSuppressedMentions({ content: `${mention}` }, true));
-    } else {
-        await channel.send(`${mention}`);
-    }
-    await channel.send({ ...embedData });
+    await channel.send(withSuppressedMentions({ ...embedData, ...(mention ? { content: mention } : {}) }, suppressMentions));
     console.log(`[PrizeDraw] Winner embed sent to #${channel.name}`);
 
     // Send the winner a DM

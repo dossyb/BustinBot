@@ -1,39 +1,34 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import { createMovieEmbed } from "../../movies/MovieEmbeds.js";
 import type { Movie } from "../../../models/Movie.js";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
-
-const MOVIE_CAP = 3;
+import { MAX_ACTIVE_MOVIES_PER_USER, isMovieNightAdmin } from "../../movies/MovieService.js";
 
 const mymovies: Command = {
-    name: 'mymovies',
-    description: 'View the movies you\'ve added to the list.',
+    name: "mymovies",
+    description: "View the movies you've added to the list.",
     module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('mymovies')
-        .setDescription('View the movies you\'ve added to the list.'),
+        .setName("mymovies")
+        .setDescription("View the movies you've added to the list."),
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         
         const movieRepo = services.repos.movieRepo;
-        if (!movieRepo) {
-            await interaction.editReply("Movie repository not available.");
-            return;
-        }
 
         try {
             // Fetch all movies from Firestore
             const movies: Movie[] = await movieRepo.getAllMovies();
 
             // Filter by user
-            const userMovies = movies.filter((m) => m.addedBy === interaction.user.id);
-            const remaining = MOVIE_CAP - userMovies.length;
+            const userMovies = movies.filter((m) => m.addedBy === interaction.user.id && !m.watched);
+            const remaining = MAX_ACTIVE_MOVIES_PER_USER - userMovies.length;
 
             // Handle edge cases
             if (userMovies.length > 10) {
@@ -46,7 +41,7 @@ const mymovies: Command = {
 
             if (userMovies.length === 0) {
                 await interaction.editReply({
-                    content: `You haven't added any movies yet. You can add up to ${MOVIE_CAP} movies using /addmovie.`,
+                    content: `You haven't added any movies yet. You can add up to ${MAX_ACTIVE_MOVIES_PER_USER} movies using /addmovie.`,
                 });
                 return;
             }
@@ -54,10 +49,10 @@ const mymovies: Command = {
             // Build embeds for user's movies
             const embeds = userMovies.map((m) => createMovieEmbed(m));
 
-            await interaction.editReply({
-                content: `You have added **${userMovies.length}/${MOVIE_CAP}** movies. You can still add **${remaining}** more using /addmovie.`,
-                embeds,
-            });
+            const content = (await isMovieNightAdmin(services, interaction))
+                ? `You have added **${userMovies.length}** movies.`
+                : `You have added **${userMovies.length}/${MAX_ACTIVE_MOVIES_PER_USER}** movies. You can still add **${remaining}** more using /addmovie.`;
+            await interaction.editReply({ content, embeds });
 
             console.log(
                 `[MyMovies] Displayed ${userMovies.length} movies for ${interaction.user.username}.`

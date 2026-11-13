@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 
@@ -19,7 +19,7 @@ const faq: Command = {
 
         await interaction.reply({
             content: `Need help? Click here to view the BustinBot FAQ: ${FAQ_LINK}`,
-            flags: 1 << 6,
+            flags: MessageFlags.Ephemeral,
         });
     },
 };

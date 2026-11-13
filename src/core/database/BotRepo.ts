@@ -1,21 +1,25 @@
-import { db } from "./firestore.js";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import type { IBotRepository } from "./interfaces/IBotRepo.js";
 import type { BotStats } from "../../models/BotStats.js";
+import { botStatsConverter } from "./converters.js";
 
 export class BotRepository implements IBotRepository {
-    private readonly docRef = db.collection('bot').doc('stats');
+    private readonly docRef: DocumentReference<BotStats>;
+
+    constructor(db: Firestore) {
+        this.docRef = db.collection("bot").doc("stats").withConverter(botStatsConverter);
+    }
 
     async getBotStats(): Promise<BotStats | null> {
         const doc = await this.docRef.get();
-        return doc.exists ? (doc.data() as BotStats) : null;
+        return doc.data() ?? null;
     }
 
     async initBotStats(defaults: BotStats): Promise<void> {
         const existing = await this.docRef.get();
         if (!existing.exists) {
             await this.docRef.set(defaults);
-            console.log('[BotRepository] Initialised global bot stats document.');
+            console.log("[BotRepository] Initialised global bot stats document.");
         }
     }
 
@@ -39,7 +43,7 @@ export class BotRepository implements IBotRepository {
         };
 
         await this.docRef.update(defaults);
-        console.log('[BotRepository] Reset all bot stats');
+        console.log("[BotRepository] Reset all bot stats");
     }
 
     async increment(field: keyof BotStats | string, amount = 1): Promise<void> {
@@ -52,7 +56,7 @@ export class BotRepository implements IBotRepository {
     async incrementCommand(commandName: string): Promise<void> {
         await this.docRef.update({
             commandsRun: FieldValue.increment(1),
-            [`commandByName.${commandName}`]: FieldValue.increment(1),
+            [`commandsByName.${commandName}`]: FieldValue.increment(1),
             lastUpdatedAt: new Date(),
         });
     }

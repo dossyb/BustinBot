@@ -1,9 +1,9 @@
-import { Message, GuildMember } from 'discord.js';
-import type { Command } from '../../models/Command.js';
-import { CommandRole } from '../../models/Command.js';
-import type { ServiceContainer } from '../services/ServiceContainer.js';
+import { Message } from "discord.js";
+import type { Command } from "../../models/Command.js";
+import { CommandRole } from "../../models/Command.js";
+import type { ServiceContainer } from "../services/ServiceContainer.js";
 
-const PREFIX = '!'; // Handle ! as the command prefix
+const PREFIX = "!"; // Handle ! as the command prefix
 
 export async function handleMessage(message: Message, commands: Map<string, Command>, services: ServiceContainer) {
     if (!message.content.startsWith(PREFIX) || message.author.bot) return;
@@ -18,9 +18,9 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
     if (!command) return;
 
     // Permission check placeholder
-    const member = message.member as GuildMember;
+    const member = message.member;
     if (!member) {
-        await message.reply('Unable to verify your permissions.');
+        await message.reply("Unable to verify your permissions.");
         return;
     }
 
@@ -55,6 +55,10 @@ export async function handleMessage(message: Message, commands: Map<string, Comm
         await command.execute({ message, args, services });
     } catch (err) {
         console.error(`[Command Error]: ${commandName}`, err);
-        message.reply('There was an error executing that command.');
+        try {
+            await message.reply("There was an error executing that command.");
+        } catch (replyError) {
+            console.error(`[Command Error]: ${commandName}: could not send the error reply`, replyError);
+        }
     }
 }

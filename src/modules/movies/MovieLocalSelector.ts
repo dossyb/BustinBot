@@ -1,8 +1,9 @@
-import { Client, EmbedBuilder } from 'discord.js';
-import type { Movie } from '../../models/Movie.js';
-import { createMovieEmbed } from './MovieEmbeds.js';
-import { injectMockUsers, getDisplayNameFromAddedBy } from './MovieMockUtils.js';
-import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
+import { Client, EmbedBuilder } from "discord.js";
+import { sample } from "es-toolkit";
+import type { Movie } from "../../models/Movie.js";
+import { createMovieEmbed } from "./MovieEmbeds.js";
+import { injectMockUsers, getDisplayNameFromAddedBy } from "./MovieMockUtils.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
 
 export async function resolveGuildContext(client: Client, services: ServiceContainer): Promise<{ guildId: string | null; guildName: string; }> {
     let guildId: string | undefined = services.guildId;
@@ -13,7 +14,7 @@ export async function resolveGuildContext(client: Client, services: ServiceConta
     }
 
     if (!guildId) {
-        return { guildId: null, guildName: 'this server' };
+        return { guildId: null, guildName: "this server" };
     }
 
     try {
@@ -21,16 +22,12 @@ export async function resolveGuildContext(client: Client, services: ServiceConta
         return { guildId, guildName: guild.name };
     } catch (err) {
         console.warn(`[MovieGuildContext] Failed to resolve guild ${guildId}:`, err);
-        return { guildId, guildName: 'this server' };
+        return { guildId, guildName: "this server" };
     }
 }
 
 export async function pickRandomMovie(services: ServiceContainer): Promise<Movie | null> {
     const movieRepo = services.repos.movieRepo;
-    if (!movieRepo) {
-        console.error('[MovieLocalSelector] Movie repository not found in ServiceContainer.');
-        return null;
-    }
 
     try {
         let movies = await movieRepo.getAllMovies();
@@ -38,27 +35,26 @@ export async function pickRandomMovie(services: ServiceContainer): Promise<Movie
         movies = injectMockUsers(movies);
         if (!movies.length) return null;
 
-        const index = Math.floor(Math.random() * movies.length);
-        return movies[index] ?? null;
+        return sample(movies);
     } catch (error) {
-        console.error('[MovieLocalSelector] Failed to fetch movies:', error);
+        console.error("[MovieLocalSelector] Failed to fetch movies:", error);
         return null;
     }
 }
 
 export async function buildMovieEmbedWithMeta(
     movie: Movie,
-    style: 'random' | 'chosen' | 'preview' = 'random'
+    style: "random" | "chosen" | "preview" = "random"
 ): Promise<EmbedBuilder> {
     const embed = createMovieEmbed(movie);
-    const existingDescription = embed.data.description ?? '';
+    const existingDescription = embed.data.description ?? "";
     const addedByText = getDisplayNameFromAddedBy(movie.addedBy, movie.addedByDisplay);
     const addedByLine = `\n\n*Added by ${addedByText}*`;
 
     const titlePrefix =
-        style === 'random' ? '🎲' :
-            style === 'chosen' ? '🎯' :
-                '🎥';
+        style === "random" ? "🎲" :
+            style === "chosen" ? "🎯" :
+                "🎥";
 
     embed.setTitle(`${titlePrefix} ${movie.title}`);
     embed.setDescription(`${existingDescription}${addedByLine}`);

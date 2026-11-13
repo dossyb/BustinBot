@@ -1,8 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
-import { normaliseFirestoreDates } from "../../../utils/DateUtils.js";
 
 const setstreak: Command = {
     name: "setstreak",
@@ -29,20 +28,15 @@ const setstreak: Command = {
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer; }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const userRepo = services.repos.userRepo;
-        if (!userRepo) {
-            await interaction.editReply("User repository not available.");
-            return;
-        }
 
         const targetUser = interaction.options.getUser("user", true);
         const streakValue = interaction.options.getInteger("streak", true);
 
         try {
-            const raw = await userRepo.getUserById(targetUser.id);
-            const stats = raw ? normaliseFirestoreDates(raw) : null;
+            const stats = await userRepo.getUserById(targetUser.id);
 
             if (!stats) {
                 await userRepo.incrementStat(targetUser.id, "taskStreak", streakValue);

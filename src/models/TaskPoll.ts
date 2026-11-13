@@ -1,4 +1,6 @@
 import type { Poll } from "./Poll.js";
-import type { Task } from "./Task.js";
+import type { Task, TaskCategory } from "./Task.js";
 
-export type TaskPoll = Poll<Task>;
+export interface TaskPoll extends Poll<Task> {
+    category: TaskCategory;
+}

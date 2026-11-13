@@ -1,7 +1,7 @@
+import { DateTime, Duration } from "luxon";
 import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo.js";
 import type { TaskEvent } from "../../models/TaskEvent.js";
 import { SubmissionStatus } from "../../models/TaskSubmission.js";
-import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
 
 export type TaskPeriod = {
     start: Date;
@@ -23,42 +23,19 @@ const APPROVED_STATUSES = new Set<SubmissionStatus>([
     SubmissionStatus.Gold,
 ]);
 
-const PERIOD_GAP_TOLERANCE_MS = 6 * 60 * 60 * 1000; // 6 hours
+const PERIOD_GAP_TOLERANCE = Duration.fromObject({ hours: 6 });
 
 function isConsecutive(prevEnd: Date, nextStart: Date): boolean {
-    const gapMs = nextStart.getTime() - prevEnd.getTime();
-    return gapMs >= 0 && gapMs <= PERIOD_GAP_TOLERANCE_MS;
-}
-
-function formatUnit(value: number, unit: string): string {
-    return `${value} ${unit}${value === 1 ? "" : "s"}`;
-}
-
-export function formatDuration(ms: number): string {
-    if (ms <= 0) return "less than a minute";
-
-    const totalMinutes = Math.ceil(ms / 60000);
-    const days = Math.floor(totalMinutes / 1440);
-    const hours = Math.floor((totalMinutes % 1440) / 60);
-    const minutes = totalMinutes % 60;
-
-    const parts: string[] = [];
-    if (days > 0) parts.push(formatUnit(days, "day"));
-    if (hours > 0 && parts.length < 2) parts.push(formatUnit(hours, "hour"));
-    if (minutes > 0 && parts.length < 2) parts.push(formatUnit(minutes, "minute"));
-
-    return parts.join(" ");
+    const gap = DateTime.fromJSDate(nextStart).diff(DateTime.fromJSDate(prevEnd));
+    return gap.toMillis() >= 0 && gap <= PERIOD_GAP_TOLERANCE;
 }
 
 export async function getCurrentTaskPeriod(
     repo: ITaskRepository,
     now: Date = new Date()
 ): Promise<TaskPeriod | null> {
-    const latestEvent = await repo.getLatestTaskEvent();
-    if (!latestEvent) return null;
-
-    const event = normaliseFirestoreDates(latestEvent);
-    if (!(event.startTime instanceof Date) || !(event.endTime instanceof Date)) return null;
+    const event = await repo.getLatestTaskEvent();
+    if (!event) return null;
 
     if (now < event.startTime || now > event.endTime) return null;
 
@@ -112,8 +89,7 @@ export async function calculateTaskStreakSummary(
 ): Promise<TaskStreakSummary> {
     const currentPeriod = await getCurrentTaskPeriod(repo, now);
 
-    const submissionsRaw = await repo.getSubmissionsByUser(userId);
-    const submissions = submissionsRaw.map((submission) => normaliseFirestoreDates(submission));
+    const submissions = await repo.getSubmissionsByUser(userId);
 
     const approvedSubmissions = submissions.filter((submission) => APPROVED_STATUSES.has(submission.status));
     if (approvedSubmissions.length === 0) {
@@ -134,28 +110,24 @@ export async function calculateTaskStreakSummary(
     events.forEach((event, index) => {
         const eventId = eventIds[index];
         if (!event || !eventId) return;
-        eventMap.set(eventId, normaliseFirestoreDates(event));
+        eventMap.set(eventId, event);
     });
 
     const periodMap = new Map<number, TaskPeriod>();
 
     for (const submission of approvedSubmissions) {
         const event = eventMap.get(submission.taskEventId);
-        if (!event?.startTime || !event.endTime) continue;
+        if (!event) continue;
 
         const submittedAt = submission.submittedAt ?? submission.createdAt;
-        if (!(submittedAt instanceof Date)) continue;
-
         if (submittedAt.getTime() > event.endTime.getTime()) continue;
 
-        const endKey = event.endTime.getTime();
-        const existing = periodMap.get(endKey);
-        if (!existing) {
-            periodMap.set(endKey, { start: event.startTime, end: event.endTime });
-        } else {
-            if (event.startTime < existing.start) existing.start = event.startTime;
-            if (event.endTime > existing.end) existing.end = event.endTime;
-        }
+        const period = periodMap.getOrInsertComputed(event.endTime.getTime(), () => ({
+            start: event.startTime,
+            end: event.endTime,
+        }));
+        if (event.startTime < period.start) period.start = event.startTime;
+        if (event.endTime > period.end) period.end = event.endTime;
     }
 
     const periods = Array.from(periodMap.values()).sort(
@@ -177,14 +149,12 @@ export async function calculateTaskStreakSummary(
     let longest = 0;
     let run = 0;
 
-    for (let i = 0; i < periods.length; i += 1) {
-        const period = periods[i]!;
+    for (const [i, period] of periods.entries()) {
         const previous = i > 0 ? periods[i - 1] : null;
 
         if (previous) {
-            const gapStart = new Date(previous.end.getTime() + 1);
-            const gapEnd = new Date(period.start.getTime());
-            const hasGapEvents = await hasTaskEventsBetween(repo, gapStart, gapEnd);
+            const gapStart = DateTime.fromJSDate(previous.end).plus({ milliseconds: 1 }).toJSDate();
+            const hasGapEvents = await hasTaskEventsBetween(repo, gapStart, period.start);
             const shouldContinue = isConsecutive(previous.end, period.start) || !hasGapEvents;
             run = shouldContinue ? run + 1 : 1;
         } else {
@@ -218,9 +188,8 @@ export async function calculateTaskStreakSummary(
             currentStreak = currentRun;
             hasCompletedCurrentPeriod = true;
         } else {
-            const gapStart = new Date(lastCompleted.end.getTime() + 1);
-            const gapEnd = new Date(currentPeriod.start.getTime());
-            const hasGapEvents = await hasTaskEventsBetween(repo, gapStart, gapEnd);
+            const gapStart = DateTime.fromJSDate(lastCompleted.end).plus({ milliseconds: 1 }).toJSDate();
+            const hasGapEvents = await hasTaskEventsBetween(repo, gapStart, currentPeriod.start);
             if (isConsecutive(lastCompleted.end, currentPeriod.start) || !hasGapEvents) {
                 currentStreak = runLengthByEnd.get(lastCompleted.end.getTime()) ?? 0;
             } else {

@@ -1,35 +1,31 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import Fuse from 'fuse.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import { createMovieEmbed } from '../../movies/MovieEmbeds.js';
-import type { Movie } from '../../../models/Movie.js';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import Fuse from "fuse.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { createMovieEmbed } from "../../movies/MovieEmbeds.js";
+import type { Movie } from "../../../models/Movie.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const viewmovie: Command = {
-    name: 'viewmovie',
-    description: 'View details of a movie in the watchlist.',
+    name: "viewmovie",
+    description: "View details of a movie in the watchlist.",
     module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('viewmovie')
-        .setDescription('View a movie from the local movie list.')
+        .setName("viewmovie")
+        .setDescription("View a movie from the local movie list.")
         .addStringOption(option =>
-            option.setName('title')
-                .setDescription('Name of the movie.')
+            option.setName("title")
+                .setDescription("Name of the movie.")
                 .setRequired(true)
         ),
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-       const movieRepo = services.repos.movieRepo;
-        if (!movieRepo) {
-            await interaction.editReply("Movie repository not available.");
-            return;
-        }
+        const movieRepo = services.repos.movieRepo;
 
         const titleQuery = interaction.options.getString("title", true);
 
@@ -48,13 +44,13 @@ const viewmovie: Command = {
                 threshold: 0.4,
             });
 
-            const results = fuse.search(titleQuery);
-            if (results.length === 0) {
+            const [bestMatch] = fuse.search(titleQuery);
+            if (!bestMatch) {
                 await interaction.editReply(`No matching movie found for **${titleQuery}**.`);
                 return;
             }
 
-            const matchedMovie = results[0]!.item;
+            const matchedMovie = bestMatch.item;
 
             let description = matchedMovie.overview ?? "No description available.";
             description += `\n\n*Added by <@${matchedMovie.addedBy ?? "unknown"}>*`;

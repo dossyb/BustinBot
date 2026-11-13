@@ -36,5 +36,20 @@
             }
         ],
         "footer": "Developed by dossyb • BustinBot v2.1.0"
+    },
+    "2.2.0": {
+        "title": "@everyone\n# BustinBot v2.2 is here!",
+        "intro": "BustinBot v2.2 has arrived, bringing a new weekly task and new task commands!",
+        "sections": [
+            {
+                "name": "## ⭐ Moni's Choice",
+                "value": "- A fourth weekly task, Moni's Choice, is set by the Task Admins with `/monischoice`. It runs alongside the week's tasks, ends with them and uses the same keyword.\n- Moni's Choice fills a gap: each week your counted completions, points and prize entries still top out at 3 (4 with Leagues), so it counts when you've missed one of the regular tasks."
+            },
+            {
+                "name": "## 🛠️ Task Admin Commands",
+                "value": "- `/newtask` creates a task from a form: pick its category, verification type and skill, and the next task ID is filled in for you.\n- `/updatetask` now suggests tasks as you type part of their name or ID, edits the short name shown on poll buttons and in `/listtasks`, picks the verification type from a dropdown, and takes the Bronze, Silver and Gold amounts in one field."
+            }
+        ],
+        "footer": "Developed by dossyb • BustinBot v2.2.0"
     }
 }

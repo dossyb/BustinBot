@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Message, EmbedBuilder } from "discord.js";
+import { Duration } from "luxon";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import { replaceBustinEmote } from "../../../utils/EmoteHelper.js";
@@ -6,27 +7,19 @@ import { packageVersion } from "../../../utils/version.js";
 
 const START_TIME = Date.now();
 
-function formatUptime(ms: number): string {
-    const seconds = Math.floor(ms / 1000) % 60;
-    const days = Math.floor(ms / 1000 / 86400);
-    const hours = Math.floor((ms / 1000 % 86400) / 3600);
-    const minutes = Math.floor((ms / 1000 % 3600) / 60);
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-}
-
 const botinfo: Command = {
-    name: 'botinfo',
-    description: 'Display information about BustinBot, including version, uptime, and credits.',
+    name: "botinfo",
+    description: "Display information about BustinBot, including version, uptime, and credits.",
     module: CommandModule.Core,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('botinfo')
-        .setDescription('Display information about BustinBot, including version, uptime, and credits.'),
+        .setName("botinfo")
+        .setDescription("Display information about BustinBot, including version, uptime, and credits."),
 
     async execute({ interaction, message }: { interaction?: ChatInputCommandInteraction, message?: Message }) {
-        const uptime = formatUptime(Date.now() - START_TIME);
-        const ping = interaction?.client.ws.ping ?? 'N/A';
+        const uptime = Duration.fromMillis(Date.now() - START_TIME).toFormat("d'd' h'h' m'm' s's'");
+        const ping = interaction?.client.ws.ping ?? "N/A";
 
         const guild = interaction?.guild ?? null;
         const emoji = replaceBustinEmote("🤖", guild);
@@ -45,7 +38,7 @@ const botinfo: Command = {
                 {
                     name: "Attribution",
                     value:
-                        "🎥 **Movie Metadata:** [TMDb](https://www.themoviedb.org/) (The Movie Datbase)\n" +
+                        "🎥 **Movie Metadata:** [TMDb](https://www.themoviedb.org/) (The Movie Database)\n" +
                         "🖼️ **Icons**: [Freepik](https://www.freepik.com/)",
                 },
                 {

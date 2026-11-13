@@ -1,17 +1,17 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import { packageVersion } from '../../../utils/version.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { packageVersion } from "../../../utils/version.js";
 
 const support: Command = {
-    name: 'support',
-    description: 'Learn how to support BustinBot and its development!',
+    name: "support",
+    description: "Learn how to support BustinBot and its development!",
     module: CommandModule.Core,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('support')
-        .setDescription('Get links to support the bot, contribute, or donate.'),
+        .setName("support")
+        .setDescription("Get links to support the bot, contribute, or donate."),
 
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
@@ -39,7 +39,7 @@ const support: Command = {
             }
         };
 
-        await interaction.reply({ embeds: [embed], flags: 1 << 6});
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral});
     },
 };
 

@@ -1,6 +1,6 @@
 import type { Task } from "../../../models/Task.js";
 import type { TaskPoll } from "../../../models/TaskPoll.js";
-import type { TaskSubmission } from "../../../models/TaskSubmission.js";
+import type { TaskSubmission, TaskSubmissionDraft } from "../../../models/TaskSubmission.js";
 import type { TaskEvent } from "../../../models/TaskEvent.js";
 import type { TaskFeedback } from "../../../models/TaskFeedback.js";
 import type { TaskCategory } from "../../../models/Task.js";
@@ -9,15 +9,15 @@ export interface ITaskRepository {
     getAllTasks(): Promise<Task[]>;
     getTaskById(id: string): Promise<Task | null>;
     createTask(task: Task): Promise<void>;
+    addTask(task: Task): Promise<boolean>;
     getTasksByCategory(category: string): Promise<Task[]>;
-    getRandomTasks(limit?: number, category?: string): Promise<Task[]>;
-    incrementWeight(id: string, amount?: number): Promise<void>;
 
     // Task polls
     createTaskPoll(poll: TaskPoll): Promise<void>;
     getTaskPollById(pollId: string): Promise<TaskPoll | null>;
     getActiveTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null>;
     getLatestTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null>;
+    updateTaskPollOptions(pollId: string, options: TaskPoll["options"]): Promise<void>;
     closeTaskPoll(pollId: string): Promise<void>;
     clearTaskPolls(): Promise<void>;
 
@@ -26,24 +26,27 @@ export interface ITaskRepository {
     getLatestTaskEvent(): Promise<TaskEvent | null>;
     getTaskEventById(id: string): Promise<TaskEvent | null>;
     getTaskEventsBetween(start: Date, end: Date): Promise<TaskEvent[]>;
+    updateTaskEventTask(taskEventId: string, task: TaskEvent["task"], amounts: TaskEvent["amounts"]): Promise<void>;
     addCompletedUser(taskEventId: string, userId: string): Promise<void>;
-    removeCompletedUser(taskEventId: string, userId: string): Promise<void>;
 
     // Submissions
     createSubmission(submission: TaskSubmission): Promise<void>;
     getSubmissionById(submissionId: string): Promise<TaskSubmission | null>;
     getSubmissionsForTask(taskId: string): Promise<TaskSubmission[]>;
     getSubmissionsByUser(userId: string): Promise<TaskSubmission[]>;
-    getSubmissionByUserAndTask(userId: string, taskEventId: string): Promise<TaskSubmission | null>;
     updateSubmissionStatus(
         submissionId: string,
         status: "pending" | "approved" | "rejected" | "bronze" | "silver" | "gold",
         reviewedBy: string
-    ): Promise<void>;
+    ): Promise<boolean>;
+    saveSubmissionDraft(draft: TaskSubmissionDraft): Promise<void>;
+    getSubmissionDraft(userId: string): Promise<TaskSubmissionDraft | null>;
+    deleteSubmissionDraft(userId: string): Promise<void>;
+    submitDraft(submission: TaskSubmission): Promise<boolean>;
 
     // Feedback
-    addFeedback(feedback: TaskFeedback): Promise<void>;
-    getFeedbackForTask(taskId: string, eventId?: string): Promise<TaskFeedback[]>;
+    voteOnTaskOnce(feedback: Omit<TaskFeedback, "id">): Promise<TaskFeedback["vote"] | undefined>;
+    incrementWeight(id: string, amount?: number): Promise<void>;
 
     // Utilities
     deleteAllTasks(): Promise<void>;

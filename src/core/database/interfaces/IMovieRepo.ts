@@ -10,10 +10,12 @@ export interface IMovieRepository {
 
     createPoll(poll: MoviePoll): Promise<void>;
     getActivePoll(): Promise<MoviePoll | null>;
-    closePoll(pollId: string): Promise<void>;
+    closePoll(pollId: string): Promise<MoviePoll | null>;
     clearPolls(): Promise<void>;
 
     createMovieEvent(event: MovieEvent): Promise<void>;
+    completeEvent(eventId: string, completedAt: Date, movie?: Movie): Promise<boolean>;
+    claimReminders(eventId: string, labels: string[]): Promise<string[]>;
     getActiveEvent(): Promise<MovieEvent | null>;
     getLatestEvent(): Promise<MovieEvent | null>;
     getAllEvents(): Promise<MovieEvent[]>;

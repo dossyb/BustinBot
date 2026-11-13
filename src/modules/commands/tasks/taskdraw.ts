@@ -1,56 +1,51 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from '../../tasks/HandlePrizeDraw.js';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
-import { isMentionSuppressed, withSuppressedMentions } from '../../../utils/MentionUtils.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from "../../tasks/HandlePrizeDraw.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import { isMentionSuppressed, withSuppressedMentions } from "../../../utils/MentionUtils.js";
 
 const taskdraw: Command = {
-    name: 'taskdraw',
-    description: 'Manually trigger a task prize draw.',
+    name: "taskdraw",
+    description: "Manually trigger a task prize draw.",
     module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()
-        .setName('taskdraw')
-        .setDescription('Manually trigger a task prize draw.')
+        .setName("taskdraw")
+        .setDescription("Manually trigger a task prize draw.")
         .addStringOption(option =>
             option
-                .setName('action')
-                .setDescription('Which step of the prize draw to run')
+                .setName("action")
+                .setDescription("Which step of the prize draw to run")
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Generate Snapshot', value: 'snapshot' },
-                    { name: 'Roll Winner', value: 'roll' },
-                    { name: 'Announce Winner', value: 'announce' }
+                    { name: "Generate Snapshot", value: "snapshot" },
+                    { name: "Roll Winner", value: "roll" },
+                    { name: "Announce Winner", value: "announce" }
                 )
         )
         .addStringOption(option =>
             option
-                .setName('snapshot_id')
-                .setDescription('The snapshot ID to use (required for roll/announce)')
+                .setName("snapshot_id")
+                .setDescription("The snapshot ID to use (required for roll/announce)")
                 .setRequired(false)
         ),
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
 
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         const prizeRepo = services.repos.prizeRepo;
         const taskRepo = services.repos.taskRepo;
 
-        if (!prizeRepo || !taskRepo) {
-            await interaction.reply({ content: 'Required repositories are unavailable.', flags: 1 << 6 });
-            return;
-        }
-
-        const action = interaction.options.getString('action', true);
-        const snapshotId = interaction.options.getString('snapshot_id') ?? '';
+        const action = interaction.options.getString("action", true);
+        const snapshotId = interaction.options.getString("snapshot_id") ?? "";
         const suppressMentions = await isMentionSuppressed(services.guilds, interaction.guildId);
 
-        await interaction.deferReply({ flags: 1 << 6 });
-
         try {
-            if (action === 'snapshot') {
+            if (action === "snapshot") {
                 const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
                 await interaction.editReply({
                     content: `Snapshot created for period **${snapshot.id}** with **${snapshot.totalEntries}** entries.`
@@ -58,9 +53,9 @@ const taskdraw: Command = {
                 return;
             }
 
-            if (action === 'roll') {
+            if (action === "roll") {
                 if (!snapshotId) {
-                    await interaction.editReply('You must provide a snapshot ID to roll a winner.');
+                    await interaction.editReply("You must provide a snapshot ID to roll a winner.");
                     return;
                 }
                 const winner = await rollWinnerForSnapshot(prizeRepo, snapshotId, services);
@@ -72,9 +67,9 @@ const taskdraw: Command = {
                 return;
             }
 
-            if (action === 'announce') {
+            if (action === "announce") {
                 if (!snapshotId) {
-                    await interaction.editReply('You must provide a snapshot ID to announce a winner.');
+                    await interaction.editReply("You must provide a snapshot ID to announce a winner.");
                     return;
                 }
                 const announced = await announcePrizeDrawWinner(interaction.client, services, prizeRepo, snapshotId);
@@ -86,7 +81,7 @@ const taskdraw: Command = {
                 return;
             }
         } catch (err) {
-            console.error('[TaskDraw Command Error]', err);
+            console.error("[TaskDraw Command Error]", err);
             await interaction.editReply(`An error occurred while running /taskdraw: ${String(err)}`);
         }
     }

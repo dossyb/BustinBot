@@ -27,7 +27,7 @@ BustinBot is designed for **scalable community management** with a focus on **au
 BustinBot supports **development** and **production** modes, with instant guild command registration for dev and global propagation for production.
 
 ### Prequisites
-- **Node.js** v20+
+- **Node.js** v24+
 - **npm** or **pnpm**
 - **Firestore** database configured with appropriate service account credentials
 - **Discord bot token** and application client ID
@@ -70,7 +70,7 @@ This launches the bot with **guild-level command registration** for instant test
 
 2. **Choose your hosting platform**
 
-   BustinBot runs on any Node.js 20+ environment with Git access.  
+   BustinBot runs on any Node.js 26+ environment with Git access.  
    Common options include **Cybrancee**, **Pterodactyl**, **Railway**, and **Render**.
 
 3. **Set your startup command**

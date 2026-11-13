@@ -1,57 +1,14 @@
-import { GuildMember } from 'discord.js';
-import type { APIInteractionGuildMember, Interaction } from 'discord.js';
-import type { Command } from '../../models/Command.js';
-import { CommandModule, CommandRole } from '../../models/Command.js';
-import type { ServiceContainer } from '../services/ServiceContainer.js';
-import { setupService } from '../services/SetupService.js';
-import { createTimezoneModal, timezoneService } from '../services/TimezoneService.js';
+import { MessageFlags, type ChatInputCommandInteraction, type Interaction } from "discord.js";
+import type { Command } from "../../models/Command.js";
+import { CommandModule, CommandRole } from "../../models/Command.js";
+import type { ServiceContainer } from "../services/ServiceContainer.js";
+import type { GuildSetupComplete } from "../../models/Guild.js";
+import { createTimezoneModal, timezoneService } from "../services/TimezoneService.js";
+import { memberRoleIds } from "../../utils/MemberUtils.js";
 
-const EPHEMERAL_FLAGS = 1 << 6;
-const slashAckPatched = Symbol('slashAckPatched');
-
-function stripReplyOnlyOptions(options: unknown) {
-    if (!options || typeof options !== 'object' || Array.isArray(options)) return options;
-    const { flags, ephemeral, ...rest } = options as Record<string, unknown>;
-    return rest;
-}
-
-async function respondToInteraction(interaction: any, options: any) {
-    if (interaction.deferred && !interaction.replied) {
-        return interaction.editReply(stripReplyOnlyOptions(options));
-    }
-
-    if (interaction.deferred || interaction.replied) {
-        return interaction.followUp(options);
-    }
-
-    return interaction.reply(options);
-}
-
-function patchSlashCommandAcknowledgement(interaction: any) {
-    if (interaction[slashAckPatched]) return;
-
-    const originalDeferReply = interaction.deferReply.bind(interaction);
-    const originalReply = interaction.reply.bind(interaction);
-    const originalEditReply = interaction.editReply.bind(interaction);
-
-    interaction.deferReply = async (options?: unknown) => {
-        if (interaction.deferred || interaction.replied) return undefined;
-        return originalDeferReply(options);
-    };
-
-    interaction.reply = async (options: unknown) => {
-        if (interaction.deferred && !interaction.replied) {
-            return originalEditReply(stripReplyOnlyOptions(options));
-        }
-
-        if (interaction.deferred || interaction.replied) {
-            return interaction.followUp(options);
-        }
-
-        return originalReply(options);
-    };
-
-    interaction[slashAckPatched] = true;
+async function memberRoleNames(interaction: ChatInputCommandInteraction<"raw" | "cached">, roleIds: string[]): Promise<string[]> {
+    const guild = await interaction.client.guilds.fetch(interaction.guildId);
+    return roleIds.flatMap((roleId) => guild.roles.cache.get(roleId)?.name ?? []);
 }
 
 export async function handleInteraction(
@@ -59,52 +16,42 @@ export async function handleInteraction(
     commands: Map<string, Command>,
     services: ServiceContainer
 ) {
+    if (interaction.isAutocomplete()) {
+        if (!interaction.inGuild()) {
+            await interaction.respond([]);
+            return;
+        }
+        await commands.get(interaction.commandName)?.autocomplete?.({ interaction, services });
+        return;
+    }
+
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
         if (!command) {
-            await interaction.reply({ content: 'Command not found.', flags: EPHEMERAL_FLAGS });
+            await interaction.reply({ content: "Command not found.", flags: MessageFlags.Ephemeral });
             return;
         }
 
-        patchSlashCommandAcknowledgement(interaction);
-        await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
-
-        const isSetupCommand = command.name === 'setup';
-        const rawMember = interaction.member;
-
-        if (!rawMember) {
-            await respondToInteraction(interaction, {
-                content: 'Unable to determine your server membership. Please try again from within the guild.',
-                flags: EPHEMERAL_FLAGS,
+        const isSetupCommand = command.name === "setup";
+        if (!interaction.inGuild()) {
+            await interaction.reply({
+                content: "Unable to determine your server membership. Please try again from within the guild.",
+                flags: MessageFlags.Ephemeral,
             });
             return;
         }
 
-        const guildMember = rawMember instanceof GuildMember ? rawMember : null;
-        const apiMember = rawMember as APIInteractionGuildMember;
-
-        const userRoleIds = guildMember
-            ? guildMember.roles.cache.map((role) => role.id)
-            : Array.isArray(apiMember.roles)
-            ? apiMember.roles
-            : [];
-
-        const userRoleNames = guildMember
-            ? guildMember.roles.cache.map((role) => role.name)
-            : [];
+        const userRoleIds = memberRoleIds(interaction.member);
 
         if (isSetupCommand) {
             const adminRoleName = "BustinBot Admin";
 
-            const hasAdminRole =
-                guildMember?.roles.cache.some(
-                    (role) => role.name === adminRoleName || role.id === adminRoleName,
-                ) ?? false;
+            const hasAdminRole = (await memberRoleNames(interaction, userRoleIds)).includes(adminRoleName);
 
             if (!hasAdminRole) {
-                await respondToInteraction(interaction, {
+                await interaction.reply({
                     content: `Only members with the **${adminRoleName}** role can run \`/setup\`. Please have a server admin create and assign this role first.`,
-                    flags: EPHEMERAL_FLAGS,
+                    flags: MessageFlags.Ephemeral,
                 });
                 return;
             }
@@ -122,7 +69,8 @@ export async function handleInteraction(
             const guildConfig = await services.guilds.requireConfig(interaction);
             if (!guildConfig) return;
 
-            const guildRoles = guildConfig!.roles ?? {};
+            const guildRoles = guildConfig.roles ?? {};
+            const userRoleNames = await memberRoleNames(interaction, userRoleIds);
 
             const hasRole = (configured?: string, fallbackEnv?: string) => {
                 const value = configured ?? fallbackEnv;
@@ -147,55 +95,58 @@ export async function handleInteraction(
             });
 
             if (!roleMatch) {
-                await respondToInteraction(interaction, { content: "You don't have permission to use this command.", flags: EPHEMERAL_FLAGS });
+                await interaction.reply({ content: "You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
                 return;
             }
         }
 
         // Module setup validation
-        const guildId = interaction.guildId!;
+        const guildId = interaction.guildId;
         const guildConfig = await services.guilds.get(guildId);
-        const setupMap = guildConfig?.setupComplete ?? {} as any;
+        const setupMap: GuildSetupComplete = guildConfig?.setupComplete ?? {};
 
         const requiredModule = command.module;
         const moduleReady = setupMap[requiredModule];
 
         if (!setupMap.core && !isSetupCommand) {
-            await respondToInteraction(interaction, { content: 'The bot has not been set up yet. Please run `/setup` first to configure the core channels.', flags: EPHEMERAL_FLAGS });
+            await interaction.reply({ content: "The bot has not been set up yet. Please run `/setup` first to configure the core channels.", flags: MessageFlags.Ephemeral });
             return;
         }
 
         if (!moduleReady && !isSetupCommand) {
-            let setupCommandHint = '';
+            let setupCommandHint = "";
 
             switch (requiredModule) {
                 case CommandModule.Movie:
-                    setupCommandHint = '`/moviesetup`';
+                    setupCommandHint = "`/moviesetup`";
                     break;
                 case CommandModule.Task:
-                    setupCommandHint = '`/tasksetup`';
+                    setupCommandHint = "`/tasksetup`";
                     break;
             }
 
-            await respondToInteraction(interaction, { content: `This command can't be used yet! An admin needs to run \`${setupCommandHint}\` to configure its required channels and roles first.`, flags: EPHEMERAL_FLAGS });
+            await interaction.reply({ content: `This command can't be used yet! An admin needs to run \`${setupCommandHint}\` to configure its required channels and roles first.`, flags: MessageFlags.Ephemeral });
             return;
         }
 
         try {
-            const userRepo = services.repos.userRepo;
-            if (userRepo) {
-                try {
-                    await userRepo.incrementStat(interaction.user.id, "commandsRun", 1);
-                } catch (err) {
-                    console.warn(`[Stats] Failed to increment commandsRun for ${interaction.user.username}:`, err);
-                }
-            } else {
-                console.warn("[Stats] UserRepo unavailable; skipping commandsRun increment.");
-            }
+            await services.repos.userRepo.incrementStat(interaction.user.id, "commandsRun", 1);
+        } catch (err) {
+            console.warn(`[Stats] Failed to increment commandsRun for ${interaction.user.username}:`, err);
+        }
+
+        try {
             await command.execute({ interaction, services });
         } catch (error) {
             console.error(`[Slash Command Error]: ${command.name}`, error);
-            await respondToInteraction(interaction, { content: 'There was an error executing that command.', flags: EPHEMERAL_FLAGS });
+            const content = "There was an error executing that command.";
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({ content });
+            } else if (interaction.replied) {
+                await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+            } else {
+                await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+            }
         }
         return;
     }
@@ -204,28 +155,28 @@ export async function handleInteraction(
         const { customId } = interaction;
         const userId = interaction.user.id;
 
-        if (customId === 'setup_confirm') {
-            const selections = setupService.getSelections('core', userId);
-            const missing = setupService.getMissingFields('core', selections);
-            if (missing.length) {
-                await interaction.reply({ content: `Please select: ${missing.join(', ')}`, flags: 1 << 6 });
+        if (customId === "setup_confirm") {
+            const selections = services.setup.getSelections("core", userId);
+            const missing = services.setup.getMissingFields("core", selections);
+            if (!selections || missing.length) {
+                await interaction.reply({ content: `Please select: ${missing.join(", ")}`, flags: MessageFlags.Ephemeral });
                 return;
             }
 
-            await setupService.persist('core', services.guilds, interaction.guildId!, selections!);
-            setupService.clearSelections('core', userId);
+            await services.setup.persist("core", services.guilds, services.guildId, selections);
+            services.setup.clearSelections("core", userId);
 
-            await interaction.update({ content: 'Setup complete! Your general bot channels have been updated. To set up channels and roles for the movie and task modules, use `/moviesetup` and `/tasksetup` respectively.', components: [] });
+            await interaction.update({ content: "Setup complete! Your general bot channels have been updated. To set up channels and roles for the movie and task modules, use `/moviesetup` and `/tasksetup` respectively.", components: [] });
             return;
         }
 
-        if (customId === 'setup_cancel') {
-            setupService.clearSelections('core', userId);
-            await interaction.update({ content: 'Setup cancelled. No changes were made.', components: [] });
+        if (customId === "setup_cancel") {
+            services.setup.clearSelections("core", userId);
+            await interaction.update({ content: "Setup cancelled. No changes were made.", components: [] });
             return;
         }
 
-        if (customId === 'setup_timezone') {
+        if (customId === "setup_timezone") {
             const modal = createTimezoneModal();
             await interaction.showModal(modal);
             return;
@@ -236,19 +187,19 @@ export async function handleInteraction(
         const userId = interaction.user.id;
         const channelId = interaction.values[0];
         if (!channelId) {
-            await interaction.reply({ content: 'No channel selected.', flags: 1 << 6 });
+            await interaction.reply({ content: "No channel selected.", flags: MessageFlags.Ephemeral });
             return;
         }
 
         switch (interaction.customId) {
-            case 'setup_announce':
-                setupService.setSelection('core', userId, 'announcements', channelId);
+            case "setup_announce":
+                services.setup.setSelection("core", userId, "announcements", channelId);
                 break;
-            case 'setup_log':
-                setupService.setSelection('core', userId, 'botLog', channelId);
+            case "setup_log":
+                services.setup.setSelection("core", userId, "botLog", channelId);
                 break;
-            case 'setup_archive':
-                setupService.setSelection('core', userId, 'botArchive', channelId);
+            case "setup_archive":
+                services.setup.setSelection("core", userId, "botArchive", channelId);
                 break;
             default:
                 return;
@@ -257,7 +208,7 @@ export async function handleInteraction(
         await interaction.deferUpdate();
     }
 
-    if (interaction.isModalSubmit() && interaction.customId === 'setup_timezone_modal') {
+    if (interaction.isModalSubmit() && interaction.customId === "setup_timezone_modal") {
         const input = interaction.fields.getTextInputValue("timezone_input").trim();
 
         const matchedZone = timezoneService.fuzzyMatch(input);
@@ -265,16 +216,16 @@ export async function handleInteraction(
         if (!matchedZone) {
             await interaction.reply({
                 content:
-                    "Could not recognise that timezone. Please try again using an IANA name (e.g., `Australia/Melbourne`, `America/New_York`).", flags: 1 << 6,
+                    "Could not recognise that timezone. Please try again using an IANA name (e.g., `Australia/Melbourne`, `America/New_York`).", flags: MessageFlags.Ephemeral,
             });
             return;
         }
 
-        const guildId = interaction.guildId!;
+        const guildId = services.guildId;
         await services.guilds.update(guildId, { timezone: matchedZone });
 
         const currentTime = timezoneService.getCurrentTimeInZone(matchedZone);
-        await interaction.reply({ content: `Timezone set to **${matchedZone}**.\nCurrent local time: **${currentTime}**`, flags: 1 << 6 });
+        await interaction.reply({ content: `Timezone set to **${matchedZone}**.\nCurrent local time: **${currentTime}**`, flags: MessageFlags.Ephemeral });
 
         console.log(`[Setup] Timezone updated for ${guildId}: ${matchedZone}`);
     }

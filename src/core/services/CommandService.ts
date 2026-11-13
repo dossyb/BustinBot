@@ -1,11 +1,9 @@
-import path from 'path';
-import { readdirSync, statSync } from 'fs';
-import { pathToFileURL } from 'url';
-import type { Command } from '../../models/Command.js';
+import path from "path";
+import { readdirSync, statSync } from "fs";
+import { pathToFileURL } from "url";
+import type { Command } from "../../models/Command.js";
 
-const commandMap = new Map<string, Command>();
-
-async function loadCommandFiles(dir: string): Promise<void> {
+async function loadCommandFiles(dir: string, commandMap: Map<string, Command>): Promise<void> {
     const entries = readdirSync(dir);
 
     for (const entry of entries) {
@@ -13,24 +11,12 @@ async function loadCommandFiles(dir: string): Promise<void> {
         const stats = statSync(fullPath);
 
         if (stats.isDirectory()) {
-            // skip test directories and internal folders
-            if (entry === "__tests__" || entry.startsWith("__")) continue;
-            await loadCommandFiles(fullPath);
+            await loadCommandFiles(fullPath, commandMap);
             continue;
         }
 
         const ext = path.extname(entry);
-        const isJsCommand =
-            ext === ".js" &&
-            !entry.endsWith(".d.ts") &&
-            !entry.endsWith(".test.js") &&
-            !entry.endsWith(".js.map");
-        const isTsCommand =
-            ext === ".ts" &&
-            !entry.endsWith(".d.ts") &&
-            !entry.endsWith(".test.ts");
-
-        if (!isJsCommand && !isTsCommand) continue;
+        if ((ext !== ".js" && ext !== ".ts") || entry.endsWith(".d.ts")) continue;
 
         try {
             const commandUrl = pathToFileURL(fullPath).href;
@@ -57,7 +43,7 @@ async function loadCommandFiles(dir: string): Promise<void> {
 }
 
 export async function loadCommands(commandsDir: string): Promise<Map<string, Command>> {
-    commandMap.clear();
-    await loadCommandFiles(commandsDir);
+    const commandMap = new Map<string, Command>();
+    await loadCommandFiles(commandsDir, commandMap);
     return commandMap;
 }

@@ -1,5 +1,5 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import Fuse from 'fuse.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import Fuse from "fuse.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import { createMovieEmbed } from "../../movies/MovieEmbeds.js";
@@ -8,33 +8,29 @@ import type { ServiceContainer } from "../../../core/services/ServiceContainer.j
 import { removeMovieWithStats } from "../../movies/MovieService.js";
 
 const removemovie: Command = {
-    name: 'removemovie',
-    description: 'Remove a movie you have added from the list (removie).',
+    name: "removemovie",
+    description: "Remove a movie you have added from the list (removie).",
     module: CommandModule.Movie,
     allowedRoles: [CommandRole.Everyone, CommandRole.MovieAdmin],
 
     slashData: new SlashCommandBuilder()
-        .setName('removemovie')
-        .setDescription('Remove a movie you have added from the list (removie).')
+        .setName("removemovie")
+        .setDescription("Remove a movie you have added from the list (removie).")
         .addStringOption(option =>
-            option.setName('title')
-                .setDescription('The movie title to remove.')
+            option.setName("title")
+                .setDescription("The movie title to remove.")
                 .setRequired(true)
         ),
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const movieRepo = services.repos.movieRepo;
-        if (!movieRepo) {
-            await interaction.editReply("Movie repository not available.");
-            return;
-        }
 
-        const query = interaction.options.getString('title', true);
+        const query = interaction.options.getString("title", true);
         const userId = interaction.user.id;
-        const isAdmin = interaction.memberPermissions?.has('Administrator') || false;
+        const isAdmin = interaction.memberPermissions?.has("Administrator") || false;
 
        try {
             // Fetch all movies
@@ -51,13 +47,13 @@ const removemovie: Command = {
                 threshold: 0.4,
             });
 
-            const results = fuse.search(query);
-            if (results.length === 0) {
+            const [bestMatch] = fuse.search(query);
+            if (!bestMatch) {
                 await interaction.editReply(`No matching movie found for \`${query}\`.`);
                 return;
             }
 
-            const matched = results[0]!.item;
+            const matched = bestMatch.item;
 
             // Permission check
             if (matched.addedBy !== userId && !isAdmin) {

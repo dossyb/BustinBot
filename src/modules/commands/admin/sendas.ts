@@ -1,80 +1,61 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, Message } from 'discord.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
-import { isMentionSuppressed, withSuppressedMentions } from '../../../utils/MentionUtils.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, Message, MessageFlags } from "discord.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
+import { isMentionSuppressed, withSuppressedMentions } from "../../../utils/MentionUtils.js";
 
 const sendas: Command = {
-    name: 'sendas',
-    description: 'Send a message as BustinBot in a chosen channel',
+    name: "sendas",
+    description: "Send a message as BustinBot in a chosen channel",
     module: CommandModule.Core,
     allowedRoles: [CommandRole.BotAdmin],
-    usage: '/sendas <channel> <message>',
+    usage: "/sendas <channel> <message>",
     examples: [
-        '/sendas #general Hello, this is BustinBot!'
+        "/sendas #general Hello, this is BustinBot!"
     ],
 
     slashData: new SlashCommandBuilder()
-        .setName('sendas')
-        .setDescription('Send a message as BustinBot in a chosen channel')
+        .setName("sendas")
+        .setDescription("Send a message as BustinBot in a chosen channel")
         .addChannelOption(option =>
-            option.setName('channel')
-                .setDescription('Select the channel to send the message in')
+            option.setName("channel")
+                .setDescription("Select the channel to send the message in")
                 .setRequired(true)
         )
         .addStringOption(option =>
-            option.setName('message')
-                .setDescription('The message to send as BustinBot')
+            option.setName("message")
+                .setDescription("The message to send as BustinBot")
                 .setRequired(true)
-        ) as SlashCommandBuilder,
+        ),
 
-    async execute({ interaction, message, services }: { interaction?: ChatInputCommandInteraction, message?: Message, services?: ServiceContainer }) {
+    async execute({ interaction, message, services }: { interaction?: ChatInputCommandInteraction, message?: Message, services: ServiceContainer }) {
         if (message) {
-            await message.reply('The `!sendas` command has been replaced with a slash command. Please use `/sendas` instead.');
+            await message.reply("The `!sendas` command has been replaced with a slash command. Please use `/sendas` instead.");
             return;
         }
 
-        if (!interaction || !interaction.guild || !interaction.member || !services) {
-            await interaction?.reply?.({ content: 'Unable to verify your permissions.', flags: 1 << 6 });
+        if (!interaction) return;
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const channel = interaction.options.getChannel("channel", true);
+        const messageText = interaction.options.getString("message", true);
+
+        if (!("send" in channel)) {
+            await interaction.editReply({ content: "Please select a valid text channel." });
             return;
         }
 
-        const guildConfig = await services.guilds.requireConfig(interaction);
-        if (!guildConfig) return;
-
-        const member = await interaction.guild.members.fetch(interaction.user.id);
-        const adminRoleConfig = guildConfig.roles?.admin ?? process.env.ADMIN_ROLE_NAME;
-        const hasAdminRole =
-            !!adminRoleConfig &&
-            member.roles.cache.some((role) =>
-                /^\d+$/.test(adminRoleConfig)
-                    ? role.id === adminRoleConfig
-                    : role.name === adminRoleConfig
-            );
-        
-        if (!hasAdminRole) {
-            await interaction.reply({ content: 'You need the BustinBot Admin role to use this command.', flags: 1 << 6 });
-            return;
-        }
-
-        const channel = interaction.options.getChannel('channel');
-        const messageText = interaction.options.getString('message');
-
-        if (!channel || !('send' in channel)) {
-            await interaction.reply({ content: 'Please select a valid text channel.', flags: 1 << 6 });
-            return;
-        }
-
+        const suppressMentions = await isMentionSuppressed(services.guilds, interaction.guildId);
         try {
-            const suppressMentions = await isMentionSuppressed(services.guilds, interaction.guildId);
-            await (channel as TextChannel).send(withSuppressedMentions({
-                content: messageText || ''
-            }, suppressMentions));
-            await interaction.reply({ content: `Message sent in ${channel}.`, flags: 1 << 6 });
+            await channel.send(withSuppressedMentions({ content: messageText }, suppressMentions));
         } catch (error) {
-            console.error('Error sending message:', error);
-            await interaction.reply({ content: 'Failed to send message.', flags: 1 << 6 });
+            console.error("Error sending message:", error);
+            await interaction.editReply({ content: "Failed to send message." });
+            return;
         }
+
+        await interaction.editReply({ content: `Message sent in ${channel}.` });
     }
 }
 

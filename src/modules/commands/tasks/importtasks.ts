@@ -1,11 +1,8 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import type { Command } from "../../../models/Command.js";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
-import fs from 'fs';
-import path from 'path';
-import fetch from 'node-fetch';
-import { importTasksFromCsv } from "../../../scripts/importTasksFromCSV.js";
+import { importTasks, parseTasksCsv } from "../../tasks/TaskImport.js";
 
 const importtasks: Command = {
     name: "importtasks",
@@ -20,9 +17,9 @@ const importtasks: Command = {
             option.setName("file").setDescription("CSV file to import").setRequired(true)
         ),
 
-    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services?: ServiceContainer }) {
+    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction, services: ServiceContainer }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const attachment = interaction.options.getAttachment("file");
         if (!attachment || !attachment.name.toLowerCase().endsWith(".csv")) {
@@ -30,14 +27,13 @@ const importtasks: Command = {
             return;
         }
 
-        const res = await fetch(attachment.url);
-        const buffer = Buffer.from(await res.arrayBuffer());
-        const tempPath = path.join("/tmp", `tasks-${Date.now()}.csv`);
-        fs.writeFileSync(tempPath, buffer);
-
         try {
-            const guildId = interaction.guildId!;
-            const result = await importTasksFromCsv(guildId, tempPath);
+            const res = await fetch(attachment.url);
+            if (!res.ok) {
+                throw new Error(`Failed to download ${attachment.name}: HTTP ${res.status}`);
+            }
+
+            const result = await importTasks(services.tasks, parseTasksCsv(await res.text()));
 
             await interaction.editReply({
                 content: `✅ Import complete.\n• ${result.newCount} new tasks added\n• ${result.skipped} skipped (existing)\n• ${result.total} total in file.`,
@@ -45,8 +41,6 @@ const importtasks: Command = {
         } catch (err) {
             console.error(err);
             await interaction.editReply({ content: "Import failed. Check logs for details." });
-        } finally {
-            fs.unlinkSync(tempPath);
         }
     }
 };

@@ -1,0 +1,9 @@
+{
+  // The tests, type-checked with the bot's settings; nothing is emitted
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "../src", "../vitest.config.ts"]
+}

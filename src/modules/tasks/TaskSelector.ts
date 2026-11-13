@@ -1,5 +1,8 @@
+import { random, randomInt, shuffle } from "es-toolkit";
 import type { Task } from "../../models/Task.js";
 import { TaskCategory } from "../../models/Task.js";
+
+export const DEFAULT_TASK_WEIGHT = 50;
 
 export function pickWeightedRandom(tasks: Task[], count: number): Task[] {
     if (!tasks.length) return [];
@@ -8,31 +11,31 @@ export function pickWeightedRandom(tasks: Task[], count: number): Task[] {
     const pool = [...tasks];
 
     for (let i = 0; i < count && pool.length > 0; i++) {
-        const totalWeight = pool.reduce((sum, t) => sum + (t.weight ?? 50), 0);
-        let roll = Math.random() * totalWeight;
-        let chosenIndex = 0;
+        const weights = pool.map((task) => Math.max(task.weight ?? DEFAULT_TASK_WEIGHT, 0));
+        const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
 
-        for (let j = 0; j < pool.length; j++) {
-            const task = pool[j];
-            if (!task) continue;
-
-            roll -= task.weight ?? 50;
-            if (roll <= 0) {
-                chosenIndex = j;
-                break;
+        let chosenIndex: number;
+        if (totalWeight <= 0) {
+            chosenIndex = randomInt(pool.length);
+        } else {
+            const roll = random(totalWeight);
+            let runningTotal = 0;
+            chosenIndex = pool.length - 1;
+            for (const [j, weight] of weights.entries()) {
+                runningTotal += weight;
+                if (roll < runningTotal) {
+                    chosenIndex = j;
+                    break;
+                }
             }
         }
 
-        const chosen = pool[chosenIndex];
-        if (chosen) {
-            selected.push(chosen);
-            pool.splice(chosenIndex, 1);
-        }
+        selected.push(...pool.splice(chosenIndex, 1));
     }
 
     console.log(
         `[TaskSelector] Selected tasks: ${selected
-            .map(t => `${t.taskName} (weight: ${t.weight ?? 50})`)
+            .map(t => `${t.taskName} (weight: ${t.weight ?? DEFAULT_TASK_WEIGHT})`)
             .join(", ")}`
     );
 
@@ -57,9 +60,7 @@ export function selectTasksForCategory(category: TaskCategory, allTasks: Task[])
         }
 
         // Randomly choose up to 3 unique skills
-        const allSkills = Object.keys(skillGroups);
-        const shuffledSkills = allSkills.sort(() => Math.random() - 0.5);
-        const chosenSkills = shuffledSkills.slice(0, Math.min(3, shuffledSkills.length));
+        const chosenSkills = shuffle(Object.keys(skillGroups)).slice(0, 3);
 
         const selected: Task[] = [];
         for (const skill of chosenSkills) {

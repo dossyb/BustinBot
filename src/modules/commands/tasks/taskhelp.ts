@@ -1,31 +1,31 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
-import { packageVersion } from '../../../utils/version.js';
+import { packageVersion } from "../../../utils/version.js";
 
 const taskhelp: Command = {
-    name: 'taskhelp',
-    description: 'Learn how the OSRS community tasks work and how to participate.',
+    name: "taskhelp",
+    description: "Learn how the OSRS community tasks work and how to participate.",
     module: CommandModule.Task,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('taskhelp')
-        .setDescription('Learn how the OSRS community tasks work and how to participate.'),
+        .setName("taskhelp")
+        .setDescription("Learn how the OSRS community tasks work and how to participate."),
 
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
 
         const embed = {
             color: 0x5865f2,
-            title: '🗺️ OSRS Community Task Guide',
+            title: "🗺️ OSRS Community Task Guide",
             description:
                 "BustinBot's **OSRS task system** lets the community compete in fun challenges for prizes and bragging rights! Here's everything you need to know:",
             fields: [
                 {
                     name: "🗳️ Task Polls",
                     value:
-                        "Every **Sunday at 00:00 UTC**, a poll is posted for each task category (PvM, Skiling, and Minigame/Misc). Each poll runs for **24 hours** and you can vote for only one task per poll using the buttons underneath, though you can change your vote at any time.\nThe winners of each poll become the tasks for the following event."
+                        "Every **Sunday at 00:00 UTC**, a poll is posted for each task category (PvM, Skilling, and Minigame/Misc). Each poll runs for **24 hours** and you can vote for only one task per poll using the buttons underneath, though you can change your vote at any time.\nThe winners of each poll become the tasks for the following event."
                 },
                 {
                     name: "📊 Task Events",
@@ -56,7 +56,7 @@ const taskhelp: Command = {
             }
         };
 
-        await interaction.reply({ embeds: [embed], flags: 1 << 6 });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 

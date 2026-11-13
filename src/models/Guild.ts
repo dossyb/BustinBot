@@ -61,5 +61,5 @@ export interface Guild {
   // In IANA format (e.g. 'Australia/Melbourne')
   timezone?: string;
   updatedBy?: string;
-  updatedAt?: FirebaseFirestore.Timestamp;
+  updatedAt?: Date;
 }

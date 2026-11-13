@@ -32,14 +32,11 @@ export function withSuppressedMentions<T extends object>(
 ): T & { allowedMentions?: MessageMentionOptions } {
     if (!suppressMentions) return payload;
 
-    const maybeContent = payload as { content?: unknown };
-    const content = typeof maybeContent.content === "string"
-        ? stripMentionTokens(maybeContent.content)
-        : maybeContent.content;
-
     return {
         ...payload,
-        ...(typeof maybeContent.content === "string" ? { content } : {}),
+        ...("content" in payload && typeof payload.content === "string"
+            ? { content: stripMentionTokens(payload.content) }
+            : {}),
         allowedMentions: {
             parse: [],
             users: [],

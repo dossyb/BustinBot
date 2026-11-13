@@ -1,19 +1,19 @@
 import {
     SlashCommandBuilder,
-    ChatInputCommandInteraction,
     MessageFlags,
     ComponentType,
     type APIMessageTopLevelComponent,
     type APISectionComponent,
     type APITextDisplayComponent,
+    type MessageCreateOptions,
 } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import fs from "fs";
 import path from "path";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 import { packageVersion } from "../../../utils/version.js";
 import { isMentionSuppressed, withSuppressedMentions } from "../../../utils/MentionUtils.js";
+import { configuredChannel } from "../../../utils/ChannelUtils.js";
 
 interface Announcement {
     title: string;
@@ -68,11 +68,11 @@ const announce: Command = {
         .setName("announce")
         .setDescription("Post the latest BustinBot version announcement."),
 
-    async execute({ interaction, services, }: { interaction?: ChatInputCommandInteraction, services?: ServiceContainer; }) {
+    async execute({ interaction, services }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-        const announcementsPath = path.resolve(process.cwd(), "data/announcements.json");
+        const announcementsPath = path.join(import.meta.dirname, "../../../../data/announcements.json");
         if (!fs.existsSync(announcementsPath)) {
             await interaction.editReply({
                 content: "announcements.json not found.",
@@ -92,21 +92,16 @@ const announce: Command = {
         }
 
         // Get announcement channel
-        const guildConfig = await services?.guilds.requireConfig(interaction);
-        const channelId = guildConfig?.channels?.announcements;
-        if (!channelId) {
+        const channel = await configuredChannel(interaction.client, services, "announcements");
+        if (!channel) {
+            const channelId = (await services.guilds.get(services.guildId))?.channels?.announcements;
             await interaction.editReply({
-                content: "Announcement channel not configured. Please run `/setup` first.",
+                content: channelId
+                    ? `I can't reach the announcement channel <#${channelId}>. Check it still exists and that I can see it, or pick another with \`/setup\`.`
+                    : "Announcement channel not configured. Please run `/setup` first.",
             });
             return;
         }
-
-        const fetchedChannel = await interaction.guild?.channels.fetch(channelId).catch(() => null);
-        if (!fetchedChannel || !fetchedChannel.isTextBased()) {
-            await interaction.editReply({ content: "Announcement channel not configured. Please run `/setup` first."});
-            return;
-        }
-        const channel = fetchedChannel;
 
         // Build sections
         const botUser = interaction.client.user;
@@ -125,18 +120,16 @@ const announce: Command = {
             ...featureSections,
         ];
 
-        const suppressMentions = services
-            ? await isMentionSuppressed(services.guilds, interaction.guildId)
-            : false;
+        const suppressMentions = await isMentionSuppressed(services.guilds, interaction.guildId);
 
         // Send announcement
-        await channel.send(withSuppressedMentions({
-            flags: MessageFlags.IsComponentsV2 as MessageFlags.IsComponentsV2,
+        await channel.send(withSuppressedMentions<MessageCreateOptions>({
+            flags: MessageFlags.IsComponentsV2,
             components,
         }, suppressMentions));
 
         await interaction.editReply({
-            content: `Announcement for **v${currentVersion}** posted in <#${channelId}>.`,
+            content: `Announcement for **v${currentVersion}** posted in <#${channel.id}>.`,
         });
     },
 };

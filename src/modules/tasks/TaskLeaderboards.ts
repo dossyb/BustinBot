@@ -3,9 +3,11 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "disc
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
 import type { TaskLeaderboard, TaskLeaderboardChampions, TaskLeaderboardEntry, TaskLeaderboardId, TaskLeaderboardPendingPeriod, TaskLeaderboardPeriod, TaskTierCounts } from "../../models/TaskLeaderboard.js";
 import type { TaskEvent } from "../../models/TaskEvent.js";
+import { TaskCategory } from "../../models/Task.js";
+import type { ITaskRepository } from "../../core/database/interfaces/ITaskRepo.js";
 import type { UserStats } from "../../models/UserStats.js";
-import { SubmissionStatus } from "../../models/TaskSubmission.js";
-import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
+import type { SubmissionStatus } from "../../models/TaskSubmission.js";
+import table from "text-table";
 
 const TIER_POINTS = {
     bronze: 1,
@@ -17,39 +19,29 @@ export function getTierPoints(tier: keyof typeof TIER_POINTS): number {
     return TIER_POINTS[tier];
 }
 
-const STATUS_POINTS: Partial<Record<SubmissionStatus, number>> = {
-    [SubmissionStatus.Bronze]: TIER_POINTS.bronze,
-    [SubmissionStatus.Silver]: TIER_POINTS.silver,
-    [SubmissionStatus.Gold]: TIER_POINTS.gold,
-};
-
-export function getStatusPoints(status?: SubmissionStatus): number {
-    if (!status) return 0;
-    return STATUS_POINTS[status] ?? 0;
-}
-
 type LeaderboardTier = keyof typeof TIER_POINTS;
 
-function inferPreviousTierFromDelta(tier: LeaderboardTier, amount: number): LeaderboardTier | null {
-    const previousPoints = TIER_POINTS[tier] - amount;
-    const previous = Object.entries(TIER_POINTS).find(([, points]) => points === previousPoints);
-    return (previous?.[0] as LeaderboardTier | undefined) ?? null;
+function isTier(status: string | undefined): status is LeaderboardTier {
+    return status !== undefined && Object.hasOwn(TIER_POINTS, status);
+}
+
+export function getStatusPoints(status?: SubmissionStatus): number {
+    return isTier(status) ? TIER_POINTS[status] : 0;
 }
 
 function applyTierCountDelta(
     tierCounts: Record<string, TaskTierCounts> | undefined,
     userId: string,
-    tier: LeaderboardTier,
-    amount: number
+    tier: LeaderboardTier | null,
+    previousTier: LeaderboardTier | undefined
 ): Record<string, TaskTierCounts> {
     const updated = structuredClone(tierCounts ?? {});
     updated[userId] ??= { bronze: 0, silver: 0, gold: 0 };
 
-    const previousTier = inferPreviousTierFromDelta(tier, amount);
     if (previousTier) {
         updated[userId][previousTier] = Math.max(0, updated[userId][previousTier] - 1);
     }
-    updated[userId][tier] += 1;
+    if (tier) updated[userId][tier] += 1;
 
     return updated;
 }
@@ -58,7 +50,8 @@ function incrementPendingPeriodPoints(
     pendingPeriod: TaskLeaderboardPendingPeriod,
     userId: string,
     amount: number,
-    tier: LeaderboardTier
+    tier: LeaderboardTier | null,
+    previousTier: LeaderboardTier | undefined
 ): TaskLeaderboardPendingPeriod {
     return {
         ...pendingPeriod,
@@ -66,26 +59,35 @@ function incrementPendingPeriodPoints(
             ...pendingPeriod.points,
             [userId]: (pendingPeriod.points[userId] ?? 0) + amount,
         },
-        tierCounts: applyTierCountDelta(pendingPeriod.tierCounts, userId, tier, amount),
+        tierCounts: applyTierCountDelta(pendingPeriod.tierCounts, userId, tier, previousTier),
     };
 }
 
 const DEFAULT_PERIOD_EVENTS = 4;
 
 function resolvePeriodKey(event: TaskEvent): string {
-    if (event.startTime instanceof Date) return `start:${event.startTime.toISOString().slice(0, 10)}`;
-    const keyword = event.keyword?.trim().toLowerCase();
-    if (keyword) return `kw:${keyword}`;
-    if (event.endTime instanceof Date) return `end:${event.endTime.toISOString().slice(0, 10)}`;
-    return `id:${event.id}`;
+    return `start:${event.startTime.toISOString().slice(0, 10)}`;
+}
+
+export async function weekRegularEvents(taskRepo: ITaskRepository, event: TaskEvent): Promise<TaskEvent[]> {
+    const week = resolvePeriodKey(event);
+    return (await taskRepo.getTaskEventsBetween(event.startTime, event.endTime))
+        .filter((weekEvent) => weekEvent.category !== TaskCategory.MonisChoice && resolvePeriodKey(weekEvent) === week);
+}
+
+export function holdsEveryTask(events: TaskEvent[], userId: string): boolean {
+    return events.every((event) => event.completedUserIds?.includes(userId));
+}
+
+export async function eventCountsForMember(taskRepo: ITaskRepository, event: TaskEvent, userId: string): Promise<boolean> {
+    return event.category !== TaskCategory.MonisChoice || !holdsEveryTask(await weekRegularEvents(taskRepo, event), userId);
 }
 
 async function loadPeriodicEvents(services: ServiceContainer, eventIds: string[]): Promise<TaskEvent[]> {
     const taskRepo = services.repos.taskRepo;
-    if (!taskRepo) return [];
 
     const events = await Promise.all(eventIds.map(async (eventId) => await taskRepo.getTaskEventById(eventId)));
-    return events.filter((event): event is TaskEvent => !!event).map((event) => normaliseFirestoreDates(event));
+    return events.filter((event): event is TaskEvent => !!event);
 }
 
 export async function getUniquePeriodCount(
@@ -115,19 +117,12 @@ export async function resolvePeriodicProgress(
         return { started, elapsed: started, total: period.length };
     }
 
-    const periodEndTimes = new Map<string, number>();
-    for (const event of events) {
-        const key = resolvePeriodKey(event);
-        const endTime = event.endTime instanceof Date ? event.endTime.getTime() : null;
-        if (endTime === null) continue;
-        const existing = periodEndTimes.get(key);
-        if (existing === undefined || endTime > existing) {
-            periodEndTimes.set(key, endTime);
-        }
-    }
+    const periodEndTimes = [...Map.groupBy(events, resolvePeriodKey).values()].map((periodEvents) =>
+        Math.max(...periodEvents.map((event) => event.endTime.getTime()))
+    );
 
-    const started = periodEndTimes.size;
-    const elapsed = [...periodEndTimes.values()].filter((endTime) => endTime <= asOf.getTime()).length;
+    const started = periodEndTimes.length;
+    const elapsed = periodEndTimes.filter((endTime) => endTime <= asOf.getTime()).length;
     return { started, elapsed, total: period.length };
 }
 
@@ -140,7 +135,7 @@ export function calculateLifetimePoints(stats: UserStats): number {
     return legacy + bronze * TIER_POINTS.bronze + silver * TIER_POINTS.silver + gold * TIER_POINTS.gold;
 }
 
-type RankedEntry<T> = T & { rank: number };
+export type RankedEntry<T> = T & { rank: number };
 
 type LifetimeEntry = TaskLeaderboardEntry & { currentStreak: number };
 
@@ -150,13 +145,17 @@ function buildEntries(points: Record<string, number>): TaskLeaderboardEntry[] {
         .filter((entry) => entry.points > 0);
 }
 
-export function buildRankedPeriodicEntries(points: Record<string, number>): RankedEntry<TaskLeaderboardEntry>[] {
-    const sorted = buildEntries(points).sort((a, b) => {
+export function rankPeriodicEntries(entries: TaskLeaderboardEntry[]): RankedEntry<TaskLeaderboardEntry>[] {
+    const sorted = entries.toSorted((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         return a.userId.localeCompare(b.userId);
     });
 
     return applyRanks(sorted, (entry) => `${entry.points}`);
+}
+
+export function buildRankedPeriodicEntries(points: Record<string, number>): RankedEntry<TaskLeaderboardEntry>[] {
+    return rankPeriodicEntries(buildEntries(points));
 }
 
 export function buildRankedLifetimeEntries(
@@ -204,23 +203,22 @@ export function getRankFromEntries<T extends { userId: string; rank: number }>(
 
 async function resolvePeriodLength(services: ServiceContainer): Promise<number> {
     const guildId = services.guildId;
-    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
+    const guildConfig = await services.guilds.get(guildId);
     const configured = guildConfig?.taskSettings?.periodEvents;
     return configured ?? DEFAULT_PERIOD_EVENTS;
 }
 
 export async function isPeriodicLeaderboardEnabled(services: ServiceContainer): Promise<boolean> {
     const guildId = services.guildId;
-    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
+    const guildConfig = await services.guilds.get(guildId);
     return guildConfig?.toggles?.taskLeaderboard ?? true;
 }
 
-export async function ensureTaskLeaderboardsInitialized(services: ServiceContainer): Promise<void> {
+export async function ensureTaskLeaderboardsInitialized(services: ServiceContainer): Promise<Record<TaskLeaderboardId, TaskLeaderboard | null>> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
 
     const now = new Date().toISOString();
-    const [lifetime, periodic] = await Promise.all([
+    let [lifetime, periodic] = await Promise.all([
         repo.getLeaderboard("lifetime"),
         repo.getLeaderboard("periodic"),
     ]);
@@ -228,9 +226,6 @@ export async function ensureTaskLeaderboardsInitialized(services: ServiceContain
     if (!lifetime) {
         const points: Record<string, number> = {};
         const userRepo = services.repos.userRepo;
-        if (!userRepo) {
-            throw new Error("Leaderboard initialisation failed. Please use /reportbug if it continues.");
-        }
 
         const users = await userRepo.getAllUsers();
         for (const stats of users) {
@@ -246,6 +241,7 @@ export async function ensureTaskLeaderboardsInitialized(services: ServiceContain
         };
 
         await repo.createLeaderboard(payload);
+        lifetime = payload;
     }
 
     if (!periodic) {
@@ -264,9 +260,10 @@ export async function ensureTaskLeaderboardsInitialized(services: ServiceContain
             },
         };
         await repo.createLeaderboard(payload);
+        periodic = payload;
     } else if (!periodic.period) {
         const periodLength = await resolvePeriodLength(services);
-        await repo.updateLeaderboard("periodic", {
+        const update = {
             period: {
                 length: periodLength,
                 eventIds: [],
@@ -275,8 +272,12 @@ export async function ensureTaskLeaderboardsInitialized(services: ServiceContain
             },
             tierCounts: periodic.tierCounts ?? {},
             updatedAt: now,
-        });
+        };
+        await repo.updateLeaderboard("periodic", update);
+        periodic = { ...periodic, ...update };
     }
+
+    return { lifetime, periodic };
 }
 
 export async function incrementLifetimePoints(
@@ -285,7 +286,6 @@ export async function incrementLifetimePoints(
     amount: number
 ): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
 
     const leaderboard = await repo.getLeaderboard("lifetime");
     if (!leaderboard) {
@@ -309,10 +309,11 @@ export async function incrementPeriodicPoints(
     userId: string,
     amount: number,
     taskEventId: string,
-    tier: "bronze" | "silver" | "gold"
+    tier: "bronze" | "silver" | "gold" | null,
+    previousStatus?: SubmissionStatus
 ): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
+    const previousTier = isTier(previousStatus) ? previousStatus : undefined;
 
     let leaderboard = await repo.getLeaderboard("periodic");
     if (!leaderboard) {
@@ -334,7 +335,8 @@ export async function incrementPeriodicPoints(
                 leaderboard.pendingPeriod,
                 userId,
                 amount,
-                tier
+                tier,
+                previousTier
             );
             try {
                 await repo.updateLeaderboard("periodic", {
@@ -349,12 +351,10 @@ export async function incrementPeriodicPoints(
     }
 
     try {
-        await repo.incrementPoints("periodic", userId, amount);
-        const previousTier = inferPreviousTierFromDelta(tier, amount);
-        if (previousTier) {
-            await repo.incrementTierCount("periodic", userId, previousTier, -1);
-        }
-        await repo.incrementTierCount("periodic", userId, tier, 1);
+        await repo.incrementPoints("periodic", userId, amount, {
+            ...(tier && { [tier]: 1 }),
+            ...(previousTier && { [previousTier]: -1 }),
+        });
     } catch (err) {
         console.warn(`[TaskLeaderboards] Failed to increment periodic points for ${userId}:`, err);
     }
@@ -365,7 +365,6 @@ export async function registerPeriodicTaskEvent(
     taskEventId: string
 ): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
 
     let leaderboard = await repo.getLeaderboard("periodic");
     if (!leaderboard) {
@@ -453,7 +452,6 @@ export async function getPeriodicLeaderboardTopEntries(
     limit = 5
 ): Promise<TaskLeaderboardEntry[]> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return [];
 
     let leaderboard = await repo.getLeaderboard("periodic");
     if (!leaderboard) {
@@ -474,24 +472,18 @@ export async function getPeriodicLeaderboardTopEntries(
 
 export async function shouldFinalizePeriodicLeaderboard(
     services: ServiceContainer,
+    period: TaskLeaderboardPeriod,
     asOf: Date = new Date()
-): Promise<{ ready: boolean; leaderboard?: TaskLeaderboard }> {
-    const repo = services.repos.taskLeaderboardRepo;
-    const taskRepo = services.repos.taskRepo;
-    if (!repo || !taskRepo) return { ready: false };
-
-    const leaderboard = await repo.getLeaderboard("periodic");
-    if (!leaderboard?.period) return { ready: false };
-
-    const progress = await resolvePeriodicProgress(services, leaderboard.period, asOf);
-    if (progress.started < leaderboard.period.length) {
-        return { ready: false, leaderboard };
+): Promise<boolean> {
+    const progress = await resolvePeriodicProgress(services, period, asOf);
+    if (progress.started < period.length) {
+        return false;
     }
-    if (progress.elapsed < leaderboard.period.length) {
-        return { ready: false, leaderboard };
+    if (progress.elapsed < period.length) {
+        return false;
     }
 
-    return { ready: true, leaderboard };
+    return true;
 }
 
 export async function finalizePeriodicLeaderboard(
@@ -500,7 +492,7 @@ export async function finalizePeriodicLeaderboard(
     winners: TaskLeaderboardEntry[]
 ): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo || !leaderboard.period) return;
+    if (!leaderboard.period) return;
 
     const now = new Date().toISOString();
     const nextIndex = leaderboard.period.index + 1;
@@ -536,7 +528,6 @@ export async function finalizePeriodicLeaderboard(
 
 export async function resetPeriodicLeaderboard(services: ServiceContainer): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
 
     await ensureTaskLeaderboardsInitialized(services);
     const leaderboard = await repo.getLeaderboard("periodic");
@@ -570,6 +561,12 @@ function resolveChampionRoleId(
     return role.id;
 }
 
+const CHAMPION_PLACES = [
+    { place: "first", role: "taskChampionFirst", fallbackRoleName: "Task Champion (1st)", stat: "taskChampionFirsts" },
+    { place: "second", role: "taskChampionSecond", fallbackRoleName: "Task Champion (2nd)", stat: "taskChampionSeconds" },
+    { place: "third", role: "taskChampionThird", fallbackRoleName: "Task Champion (3rd)", stat: "taskChampionThirds" },
+] as const;
+
 export type PeriodicPlacements = {
     first: TaskLeaderboardEntry[];
     second: TaskLeaderboardEntry[];
@@ -578,17 +575,12 @@ export type PeriodicPlacements = {
 };
 
 export function resolvePeriodicPlacements(entries: TaskLeaderboardEntry[]): PeriodicPlacements {
-    const sorted = [...entries].sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        return a.userId.localeCompare(b.userId);
-    });
-
-    if (sorted.length === 0) {
+    if (entries.length === 0) {
         return { first: [], second: [], third: [], winners: [] };
     }
 
     const groups: TaskLeaderboardEntry[][] = [];
-    for (const entry of sorted) {
+    for (const entry of entries) {
         const lastGroup = groups[groups.length - 1];
         if (!lastGroup || lastGroup[0]?.points !== entry.points) {
             groups.push([entry]);
@@ -628,16 +620,16 @@ export async function awardTaskChampionRoles(
     client: Client,
     services: ServiceContainer,
     placements: PeriodicPlacements,
+    periodIndex: number,
 ): Promise<void> {
     const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) return;
 
     const leaderboard = await repo.getLeaderboard("periodic");
     if (!leaderboard) return;
 
     const guildId = services.guildId;
-    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
-    if (!guildId || !guildConfig) return;
+    const guildConfig = await services.guilds.get(guildId);
+    if (!guildConfig) return;
 
     const guild = await client.guilds.fetch(guildId);
 
@@ -648,11 +640,11 @@ export async function awardTaskChampionRoles(
         ...(guildConfig.taskSettings?.championRoles ?? {}),
     };
 
-    const resolvedRoleIds = {
-        first: resolveChampionRoleId(guild, guildConfig.roles?.taskChampionFirst, "Task Champion (1st)"),
-        second: resolveChampionRoleId(guild, guildConfig.roles?.taskChampionSecond, "Task Champion (2nd)"),
-        third: resolveChampionRoleId(guild, guildConfig.roles?.taskChampionThird, "Task Champion (3rd)"),
-    };
+    const places = CHAMPION_PLACES.map((place) => ({
+        ...place,
+        roleId: resolveChampionRoleId(guild, guildConfig.roles?.[place.role], place.fallbackRoleName),
+        enabled: championSettings[place.place],
+    }));
 
     const previous = leaderboard.champions ?? {};
     const normaliseIds = (value?: string[] | string | null) => {
@@ -660,20 +652,14 @@ export async function awardTaskChampionRoles(
         return Array.isArray(value) ? value : [value];
     };
 
-    const toRemove = [
-        { roleId: resolvedRoleIds.first, userIds: normaliseIds(previous.first) },
-        { roleId: resolvedRoleIds.second, userIds: normaliseIds(previous.second) },
-        { roleId: resolvedRoleIds.third, userIds: normaliseIds(previous.third) },
-    ];
-
-    for (const entry of toRemove) {
-        if (!entry.roleId) continue;
-        for (const userId of entry.userIds) {
+    for (const { place, roleId } of places) {
+        if (!roleId) continue;
+        for (const userId of normaliseIds(previous[place])) {
             if (!userId) continue;
             try {
                 const member = await guild.members.fetch(userId);
-                if (member.roles.cache.has(entry.roleId)) {
-                    await member.roles.remove(entry.roleId);
+                if (member.roles.cache.has(roleId)) {
+                    await member.roles.remove(roleId);
                 }
             } catch (err) {
                 console.warn(`[TaskLeaderboards] Failed to remove champion role from ${userId}:`, err);
@@ -681,20 +667,14 @@ export async function awardTaskChampionRoles(
         }
     }
 
-    const roleAssignments = [
-        { rank: "first", roleId: resolvedRoleIds.first, winners: placements.first, enabled: championSettings.first },
-        { rank: "second", roleId: resolvedRoleIds.second, winners: placements.second, enabled: championSettings.second },
-        { rank: "third", roleId: resolvedRoleIds.third, winners: placements.third, enabled: championSettings.third },
-    ] as const;
-
-    for (const assignment of roleAssignments) {
-        if (!assignment.roleId || !assignment.enabled) continue;
-        for (const winner of assignment.winners) {
+    for (const { place, roleId, enabled } of places) {
+        if (!roleId || !enabled) continue;
+        for (const winner of placements[place]) {
             if (!winner?.userId) continue;
             try {
                 const member = await guild.members.fetch(winner.userId);
-                if (!member.roles.cache.has(assignment.roleId)) {
-                    await member.roles.add(assignment.roleId);
+                if (!member.roles.cache.has(roleId)) {
+                    await member.roles.add(roleId);
                 }
             } catch (err) {
                 console.warn(`[TaskLeaderboards] Failed to assign champion role to ${winner.userId}:`, err);
@@ -703,25 +683,13 @@ export async function awardTaskChampionRoles(
     }
 
     const userRepo = services.repos.userRepo;
-    if (userRepo) {
-        for (const assignment of roleAssignments) {
-            for (const winner of assignment.winners) {
-                if (!winner?.userId) continue;
-                try {
-                    switch (assignment.rank) {
-                        case "first":
-                            await userRepo.incrementStat(winner.userId, "taskChampionFirsts", 1);
-                            break;
-                        case "second":
-                            await userRepo.incrementStat(winner.userId, "taskChampionSeconds", 1);
-                            break;
-                        case "third":
-                            await userRepo.incrementStat(winner.userId, "taskChampionThirds", 1);
-                            break;
-                    }
-                } catch (err) {
-                    console.warn(`[TaskLeaderboards] Failed to update champion stats for ${winner.userId}:`, err);
-                }
+    for (const { place, stat } of places) {
+        for (const winner of placements[place]) {
+            if (!winner?.userId) continue;
+            try {
+                await userRepo.incrementStat(winner.userId, stat, 1);
+            } catch (err) {
+                console.warn(`[TaskLeaderboards] Failed to update champion stats for ${winner.userId}:`, err);
             }
         }
     }
@@ -731,15 +699,95 @@ export async function awardTaskChampionRoles(
         second: placements.second.map((entry) => entry.userId),
         third: placements.third.map((entry) => entry.userId),
         awardedAt: new Date().toISOString(),
+        periodIndex,
     };
-
-    if (leaderboard.period?.index !== undefined) {
-        championsUpdate.periodIndex = leaderboard.period.index;
-    }
 
     await repo.updateLeaderboard("periodic", {
         champions: championsUpdate,
     });
+}
+
+export function resolvePeriodicLabel(events?: number): string {
+    switch (events) {
+        case 2:
+            return "Fortnightly";
+        case 4:
+            return "Monthly";
+        case 8:
+            return "Bi-Monthly";
+        case 12:
+            return "Quarterly";
+        default:
+            return "Periodic";
+    }
+}
+
+export async function getUserLabel(userId: string, context?: { client?: Client; guild?: Guild | null }): Promise<string> {
+    const safeFallback = userId;
+    if (context?.guild) {
+        try {
+            const member = await context.guild.members.fetch(userId);
+            const displayName = member?.displayName ?? member?.user?.username;
+            if (displayName) return displayName.replace(/`/g, "'");
+        } catch (err) {
+            // Ignore and fall back
+        }
+    }
+
+    if (context?.client) {
+        try {
+            const user = await context.client.users.fetch(userId);
+            if (user?.username) return user.username.replace(/`/g, "'");
+        } catch (err) {
+            // Ignore and fall back
+        }
+    }
+
+    return safeFallback.replace(/`/g, "'");
+}
+
+export async function buildTopTenTableLines(
+    entries: RankedEntry<TaskLeaderboardEntry>[],
+    context?: { client?: Client; guild?: Guild | null },
+    tierCounts?: Record<string, TaskTierCounts>,
+    streaks?: Record<string, string>
+): Promise<string[]> {
+    if (entries.length === 0) return [];
+
+    const uniqueIds = [...new Set(entries.map((entry) => entry.userId))];
+    const nameEntries = await Promise.all(
+        uniqueIds.map(async (userId) => [userId, await getUserLabel(userId, context)] as const)
+    );
+    const nameMap = new Map(nameEntries);
+
+    const showStreak = streaks !== undefined;
+    const MAX_NAME_LENGTH = showStreak ? 10 : 14;
+    const rankCounts = new Map<number, number>();
+    for (const entry of entries) {
+        rankCounts.set(entry.rank, (rankCounts.get(entry.rank) ?? 0) + 1);
+    }
+
+    const rows = entries.map((entry) => {
+        const rawName = nameMap.get(entry.userId) ?? entry.userId;
+        const name =
+            rawName.length > MAX_NAME_LENGTH ? `${rawName.slice(0, MAX_NAME_LENGTH - 3)}...` : rawName;
+        const baseRankLabel =
+            entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `${entry.rank}.`;
+        const tiePrefix = (rankCounts.get(entry.rank) ?? 0) > 1 ? "=" : "";
+        const counts = tierCounts?.[entry.userId];
+        return [
+            `${tiePrefix}${baseRankLabel}`,
+            name,
+            String(entry.points),
+            String(counts?.bronze ?? 0),
+            String(counts?.silver ?? 0),
+            String(counts?.gold ?? 0),
+            ...(streaks ? [streaks[entry.userId] ?? "0"] : []),
+        ];
+    });
+
+    const header = ["Rank", "Name", "Pts", "B", "S", "G", ...(showStreak ? ["Str"] : [])];
+    return ["```", table([header, ...rows], { align: ["l", "l", "r", "r", "r", "r", "r"], hsep: " " }), "```"];
 }
 
 export async function buildLeaderboardMessage(
@@ -748,20 +796,7 @@ export async function buildLeaderboardMessage(
     viewerId: string,
     context?: { client?: Client; guild?: Guild | null }
 ): Promise<{ embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] }> {
-    const repo = services.repos.taskLeaderboardRepo;
-    if (!repo) {
-        const embed = new EmbedBuilder()
-            .setTitle("Task Leaderboard")
-            .setDescription("Leaderboard data is unavailable.")
-            .setColor(0xa60000);
-        return {
-            embeds: [embed],
-            components: [],
-        };
-    }
-
-    await ensureTaskLeaderboardsInitialized(services);
-    const leaderboard = await repo.getLeaderboard(view);
+    const leaderboard = (await ensureTaskLeaderboardsInitialized(services))[view];
 
     if (!leaderboard) {
         const embed = new EmbedBuilder()
@@ -772,190 +807,35 @@ export async function buildLeaderboardMessage(
     }
 
     const userRepo = services.repos.userRepo;
-    const guildConfig = services.guildId ? await services.guilds.get(services.guildId) : null;
-
+    const guildConfig = await services.guilds.get(services.guildId);
     const periodEvents = guildConfig?.taskSettings?.periodEvents ?? DEFAULT_PERIOD_EVENTS;
-    const resolvePeriodicLabel = (events?: number): string => {
-        switch (events) {
-            case 2:
-                return "Fortnightly";
-            case 4:
-                return "Monthly";
-            case 8:
-                return "Bi-Monthly";
-            case 12:
-                return "Quarterly";
-            default:
-                return "Periodic";
-        }
-    };
 
-    const getUserLabel = async (userId: string): Promise<string> => {
-        const safeFallback = userId;
-        if (context?.guild) {
-            try {
-                const member = await context.guild.members.fetch(userId);
-                const displayName = member?.displayName ?? member?.user?.username;
-                if (displayName) return displayName.replace(/`/g, "'");
-            } catch (err) {
-                // Ignore and fall back
-            }
-        }
-
-        if (context?.client) {
-            try {
-                const user = await context.client.users.fetch(userId);
-                if (user?.username) return user.username.replace(/`/g, "'");
-            } catch (err) {
-                // Ignore and fall back
-            }
-        }
-
-        return safeFallback.replace(/`/g, "'");
-    };
-    let lines: string[] = [];
-    let rankedEntries: Array<{ userId: string; points: number; rank: number }> = [];
-    let statsMap = new Map<string, UserStats>();
-    let topEntries: Array<{
-        userId: string;
-        points: number;
-        rank: number;
-        streak: string;
-        bronze: number;
-        silver: number;
-        gold: number;
-    }> = [];
+    let rankedEntries: RankedEntry<TaskLeaderboardEntry>[];
+    let lines: string[];
 
     if (view === "lifetime") {
-        if (!userRepo) {
-            throw new Error("Leaderboard initialisation failed. Please use /reportbug if it continues.");
-        }
-
         const users = await userRepo.getAllUsers();
-        const streaks: Record<string, number> = {};
-        statsMap = new Map<string, UserStats>();
+        const tierCounts: Record<string, TaskTierCounts> = {};
+        const currentStreaks: Record<string, number> = {};
+        const streaks: Record<string, string> = {};
 
         for (const stats of users) {
-            streaks[stats.userId] = stats.taskStreak ?? 0;
-            statsMap.set(stats.userId, stats);
-        }
-
-        const rankedLifetime = buildRankedLifetimeEntries(leaderboard.points, streaks);
-        rankedEntries = rankedLifetime.map(({ userId, points, rank }) => ({ userId, points, rank }));
-
-        topEntries = rankedLifetime.slice(0, 10).map((entry) => {
-            const stats = statsMap.get(entry.userId);
-            const longest = stats?.longestTaskStreak ?? 0;
-            const current = stats?.taskStreak ?? 0;
-            const streakMark = longest > 0 && current === longest ? "*" : "";
-            return {
-                userId: entry.userId,
-                points: entry.points,
-                rank: entry.rank,
-                streak: `${longest}${streakMark}`,
-                bronze: stats?.tasksCompletedBronze ?? 0,
-                silver: stats?.tasksCompletedSilver ?? 0,
-                gold: stats?.tasksCompletedGold ?? 0,
+            const longest = stats.longestTaskStreak ?? 0;
+            const current = stats.taskStreak ?? 0;
+            tierCounts[stats.userId] = {
+                bronze: stats.tasksCompletedBronze ?? 0,
+                silver: stats.tasksCompletedSilver ?? 0,
+                gold: stats.tasksCompletedGold ?? 0,
             };
-        });
-    } else {
-        const rankedPeriodic = buildRankedPeriodicEntries(leaderboard.points);
-        rankedEntries = rankedPeriodic.map(({ userId, points, rank }) => ({ userId, points, rank }));
-        topEntries = rankedPeriodic.slice(0, 10).map((entry) => ({
-            userId: entry.userId,
-            points: entry.points,
-            rank: entry.rank,
-            streak: "-",
-            bronze: leaderboard.tierCounts?.[entry.userId]?.bronze ?? 0,
-            silver: leaderboard.tierCounts?.[entry.userId]?.silver ?? 0,
-            gold: leaderboard.tierCounts?.[entry.userId]?.gold ?? 0,
-        }));
-    }
-
-    const uniqueIds = [...new Set(topEntries.map((entry) => entry.userId))];
-    const nameEntries = await Promise.all(
-        uniqueIds.map(async (userId) => [userId, await getUserLabel(userId)] as const)
-    );
-    const nameMap = new Map(nameEntries);
-
-    const showStreak = view === "lifetime";
-    const MAX_NAME_LENGTH = showStreak ? 10 : 14;
-    const separator = " ";
-    const rankCounts = new Map<number, number>();
-    for (const entry of topEntries) {
-        rankCounts.set(entry.rank, (rankCounts.get(entry.rank) ?? 0) + 1);
-    }
-
-    const formattedRows = topEntries.map((entry, index) => {
-        const rawName = nameMap.get(entry.userId) ?? entry.userId;
-        const name =
-            rawName.length > MAX_NAME_LENGTH ? `${rawName.slice(0, MAX_NAME_LENGTH - 3)}...` : rawName;
-        const baseRankLabel =
-            entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `${entry.rank}.`;
-        const tiePrefix = (rankCounts.get(entry.rank) ?? 0) > 1 ? "=" : "";
-        const rankLabel = `${tiePrefix}${baseRankLabel}`;
-        return {
-            rankLabel,
-            name,
-            points: String(entry.points),
-            bronze: String(entry.bronze),
-            silver: String(entry.silver),
-            gold: String(entry.gold),
-            streak: entry.streak,
-        };
-    });
-
-    if (formattedRows.length > 0) {
-        const rankWidth = Math.max("Rank".length, ...formattedRows.map((row) => row.rankLabel.length));
-        const nameWidth = Math.max("Name".length, ...formattedRows.map((row) => row.name.length));
-        const pointsWidth = Math.max("Pts".length, ...formattedRows.map((row) => row.points.length));
-        const bronzeWidth = Math.max("B".length, ...formattedRows.map((row) => row.bronze.length));
-        const silverWidth = Math.max("S".length, ...formattedRows.map((row) => row.silver.length));
-        const goldWidth = Math.max("G".length, ...formattedRows.map((row) => row.gold.length));
-        if (showStreak) {
-            const streakWidth = Math.max("Str".length, ...formattedRows.map((row) => row.streak.length));
-            const header = [
-                "Rank".padEnd(rankWidth),
-                "Name".padEnd(nameWidth),
-                "Pts".padStart(pointsWidth),
-                "B".padStart(bronzeWidth),
-                "S".padStart(silverWidth),
-                "G".padStart(goldWidth),
-                "Str".padStart(streakWidth),
-            ].join(separator);
-            const rows = formattedRows.map((row) =>
-                [
-                    row.rankLabel.padEnd(rankWidth),
-                    row.name.padEnd(nameWidth),
-                    row.points.padStart(pointsWidth),
-                    row.bronze.padStart(bronzeWidth),
-                    row.silver.padStart(silverWidth),
-                    row.gold.padStart(goldWidth),
-                    row.streak.padStart(streakWidth),
-                ].join(separator)
-            );
-            lines = ["```", header, ...rows, "```"];
-        } else {
-            const header = [
-                "Rank".padEnd(rankWidth),
-                "Name".padEnd(nameWidth),
-                "Pts".padStart(pointsWidth),
-                "B".padStart(bronzeWidth),
-                "S".padStart(silverWidth),
-                "G".padStart(goldWidth),
-            ].join(separator);
-            const rows = formattedRows.map((row) =>
-                [
-                    row.rankLabel.padEnd(rankWidth),
-                    row.name.padEnd(nameWidth),
-                    row.points.padStart(pointsWidth),
-                    row.bronze.padStart(bronzeWidth),
-                    row.silver.padStart(silverWidth),
-                    row.gold.padStart(goldWidth),
-                ].join(separator)
-            );
-            lines = ["```", header, ...rows, "```"];
+            currentStreaks[stats.userId] = current;
+            streaks[stats.userId] = `${longest}${longest > 0 && current === longest ? "*" : ""}`;
         }
+
+        rankedEntries = buildRankedLifetimeEntries(leaderboard.points, currentStreaks);
+        lines = await buildTopTenTableLines(rankedEntries.slice(0, 10), context, tierCounts, streaks);
+    } else {
+        rankedEntries = buildRankedPeriodicEntries(leaderboard.points);
+        lines = await buildTopTenTableLines(rankedEntries.slice(0, 10), context, leaderboard.tierCounts);
     }
 
     const rank = getRankFromEntries(rankedEntries, viewerId);

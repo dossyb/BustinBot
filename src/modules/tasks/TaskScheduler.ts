@@ -1,13 +1,13 @@
-import cron from 'node-cron';
-import { CronExpressionParser } from 'cron-parser';
-import type { ScheduledTask } from 'node-cron';
-import { Client, TextChannel } from 'discord.js';
-import { postAllTaskPolls } from './HandleTaskPoll.js';
-import { startAllTaskEvents } from './HandleTaskStart.js';
-import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from './HandlePrizeDraw.js';
-import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
-import { SchedulerStatusReporter } from '../../core/services/SchedulerStatusReporter.js';
-import { postPeriodicLeaderboardUpdate, warnPendingLeaderboardFinalization } from './HandleLeaderboardUpdate.js';
+import cron, { type Logger, type ScheduledTask } from "node-cron";
+import { CronExpressionParser } from "cron-parser";
+import { Client } from "discord.js";
+import { DateTime, type WeekSettings } from "luxon";
+import { postAllTaskPolls } from "./HandleTaskPoll.js";
+import { startAllTaskEvents } from "./HandleTaskStart.js";
+import { generatePrizeDrawSnapshot, rollWinnerForSnapshot, announcePrizeDrawWinner } from "./HandlePrizeDraw.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { SchedulerStatusReporter } from "../../core/services/SchedulerStatusReporter.js";
+import { postPeriodicLeaderboardUpdate, warnPendingLeaderboardFinalization } from "./HandleLeaderboardUpdate.js";
 
 // Store next trigger times for console log
 let nextPollTime: Date | null = null;
@@ -30,7 +30,7 @@ const defaultSchedule = {
     prizeWeekOffset: 0,
 };
 
-const schedulerTimezone = 'UTC';
+const schedulerTimezone = "UTC";
 
 function getNextRunDate(expression: string): Date | null {
     try {
@@ -40,7 +40,7 @@ function getNextRunDate(expression: string): Date | null {
         });
         return interval.next().toDate();
     } catch (err) {
-        console.warn('[TaskScheduler] Failed to parse cron expression:', expression, err);
+        console.warn("[TaskScheduler] Failed to parse cron expression:", expression, err);
         return null;
     }
 }
@@ -64,7 +64,7 @@ function getNextMatchingRunDate(
         }
         return null;
     } catch (err) {
-        console.warn('[TaskScheduler] Failed to evaluate matching cron expression:', expression, err);
+        console.warn("[TaskScheduler] Failed to evaluate matching cron expression:", expression, err);
         return null;
     }
 }
@@ -75,18 +75,25 @@ function isTestMode() {
 }
 const testIntervalMinutes = 7;
 
-let pollJob: ScheduledTask;
-let taskStartJob: ScheduledTask;
-let prizeJob: ScheduledTask;
-let testJob: ScheduledTask;
-let leaderboardUpdateJob: ScheduledTask;
-let leaderboardWarnJob: ScheduledTask;
+const JOB_PREFIX = "taskScheduler";
+
+function jobLogger(name: string): Logger {
+    return {
+        info: (message) => console.log(`[${name}] ${message}`),
+        warn: (message) => console.warn(`[${name}] ${message}`),
+        error: (message, err) => console.error(`[${name}]`, message, ...(err ? [err] : [])),
+        debug: (message, err) => console.debug(`[${name}]`, message, ...(err ? [err] : [])),
+    };
+}
+
+function jobOptions(guildId: string, job: string) {
+    const name = `${JOB_PREFIX}:${guildId}:${job}`;
+    return { timezone: schedulerTimezone, name, logger: jobLogger(name) };
+}
 
 function updateTestModeNextTimes(reference: Date = new Date()) {
-    const base = new Date(reference);
-    base.setSeconds(0, 0);
-
-    const baseMinutes = base.getMinutes();
+    const base = DateTime.fromJSDate(reference).startOf("minute");
+    const baseMinutes = base.minute;
     const remainder = baseMinutes % testIntervalMinutes;
 
     const pollOffset = ((testIntervalMinutes - 1 - remainder + testIntervalMinutes) % testIntervalMinutes) || testIntervalMinutes;
@@ -96,58 +103,57 @@ function updateTestModeNextTimes(reference: Date = new Date()) {
     const prizeRemainder = ((baseMinutes - 1) % cycleMinutes + cycleMinutes) % cycleMinutes;
     const prizeOffset = ((cycleMinutes - prizeRemainder) % cycleMinutes) || cycleMinutes;
 
-    const pollTime = new Date(base);
-    pollTime.setMinutes(baseMinutes + pollOffset);
-    nextPollTime = pollTime;
-
-    const eventTime = new Date(base);
-    eventTime.setMinutes(baseMinutes + eventOffset);
-    nextEventTime = eventTime;
-
-    const prizeTime = new Date(base);
-    prizeTime.setMinutes(baseMinutes + prizeOffset);
-    nextPrizeTime = prizeTime;
+    nextPollTime = base.plus({ minutes: pollOffset }).toJSDate();
+    nextEventTime = base.plus({ minutes: eventOffset }).toJSDate();
+    nextPrizeTime = base.plus({ minutes: prizeOffset }).toJSDate();
 }
 
-export function getWeekNumber(d: Date): number {
-    const oneJan = new Date(d.getUTCFullYear(), 0, 1);
-    const millisInDay = 86400000;
-    return Math.ceil(((d.getTime() - oneJan.getTime()) / millisInDay + oneJan.getUTCDay() + 1) / 7);
+// Weeks start on Sunday and week 1 holds 1 January, as main's own week count did
+const PRIZE_WEEKS: WeekSettings = { firstDay: 7, minimalDays: 1, weekend: [6, 7] };
+
+function isPrizeDrawWeek(date: Date): boolean {
+    const week = DateTime.fromMillis(date.getTime(), { zone: schedulerTimezone, weekSettings: PRIZE_WEEKS }).localWeekNumber;
+    return (week + defaultSchedule.prizeWeekOffset) % defaultSchedule.prizeFrequencyWeeks === 0;
 }
 
-export async function getDefaultChannel(client: Client, services: ServiceContainer): Promise<TextChannel | null> {
-    const guildId = services.guildId;
-    const guildConfig = guildId ? await services.guilds.get(guildId) : null;
-    const channelId = guildConfig?.channels?.taskChannel;
-    if (!guildId || !channelId) return null;
-
-    const guild = await client.guilds.fetch(guildId);
-    const channel = await guild.channels.fetch(channelId);
-    return channel?.isTextBased() ? (channel as TextChannel) : null;
-}
-
-export function initTaskScheduler(
-    client: Client,
-    services: ServiceContainer,
-    getChannel: (client: Client, services: ServiceContainer) => Promise<TextChannel | null> = getDefaultChannel,
-    getWeek: typeof getWeekNumber = getWeekNumber
-) {
-    console.log('[TaskScheduler] Initialising default task schedule...');
-
-    const { tasks, taskEvents, keywords, repos } = services;
-
-    if (!tasks || !taskEvents || !keywords || !repos?.taskRepo || !repos?.prizeRepo) {
-        throw new Error(
-            "[TaskScheduler] Missing one or more required services (tasks, taskEvents, keywords, or repos)."
-        );
+async function drawPrize(client: Client, services: ServiceContainer): Promise<void> {
+    const { prizeRepo, taskRepo } = services.repos;
+    const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
+    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id, services);
+    if (!winner) {
+        console.log("[PrizeDraw] No eligible entries - skipping announcement.");
+        return;
     }
+    const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
+    if (!announced) {
+        console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
+    }
+}
 
-    // Shortcuts for readability
-    const taskRepo = repos.taskRepo;
-    const prizeRepo = repos.prizeRepo;
+export async function runTaskPollJob(client: Client, services: ServiceContainer): Promise<void> {
+    console.log("[TaskScheduler] Running weekly task poll post...");
+    await postAllTaskPolls(client, services);
+}
+
+export async function runTaskStartJob(client: Client, services: ServiceContainer): Promise<void> {
+    console.log("[TaskScheduler] Closing poll and starting task event...");
+    await startAllTaskEvents(client, services);
+}
+
+export async function runPrizeDrawJob(client: Client, services: ServiceContainer): Promise<void> {
+    if (!isPrizeDrawWeek(new Date())) return;
+
+    console.log("[TaskScheduler] Running prize draw...");
+    await drawPrize(client, services);
+}
+
+export async function initTaskScheduler(client: Client, services: ServiceContainer): Promise<void> {
+    console.log("[TaskScheduler] Initialising default task schedule...");
+
     const prizeExpression = `0 ${defaultSchedule.prizeHourUTC} * * ${defaultSchedule.prizeDay}`;
-    const isPrizeWeek = (date: Date) =>
-        ((getWeek(date) + defaultSchedule.prizeWeekOffset) % defaultSchedule.prizeFrequencyWeeks) === 0;
+
+    const { guildId } = services;
+    await stopTaskScheduler(guildId);
 
     if (isTestMode()) {
         // ------------------------------
@@ -156,151 +162,110 @@ export function initTaskScheduler(
         const T = testIntervalMinutes;
         updateTestModeNextTimes();
 
-        testJob = cron.schedule('* * * * *', async () => {
+        cron.schedule("* * * * *", async () => {
             const now = new Date();
             const minute = now.getMinutes();
             updateTestModeNextTimes(now);
 
             if (minute % T === (T - 1)) {
-                console.log('[TaskScheduler] [TEST] Running poll...');
-                await postAllTaskPolls(client, services);
+                await runTaskPollJob(client, services);
                 if (nextPollTime) {
-                    SchedulerStatusReporter.onNewTrigger('[TEST] Task Poll', nextPollTime);
+                    SchedulerStatusReporter.onNewTrigger("[TEST] Task Poll", nextPollTime);
                 }
             }
 
             if (minute % T === 0) {
-                console.log('[TaskScheduler] [TEST] Starting task event...');
-                await startAllTaskEvents(client, services);
+                await runTaskStartJob(client, services);
                 if (nextEventTime) {
-                    SchedulerStatusReporter.onNewTrigger('[TEST] Task Event', nextEventTime);
+                    SchedulerStatusReporter.onNewTrigger("[TEST] Task Event", nextEventTime);
                 }
             }
 
             if ((minute - 1) % (2 * T) === 0) {
-                console.log('[TaskScheduler] [TEST] Running prize draw...');
-                const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
-                const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id, services);
-                if (winner) {
-                    const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
-                    if (!announced) {
-                        console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
-                    }
-                } else {
-                    console.log("[PrizeDraw] No winner - no eligible entries.");
-                }
+                console.log("[TaskScheduler] [TEST] Running prize draw...");
+                await drawPrize(client, services);
                 if (nextPrizeTime) {
-                    SchedulerStatusReporter.onNewTrigger('[TEST] Prize Draw', nextPrizeTime);
+                    SchedulerStatusReporter.onNewTrigger("[TEST] Prize Draw", nextPrizeTime);
                 }
             }
-            console.log('[TaskScheduler] Test mode active (interval: every 7 minutes)');
+            console.log("[TaskScheduler] Test mode active (interval: every 7 minutes)");
             return;
-        });
+        }, jobOptions(guildId, "test"));
     } else {
         // ------------------------------
         // PRODUCTION MODE (admin-configured cycle)
         // ------------------------------
-        pollJob = cron.schedule(
+        cron.schedule(
             `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`,
             async () => {
-                console.log('[TaskScheduler] Running weekly task poll post...');
-                const channel = await getChannel(client, services);
-                if (channel) {
-                    await postAllTaskPolls(client, services);
-                }
+                await runTaskPollJob(client, services);
                 const pollExpr = `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`;
                 nextPollTime = getNextRunDate(pollExpr);
-                if (nextPollTime) SchedulerStatusReporter.onNewTrigger('Task Poll', nextPollTime);
+                if (nextPollTime) SchedulerStatusReporter.onNewTrigger("Task Poll", nextPollTime);
             },
-            { timezone: schedulerTimezone }
+            jobOptions(guildId, "poll")
         );
 
-        taskStartJob = cron.schedule(
+        cron.schedule(
             `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`,
             async () => {
-                console.log('[TaskScheduler] Closing poll and starting task event...');
-                const channel = await getChannel(client, services);
-                if (channel) {
-                    await startAllTaskEvents(client, services,);
-                }
+                await runTaskStartJob(client, services);
                 const eventExpr = `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`;
                 nextEventTime = getNextRunDate(eventExpr);
-                if (nextEventTime) SchedulerStatusReporter.onNewTrigger('Task Event', nextEventTime);
+                if (nextEventTime) SchedulerStatusReporter.onNewTrigger("Task Event", nextEventTime);
             },
-            { timezone: schedulerTimezone }
+            jobOptions(guildId, "taskStart")
         );
 
         const scheduleNextPrize = (reference: Date) => {
-            nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeWeek, reference);
+            nextPrizeTime = getNextMatchingRunDate(prizeExpression, isPrizeDrawWeek, reference);
             if (nextPrizeTime) {
-                SchedulerStatusReporter.onNewTrigger('Prize Draw', nextPrizeTime);
+                SchedulerStatusReporter.onNewTrigger("Prize Draw", nextPrizeTime);
             }
         };
 
-        prizeJob = cron.schedule(
+        cron.schedule(
             prizeExpression,
             async () => {
-                const now = new Date();
-                if (!isPrizeWeek(now)) {
-                    scheduleNextPrize(now);
-                    return;
-                }
-
-                console.log('[TaskScheduler] Running prize draw...');
                 try {
-                    const snapshot = await generatePrizeDrawSnapshot(prizeRepo, taskRepo);
-                    const winner = await rollWinnerForSnapshot(prizeRepo, snapshot.id, services);
-
-                    if (!winner) {
-                        console.log('[PrizeDraw] No eligible entries - skipping announcement.');
-                    } else {
-                        const announced = await announcePrizeDrawWinner(client, services, prizeRepo, snapshot.id);
-                        if (!announced) {
-                            console.warn(`[PrizeDraw] Winner rolled but announcement failed for ${snapshot.id}.`);
-                        }
-                    }
-                } catch (err) {
-                    console.error('[TaskScheduler] Prize draw job failed:', err);
+                    await runPrizeDrawJob(client, services);
+                } finally {
+                    scheduleNextPrize(new Date());
                 }
-
-                scheduleNextPrize(now);
             },
-            { timezone: schedulerTimezone }
+            jobOptions(guildId, "prizeDraw")
         );
-        leaderboardWarnJob = cron.schedule(
-            '0 0 * * 2',
-            async () => {
-                await warnPendingLeaderboardFinalization(client, services);
-            },
-            { timezone: schedulerTimezone }
+        cron.schedule(
+            "0 0 * * 2",
+            () => warnPendingLeaderboardFinalization(client, services),
+            jobOptions(guildId, "leaderboardWarning")
         );
 
-        leaderboardUpdateJob = cron.schedule(
-            '0 0 * * 3',
-            async () => {
-                await postPeriodicLeaderboardUpdate(client, services);
-            },
-            { timezone: schedulerTimezone }
+        cron.schedule(
+            "0 0 * * 3",
+            () => postPeriodicLeaderboardUpdate(client, services),
+            jobOptions(guildId, "leaderboardUpdate")
         );
         const pollExpr = `0 ${defaultSchedule.pollHourUTC} * * ${defaultSchedule.pollDay}`;
         nextPollTime = getNextRunDate(pollExpr);
-        if (nextPollTime) SchedulerStatusReporter.onNewTrigger('Task Poll', nextPollTime);
+        if (nextPollTime) SchedulerStatusReporter.onNewTrigger("Task Poll", nextPollTime);
 
         const eventExpr = `0 ${defaultSchedule.pollHourUTC} * * ${(defaultSchedule.pollDay + 1) % 7}`;
         nextEventTime = getNextRunDate(eventExpr);
-        if (nextEventTime) SchedulerStatusReporter.onNewTrigger('Task Event', nextEventTime);
+        if (nextEventTime) SchedulerStatusReporter.onNewTrigger("Task Event", nextEventTime);
 
         scheduleNextPrize(new Date());
     }
-    console.log('[TaskScheduler] Production mode schedule initialised.');
+    console.log("[TaskScheduler] Production mode schedule initialised.");
 }
 
-export function stopTaskScheduler() {
-    testJob?.stop();
-    pollJob?.stop();
-    taskStartJob?.stop();
-    prizeJob?.stop();
-    leaderboardWarnJob?.stop();
-    leaderboardUpdateJob?.stop();
-    console.log('[TaskScheduler] All jobs stopped.');
+export function taskSchedulerJobs(guildId: string): Map<string, ScheduledTask> {
+    const prefix = `${JOB_PREFIX}:${guildId}:`;
+    return new Map([...cron.getTasks().values()].flatMap((job) => job.name?.startsWith(prefix) ? [[job.name.slice(prefix.length), job]] : []));
+}
+
+export async function stopTaskScheduler(guildId: string): Promise<void> {
+    const guildJobs = [...taskSchedulerJobs(guildId).values()];
+    await Promise.all(guildJobs.map((job) => job.destroy()));
+    if (guildJobs.length) console.log(`[TaskScheduler] Stopped ${guildJobs.length} jobs for ${guildId}.`);
 }

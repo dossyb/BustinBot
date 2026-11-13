@@ -4,6 +4,7 @@ export enum TaskCategory {
     PvM = 'PvM',
     MinigameMisc = 'Minigame/Misc',
     Leagues = 'Leagues',
+    MonisChoice = "Moni's Choice",
 }
 
 // Distinguishes how the task is completed
@@ -45,6 +46,9 @@ export interface Task {
 
     // The task description, may contain {amount} placeholder(s)
     taskName: string;
+
+    // Shown under the task name
+    description?: string;
 
     // Legacy amounts
     amounts?: number[];

@@ -43,6 +43,9 @@ export interface TaskEvent {
     
     completedUserIds?: string[];
 
+    // When Moni's Choice was settled against the week's limit
+    settledAt?: Date;
+
     messageId?: string;
     channelId?: string;
 

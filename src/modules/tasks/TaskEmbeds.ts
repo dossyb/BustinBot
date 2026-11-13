@@ -1,39 +1,20 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
-import path from 'path';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, time, TimestampStyles } from "discord.js";
+import path from "path";
 import type { TaskEvent } from "../../models/TaskEvent.js";
 import type { Task } from "../../models/Task.js";
 import { TaskCategory } from "../../models/Task.js";
+import { SubmissionStatus, type TaskSubmission } from "../../models/TaskSubmission.js";
 import { TaskInstructions } from "./TaskInstructions.js";
 
-const assetIconDir = path.resolve(process.cwd(), 'assets/icons');
+const assetIconDir = path.join(import.meta.dirname, "../../../assets/icons");
 const categoryIcons: Record<TaskCategory, string> = {
-    [TaskCategory.PvM]: path.join(assetIconDir, 'task_pvm.png'),
-    [TaskCategory.Skilling]: path.join(assetIconDir, 'task_skilling.png'),
-    [TaskCategory.MinigameMisc]: path.join(assetIconDir, 'task_minigame.png'),
-    [TaskCategory.Leagues]: path.join(assetIconDir, 'task_minigame.png'), // temp
+    [TaskCategory.PvM]: path.join(assetIconDir, "task_pvm.png"),
+    [TaskCategory.Skilling]: path.join(assetIconDir, "task_skilling.png"),
+    [TaskCategory.MinigameMisc]: path.join(assetIconDir, "task_minigame.png"),
+    [TaskCategory.Leagues]: path.join(assetIconDir, "task_minigame.png"), // temp
+    [TaskCategory.MonisChoice]: path.join(assetIconDir, "task_monischoice.png"),
 };
-const pollNumberEmojis = ['1️⃣', '2️⃣', '3️⃣'];
-
-function toDate(value: unknown): Date | null {
-    if (value instanceof Date) {
-        return Number.isNaN(value.getTime()) ? null : value;
-    }
-
-    if (typeof value === 'string') {
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    if (typeof value === 'object' && value) {
-        const maybeTimestamp = value as { toDate?: () => Date };
-        if (typeof maybeTimestamp.toDate === 'function') {
-            const parsed = maybeTimestamp.toDate();
-            return Number.isNaN(parsed.getTime()) ? null : parsed;
-        }
-    }
-
-    return null;
-}
+const pollNumberEmojis = ["1️⃣", "2️⃣", "3️⃣"];
 
 // Helper method to shorten amounts 5 digits or more (e.g. 120,000 -> 120k) and replace amounts in embeds
 function shortenAmount(amount: number): string {
@@ -43,46 +24,50 @@ function shortenAmount(amount: number): string {
     return String(amount);
 }
 
-function getTaskPollVoteSummary(tasks: Task[], voteMap: Map<string, number>): string {
+function getTaskPollVoteSummary(tasks: Task[], voteCounts: Record<string, number>): string {
     return tasks.map((task, i) => {
         const taskId = task.id.toString();
-        const votes = voteMap.get(taskId) || 0;
+        const votes = voteCounts[taskId] ?? 0;
         const name = getTaskDisplayName(task);
         const tierDisplay =
             `🥉 **${shortenAmount(task.amtBronze)}** ` +
             `🥈 **${shortenAmount(task.amtSilver)}** ` +
             `🥇 **${shortenAmount(task.amtGold)}**`;
-        const voteText = `**${votes} vote${votes !== 1 ? 's' : ''}**`;
+        const voteText = `**${votes} vote${votes !== 1 ? "s" : ""}**`;
         return `${pollNumberEmojis[i]} ${name}\n${tierDisplay}\n${voteText}`;
-    }).join('\n\n');
+    }).join("\n\n");
 }
 
 export function getTaskPollIconFile(category: TaskCategory): Array<{ attachment: string; name: string }> {
     const iconPath = categoryIcons[category];
-    return iconPath ? [{ attachment: iconPath, name: 'category_icon.png' }] : [];
+    return iconPath ? [{ attachment: iconPath, name: "category_icon.png" }] : [];
 }
 
 export function buildTaskPollEmbed(
     category: TaskCategory,
     tasks: Task[],
-    voteMap: Map<string, number>,
+    voteCounts: Record<string, number>,
     options?: { endsAt?: Date | null; isClosed?: boolean }
 ) {
     const endsAt = options?.endsAt ?? null;
     const isClosed = options?.isClosed ?? false;
-    const timeString = endsAt ? `<t:${Math.floor(endsAt.getTime() / 1000)}:R>` : '';
+    const timeString = endsAt ? time(endsAt, TimestampStyles.RelativeTime) : "";
     const description =
-        `${getTaskPollVoteSummary(tasks, voteMap)}` +
-        (!isClosed && timeString ? `\n\n Poll closes ${timeString}` : '');
+        `${getTaskPollVoteSummary(tasks, voteCounts)}` +
+        (!isClosed && timeString ? `\n\n Poll closes ${timeString}` : "");
 
     return new EmbedBuilder()
         .setTitle(`🗳️ ${category} Task Poll`)
         .setDescription(description)
         .setFooter({
-            text: isClosed ? 'Poll closed. Thanks for voting!' : 'Click a button below to vote.',
+            text: isClosed ? "Poll closed. Thanks for voting!" : "Click a button below to vote.",
         })
         .setColor(0x00ae86)
-        .setThumbnail('attachment://category_icon.png');
+        .setThumbnail("attachment://category_icon.png");
+}
+
+export function submissionLabel(submission: Pick<TaskSubmission, "taskName" | "taskEventId">): string {
+    return submission.taskName ?? `Task ${submission.taskEventId}`;
 }
 
 export function getTaskDisplayName(task: Task, selectedAmount?: number): string {
@@ -107,6 +92,7 @@ export function buildTaskEventEmbed(event: TaskEvent) {
 
     const instructionText =
         TaskInstructions[event.task.type] ?? "Include proof of completion showing progress or XP change.";
+    const description = event.task.description ? `\n${event.task.description}` : "";
 
     const tierDisplay = `Amounts required for each tier of completion:\n
 🥉 **${shortenAmount(event.amounts?.bronze ?? 0)}**\u2003🥈 **${shortenAmount(event.amounts?.silver ?? 0)}**\u2003🥇 **${shortenAmount(event.amounts?.gold ?? 0)}**`;
@@ -117,7 +103,7 @@ export function buildTaskEventEmbed(event: TaskEvent) {
     const embed = new EmbedBuilder()
         .setTitle(`${category} Task`)
         .setDescription(
-            `**${taskTitle}**\n\n${tierDisplay}\n\n${completionLine}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot(s)** below to make your submission.`
+            `**${taskTitle}**${description}\n\n${tierDisplay}\n\n${completionLine}\n\n**Submission Instructions:**\n${instructionText}\n\nClick **Submit Screenshot(s)** below to make your submission.`
         )
         .setColor(0xa60000)
         .setFooter({ text: `Ends ${event.endTime.toUTCString()} • ${event.id}` })
@@ -126,17 +112,21 @@ export function buildTaskEventEmbed(event: TaskEvent) {
     const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
             .setCustomId(`task-submit-${event.id}`)
-            .setLabel('📤 Submit Screenshot(s)')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId(`task-feedback|up|${event.task.id}|${event.id}`)
-            .setLabel('👍')
-            .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-            .setCustomId(`task-feedback|down|${event.task.id}|${event.id}`)
-            .setLabel('👎')
-            .setStyle(ButtonStyle.Secondary)
+            .setLabel("📤 Submit Screenshot(s)")
+            .setStyle(ButtonStyle.Primary)
     );
+    if (category !== TaskCategory.MonisChoice) {
+        buttonRow.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`task-feedback|up|${event.task.id}|${event.id}`)
+                .setLabel("👍")
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`task-feedback|down|${event.task.id}|${event.id}`)
+                .setLabel("👎")
+                .setStyle(ButtonStyle.Secondary)
+        );
+    }
 
     return {
         embeds: [embed],
@@ -170,31 +160,38 @@ export function buildTaskInfoEmbed(task: Task) {
     };
 }
 
+export const TIER_DISPLAY: Partial<Record<SubmissionStatus, { emoji: string; name: string }>> = {
+    [SubmissionStatus.Bronze]: { emoji: "🥉", name: "Bronze" },
+    [SubmissionStatus.Silver]: { emoji: "🥈", name: "Silver" },
+    [SubmissionStatus.Gold]: { emoji: "🥇", name: "Gold" },
+};
+
 // Embed shown in task verification channel when a submission is received
-export function buildSubmissionEmbed(submission: any, taskName: string, event: TaskEvent) {
+export function buildSubmissionEmbed(submission: any, taskName: string, event: TaskEvent, heldStatus?: SubmissionStatus) {
     const submissionTime = new Date();
-    const eventEndTime = toDate(event.endTime);
+    const eventEndTime = event.endTime;
 
     const embed = new EmbedBuilder()
-        .setTitle('Task Submission')
+        .setTitle("Task Submission")
         .addFields(
-            { name: 'User', value: `<@${submission.userId}>`, inline: true },
-            { name: 'Task', value: taskName, inline: true },
-            { name: 'Message', value: submission.notes || "No message included" },
-            { name: 'Tier Amounts', value: `🥉 **${shortenAmount(event.amounts?.bronze ?? 0)}** 🥈 **${shortenAmount(event.amounts?.silver ?? 0)}** 🥇 **${shortenAmount(event.amounts?.gold ?? 0)}**`}
+            { name: "User", value: `<@${submission.userId}>`, inline: true },
+            { name: "Task", value: taskName, inline: true },
+            { name: "Message", value: submission.notes || "No message included" },
+            { name: "Tier Amounts", value: `🥉 **${shortenAmount(event.amounts?.bronze ?? 0)}** 🥈 **${shortenAmount(event.amounts?.silver ?? 0)}** 🥇 **${shortenAmount(event.amounts?.gold ?? 0)}**`}
         )
         .setTimestamp();
 
-    if (submission.alreadyApproved) {
+    const held = heldStatus && TIER_DISPLAY[heldStatus];
+    if (held) {
         embed.addFields({
-            name: '⚠️ WARNING',
-            value: 'This user already has an **approved submission** for this task.'
+            name: "⚠️ WARNING",
+            value: `This user already holds **${held.emoji} ${held.name}** for this task.`
         });
     }
 
     if (eventEndTime && submissionTime.getTime() > eventEndTime.getTime()) {
         embed.addFields({
-            name: '⚠️ WARNING',
+            name: "⚠️ WARNING",
             value: `This submission was made after the task event ended (${eventEndTime.toUTCString()}).`,
         });
     }
@@ -207,14 +204,14 @@ export function buildArchiveEmbed(submission: any, status: string, taskName: str
     return new EmbedBuilder()
         .setTitle(`Task Submission (${status})`)
         .addFields(
-            { name: 'User', value: `<@${submission.userId}>`, inline: true },
-            { name: 'Task', value: taskName, inline: true },
-            { name: 'Message', value: submission.notes || "No message included" },
-            ...(submission.reason
-                ? [{ name: 'Reason', value: submission.reason }]
+            { name: "User", value: `<@${submission.userId}>`, inline: true },
+            { name: "Task", value: taskName, inline: true },
+            { name: "Message", value: submission.notes || "No message included" },
+            ...(submission.rejectionReason
+                ? [{ name: "Reason", value: submission.rejectionReason }]
                 : []),
-            { name: 'Reviewed By', value: `<@${reviewedBy}>`, inline: true },
-            { name: 'Screenshots', value: "See attached screenshots(s) below." }
+            { name: "Reviewed By", value: `<@${reviewedBy}>`, inline: true },
+            { name: "Screenshots", value: "See attached screenshots(s) below." }
         )
         .setTimestamp();
 }
@@ -228,20 +225,20 @@ export function buildPrizeDrawEmbed(
     end: string,
     tierCounts?: { bronze: number; silver: number; gold: number }
 ) {
-    const formattedStart = new Date(start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-    const formattedEnd = new Date(end).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    const formattedStart = new Date(start).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    const formattedEnd = new Date(end).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
-    const prizeIconPath = path.join(assetIconDir, 'task_prize.png');
+    const prizeIconPath = path.join(assetIconDir, "task_prize.png");
 
     const tierDisplay = tierCounts
         ? `🥉 ${tierCounts.bronze} 🥈 ${tierCounts.silver} 🥇 ${tierCounts.gold}`
-        : '';
+        : "";
 
     const embed = new EmbedBuilder()
         .setTitle("🏆 And the winner is...")
         .setColor(0x0003bd)
         .setDescription(
-            'During this task period, there were...\n\n' +
+            "During this task period, there were...\n\n" +
             `${tierDisplay}\n\n` +
             `**${totalSubmissions}** submissions from **${totalParticipants}** participants!\n\n` +
             `🎉 Congratulations **${winnerUsername}**!\n\n` +

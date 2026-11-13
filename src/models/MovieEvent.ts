@@ -39,4 +39,6 @@ export interface MovieEvent {
 
     // Discord user ID of the host or organiser
     hostedBy: string;
+
+    remindersSent?: string[];
 }

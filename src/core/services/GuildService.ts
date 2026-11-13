@@ -1,6 +1,6 @@
 import type { Guild } from "../../models/Guild.js";
 import type { IGuildRepository } from "../database/interfaces/IGuildRepo.js";
-import { ChatInputCommandInteraction, Message, type RepliableInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Message, type RepliableInteraction, MessageFlags } from "discord.js";
 
 const DEFAULT_TASK_MILESTONE_ROLES = [
     { id: "task-participant", label: "Task Participant", roleId: "", requiredSubmissions: 5, enabled: true },
@@ -25,9 +25,8 @@ export class GuildService {
     constructor(private readonly repo: IGuildRepository) { }
 
     async get(guildId: string): Promise<Guild | null> {
-        if (this.cache.has(guildId)) {
-            return this.cache.get(guildId)!;
-        }
+        const cached = this.cache.get(guildId);
+        if (cached) return cached;
 
         const guild = await this.repo.getGuild(guildId);
         if (guild) this.cache.set(guildId, guild);
@@ -35,7 +34,7 @@ export class GuildService {
     }
 
     async update(guildId: string, data: Partial<Guild>): Promise<void> {
-        const existing = this.cache.get(guildId);
+        const existing = await this.get(guildId);
         const mentionSuppressedUntilMs =
             data.mentionSuppressedUntilMs ??
             existing?.mentionSuppressedUntilMs;
@@ -66,8 +65,9 @@ export class GuildService {
         const mergedBase: Omit<Guild, "updatedBy" | "updatedAt"> = {
             id: guildId,
             toggles: {
-                taskScheduler: existing?.toggles?.taskScheduler ?? false,
-                leaguesEnabled: existing?.toggles?.leaguesEnabled ?? false,
+                taskScheduler: false,
+                leaguesEnabled: false,
+                ...(existing?.toggles ?? {}),
                 ...(data.toggles ?? {}),
             },
             roles: {
@@ -113,68 +113,23 @@ export class GuildService {
         this.cache.set(guildId, merged);
     }
 
-    async updateToggle(guildId: string, key: string, enabled: boolean, userId: string): Promise<void> {
-        await this.repo.updateToggle(guildId, key, enabled, userId);
+    async updateToggle(guildId: string, toggle: keyof Guild["toggles"], enabled: boolean, userId: string): Promise<void> {
+        await this.repo.updateToggle(guildId, toggle, enabled, userId);
 
         const existing = this.cache.get(guildId);
-        const defaultTaskSettings = DEFAULT_TASK_SETTINGS;
-        const mentionSuppressedUntilMs = existing?.mentionSuppressedUntilMs;
+        if (existing) {
+            this.cache.set(guildId, {
+                ...existing,
+                toggles: { ...existing.toggles, [toggle]: enabled },
+                updatedBy: userId,
+            });
+        }
 
-        const toggles = {
-            ...(existing?.toggles ?? {}),
-            // Extract last part of key if nested (e.g. "toggles.leaguesEnabled")
-            [key.split(".").pop()!]: enabled,
-        };
-
-        const merged: Guild = {
-            id: guildId,
-            toggles: {
-                taskScheduler: existing?.toggles?.taskScheduler ?? false,
-                leaguesEnabled: existing?.toggles?.leaguesEnabled ?? false,
-                [key.split(".").pop()!]: enabled,
-            },
-            roles: existing?.roles ?? {
-                admin: process.env.ADMIN_ROLE_NAME || "BustinBot Admin",
-                movieAdmin: "",
-                movieUser: "",
-                taskAdmin: "",
-                taskUser: "",
-                taskChampionFirst: "",
-                taskChampionSecond: "",
-                taskChampionThird: "",
-            },
-            channels: existing?.channels ?? {
-                announcements: "",
-                botArchive: "",
-                botLog: "",
-                taskChannel: "",
-                taskVerification: "",
-                movieNight: "",
-                movieVC: "",
-            },
-            taskSettings: {
-                ...defaultTaskSettings,
-                ...(existing?.taskSettings ?? {}),
-                championRoles: {
-                    ...defaultTaskSettings.championRoles,
-                    ...(existing?.taskSettings?.championRoles ?? {}),
-                },
-            },
-            setupComplete: existing?.setupComplete ?? { core: false, movie: false, task: false },
-            ...(mentionSuppressedUntilMs !== undefined
-                ? { mentionSuppressedUntilMs }
-                : {}),
-            updatedBy: userId,
-            updatedAt: new Date() as any,
-        };
-
-        this.cache.set(guildId, merged);
-
-        console.log(`[GuildService] Toggled ${key} ${enabled ? "on" : "off"} for ${guildId}`);
+        console.log(`[GuildService] Toggled ${toggle} ${enabled ? "on" : "off"} for ${guildId}`);
     }
 
     async toggleScheduler(guildId: string, enabled: boolean, userId: string): Promise<void> {
-        await this.updateToggle(guildId, "toggles.taskScheduler", enabled, userId);
+        await this.updateToggle(guildId, "taskScheduler", enabled, userId);
     }
 
     async getAll(): Promise<Guild[]> {
@@ -192,9 +147,9 @@ export class GuildService {
         const guildId = source.guildId;
         if (!guildId) {
             if (source instanceof Message) {
-                await source.reply('This command can only be used inside a server.');
+                await source.reply("This command can only be used inside a server.");
             } else {
-                await source.reply({ content: 'This command can only be used inside a server.', flags: 1 << 6 });
+                await source.reply({ content: "This command can only be used inside a server.", flags: MessageFlags.Ephemeral });
             }
             return null;
         }
@@ -202,12 +157,12 @@ export class GuildService {
         const guildConfig = await this.get(guildId);
 
         if (!guildConfig) {
-            const replyContent = 'Guild configuration not found. Please run `/setup` first.';
+            const replyContent = "Guild configuration not found. Please run `/setup` first.";
 
             if (source instanceof Message) {
                 await source.reply(replyContent);
             } else {
-                await source.reply({ content: replyContent, flags: 1 << 6 });
+                await source.reply({ content: replyContent, flags: MessageFlags.Ephemeral });
             }
 
             return null;
@@ -219,7 +174,7 @@ export class GuildService {
     async ensureExists(guildId: string, userId: string) {
         let guild = await this.get(guildId);
         if (!guild) {
-            await this.update(guildId, { updatedBy: userId, updatedAt: new Date() as any });
+            await this.update(guildId, { updatedBy: userId, updatedAt: new Date() });
             guild = await this.get(guildId);
         }
         return guild;

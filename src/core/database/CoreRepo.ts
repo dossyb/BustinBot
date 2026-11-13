@@ -1,18 +1,25 @@
-import { db } from "./firestore.js";
-import { CollectionReference } from "firebase-admin/firestore";
-import type { DocumentData } from "firebase-admin/firestore";
+import { GrpcStatus } from "firebase-admin/firestore";
+import type { CollectionReference, DocumentData, Firestore, FirestoreDataConverter } from "firebase-admin/firestore";
 
 export abstract class GuildScopedRepository<T extends DocumentData> {
+    protected readonly db: Firestore;
     protected guildId: string;
     protected collectionName: string;
+    private readonly converter: FirestoreDataConverter<T>;
 
-    constructor(guildId: string, collectionName: string) {
+    constructor(db: Firestore, guildId: string, collectionName: string, converter: FirestoreDataConverter<T>) {
+        this.db = db;
         this.guildId = guildId;
         this.collectionName = collectionName;
+        this.converter = converter;
     }
 
     protected get collection(): CollectionReference<T> {
-        return db.collection(`guilds/${this.guildId}/${this.collectionName}`) as CollectionReference<T>;
+        return this.guildCollection(this.collectionName, this.converter);
+    }
+
+    protected guildCollection<U extends DocumentData>(name: string, converter: FirestoreDataConverter<U>): CollectionReference<U> {
+        return this.db.collection(`guilds/${this.guildId}/${name}`).withConverter(converter);
     }
 
     async getAll(): Promise<T[]> {
@@ -22,18 +29,13 @@ export abstract class GuildScopedRepository<T extends DocumentData> {
 
     async getById(id: string): Promise<T | null> {
         const doc = await this.collection.doc(id).get();
-        return doc.exists ? (doc.data() as T) : null;
+        return doc.data() ?? null;
     }
 
-    async create(id: string, data: T): Promise<void> {
-        await this.collection.doc(id).set(data);
-    }
-
-    async update(id: string, data: Partial<T>): Promise<void> {
-        await this.collection.doc(id).update(data);
-    }
-
-    async delete(id: string): Promise<void> {
-        await this.collection.doc(id).delete();
+    protected async createIfAbsent(id: string, data: T): Promise<boolean> {
+        return this.collection.doc(id).create(data).then(() => true, (err: unknown) => {
+            if (err instanceof Error && "code" in err && err.code === GrpcStatus.ALREADY_EXISTS) return false;
+            throw err;
+        });
     }
 }

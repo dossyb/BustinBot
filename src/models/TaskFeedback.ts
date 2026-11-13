@@ -3,5 +3,5 @@ export interface TaskFeedback {
     taskId: string;
     eventId: string;
     userId: string;
-    vote: 'up' | 'down';
+    vote: "up" | "down";
 }

@@ -1,5 +1,3 @@
-import { TaskCategory } from "./Task.js";
-
 export interface PrizeDraw {
     id: string; // e.g. "2025-09-15_2025-09-29"
     start: string;
@@ -14,8 +12,6 @@ export interface PrizeDraw {
         silver: number;
         gold: number;
     }
-
-    winners?: Record<TaskCategory, string[]>
 
     winnerId?: string;
     rolledAt?: string;

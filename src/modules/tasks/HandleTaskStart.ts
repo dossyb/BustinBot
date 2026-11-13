@@ -1,78 +1,55 @@
-import { Client, TextChannel } from 'discord.js';
-import { buildTaskEventEmbed } from './TaskEmbeds.js';
-import type { TaskEvent } from '../../models/TaskEvent.js';
-import type { ServiceContainer } from '../../core/services/ServiceContainer.js';
-import { TaskCategory } from '../../models/Task.js';
-import { registerPeriodicTaskEvent } from './TaskLeaderboards.js';
-import { isMentionSuppressed, withSuppressedMentions } from '../../utils/MentionUtils.js';
+import { randomUUID } from "node:crypto";
+import { countBy } from "es-toolkit";
+import type { Client, GuildTextBasedChannel } from "discord.js";
+import { DateTime } from "luxon";
+import { buildTaskEventEmbed } from "./TaskEmbeds.js";
+import type { TaskEvent } from "../../models/TaskEvent.js";
+import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
+import { TaskCategory } from "../../models/Task.js";
+import { registerPeriodicTaskEvent } from "./TaskLeaderboards.js";
+import { announceToTaskUsers, refreshTaskPollMessage, weeklyTaskCategories } from "./HandleTaskPoll.js";
+import { configuredChannel } from "../../utils/ChannelUtils.js";
 
-function generateTaskEventId(taskId: string): string {
-    const now = new Date();
-    const yyyy = now.getUTCFullYear();
-    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(now.getUTCDate()).padStart(2, '0');
-    return `${taskId}-${yyyy}${mm}${dd}`;
+export function generateTaskEventId(taskId: string): string {
+    return `${taskId}-${DateTime.utc().toFormat("yyyyLLdd")}-${randomUUID().slice(0, 8)}`;
+}
+
+export async function refreshTaskEventMessage(client: Client, event: TaskEvent): Promise<void> {
+    if (!event.messageId || !event.channelId) return;
+
+    const channel = await client.channels.fetch(event.channelId).catch(() => null);
+    if (!channel?.isTextBased()) {
+        throw new Error(`Task event ${event.id} is posted in ${event.channelId}, which is not a text channel the bot can reach.`);
+    }
+
+    const message = await channel.messages.fetch(event.messageId);
+    const { embeds, components, files } = buildTaskEventEmbed(event);
+    await message.edit({ embeds, components, files });
 }
 
 export async function startAllTaskEvents(client: Client, services: ServiceContainer): Promise<void> {
-    const { keywords, repos } = services;
-    if (!keywords) {
-        console.error('[TaskStart] Missing keywords service.');
-        return;
-    }
+    const { keywords } = services;
 
-    const guildId = services.guildId;
-    if (!guildId) {
-        console.warn('[TaskStart] No guild ID available in services.');
-        return;
-    }
-    const guildConfig = await services.guilds.get(guildId);
+    const guildConfig = await services.guilds.get(services.guildId);
     if (!guildConfig) {
-        console.warn(`[TaskStart] Guild configuration not found for ${guildId}.`);
+        console.warn(`[TaskStart] Guild configuration not found for ${services.guildId}.`);
         return;
     }
-    const leaguesEnabled = guildConfig?.toggles?.leaguesEnabled ?? false;
-
-    const categories: TaskCategory[] = [
-        TaskCategory.PvM,
-        TaskCategory.Skilling,
-        TaskCategory.MinigameMisc
-    ];
-
-    if (leaguesEnabled) categories.push(TaskCategory.Leagues);
+    const channel = await configuredChannel(client, services, "taskChannel");
+    if (!channel) return;
 
     const sharedKeyword = await keywords.selectKeyword(`weekly-${Date.now()}`);
 
-    const channelId = guildConfig.channels?.taskChannel;
-    if (!channelId) {
-        console.warn('[TaskStart] Task channel not configured.');
-        return;
-    }
-
-    const guild = await client.guilds.fetch(guildId);
-    const channel = await guild.channels.fetch(channelId);
-    if (!channel?.isTextBased()) {
-        console.warn('[TaskStart] Configured task channel is not text-based.');
-        return;
-    }
-
-    const roleId = guildConfig.roles?.taskUser;
-    const role = roleId ? guild.roles.cache.get(roleId) : null;
-    const mention = role ? `<@&${role.id}>` : '';
-    const suppressMentions = await isMentionSuppressed(services.guilds, guildId);
-
-    if (!role) {
-        console.warn(`[TaskStart] Task user role not configured or not found.`);
-    }
-
-    await channel.send(withSuppressedMentions({
-        content:
-            `${mention} **The new tasks are live!**\n` +
+    await announceToTaskUsers(
+        channel,
+        services,
+        guildConfig,
+        `**The new tasks are live!**\n` +
             `Include the keyword **${sharedKeyword}** in your screenshots for verification 🔑`
-    }, suppressMentions));
+    );
 
-    for (const category of categories) {
-        await startTaskEventForCategory(client, services, category, sharedKeyword, channel as TextChannel);
+    for (const category of weeklyTaskCategories(guildConfig)) {
+        await startTaskEventForCategory(client, services, category, sharedKeyword, channel);
     }
 }
 
@@ -81,44 +58,12 @@ export async function startTaskEventForCategory(
     services: ServiceContainer,
     category: TaskCategory,
     sharedKeyword: string,
-    channelOverride?: TextChannel
+    channelOverride?: GuildTextBasedChannel
 ): Promise<void> {
-    const { repos, taskEvents } = services;
+    const { repos } = services;
 
-    if (!repos?.taskRepo || !taskEvents) {
-        console.error(
-            "[TaskStart] Missing required dependencies: taskRepo or taskEvents."
-        );
-        return;
-    }
-
-    const guildId = services.guildId;
-    if (!guildId) {
-        console.warn('[TaskStart] No guild ID available while starting category event.');
-        return;
-    }
-
-    const guildConfig = await services.guilds.get(guildId);
-    if (!guildConfig) {
-        console.warn(`[TaskStart] Guild configuration missing for ${guildId}.`);
-        return;
-    }
-
-    let channel = channelOverride as TextChannel | undefined;
-    if (!channel) {
-        const channelId = guildConfig.channels?.taskChannel;
-        if (!channelId) {
-            console.warn('[TaskStart] Task channel not configured.');
-            return;
-        }
-        const guild = await client.guilds.fetch(guildId);
-        const fetchedChannel = await guild.channels.fetch(channelId);
-        if (!fetchedChannel?.isTextBased()) {
-            console.warn('[TaskStart] Configured task channel is not text-based.');
-            return;
-        }
-        channel = fetchedChannel as TextChannel;
-    }
+    const channel = channelOverride ?? (await configuredChannel(client, services, "taskChannel"));
+    if (!channel) return;
 
     const pollData =
         (await repos.taskRepo.getActiveTaskPollByCategory(category)) ??
@@ -130,10 +75,7 @@ export async function startTaskEventForCategory(
     }
 
     // Tally votes per option ID
-    const voteCounts: Record<string, number> = {};
-    for (const votedTaskId of Object.values(pollData.votes)) {
-        voteCounts[votedTaskId] = (voteCounts[votedTaskId] ?? 0) + 1;
-    }
+    const voteCounts = countBy(Object.values(pollData.votes), (taskId) => taskId);
 
     const maxVotes = Math.max(...pollData.options.map(opt => voteCounts[opt.id] ?? 0));
     const topTasks = pollData.options.filter(opt => (voteCounts[opt.id] ?? 0) === maxVotes);
@@ -158,13 +100,14 @@ export async function startTaskEventForCategory(
 
     const taskEventId = generateTaskEventId(task.id);
 
+    const now = DateTime.utc();
     const event: TaskEvent = {
         id: taskEventId,
         task,
         category,
         keyword: sharedKeyword,
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week
+        startTime: now.toJSDate(),
+        endTime: now.plus({ weeks: 1 }).toJSDate(),
         amounts: {
             bronze: task.amtBronze,
             silver: task.amtSilver,
@@ -176,27 +119,43 @@ export async function startTaskEventForCategory(
             gold: 0
         },
         completedUserIds: [],
-        createdAt: new Date(),
+        createdAt: now.toJSDate(),
     };
 
-    const { embeds, components, files } = buildTaskEventEmbed(event);
-
-    const sentMessage = await (channel as TextChannel).send({ embeds, components, files });
-
-    event.messageId = sentMessage.id;
-    event.channelId = (channel as TextChannel).id;
-
-    await taskEvents.storeTaskEvent(event);
-
-    try {
-        await registerPeriodicTaskEvent(services, taskEventId);
-    } catch (err) {
-        console.warn(`[TaskStart] Failed to register periodic leaderboard event ${taskEventId}:`, err);
-    }
+    await postTaskEvent(services, channel, event);
 
     if (pollData.id) {
         await repos.taskRepo.closeTaskPoll(pollData.id);
+        try {
+            await refreshTaskPollMessage(client, { ...pollData, isActive: false });
+        } catch (err) {
+            console.warn(`[TaskStart] Failed to show the ${category} poll as closed:`, err);
+        }
     }
 
     console.log(`[TaskStart] Task event posted for ${category} (${taskEventId})`);
+}
+
+export async function postTaskEvent(services: ServiceContainer, channel: GuildTextBasedChannel, event: TaskEvent): Promise<void> {
+    const { embeds, components, files } = buildTaskEventEmbed(event);
+
+    const sentMessage = await channel.send({ embeds, components, files });
+
+    event.messageId = sentMessage.id;
+    event.channelId = channel.id;
+
+    try {
+        await services.taskEvents.storeTaskEvent(event);
+    } catch (err) {
+        await sentMessage.delete().catch((deleteErr) => {
+            console.warn(`[TaskStart] Failed to remove the post for unsaved event ${event.id}:`, deleteErr);
+        });
+        throw err;
+    }
+
+    try {
+        await registerPeriodicTaskEvent(services, event.id);
+    } catch (err) {
+        console.warn(`[TaskStart] Failed to register periodic leaderboard event ${event.id}:`, err);
+    }
 }

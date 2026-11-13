@@ -1,10 +1,14 @@
 node_modules
 logs
+*.log
 .env
 .vs
 .vscode
-*.json
 coverage
-!announcements.json
-!tsconfig.prod.json
 dist
+
+service-account.json
+src/config/
+
+data/*.json
+!data/announcements.json

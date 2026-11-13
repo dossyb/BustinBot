@@ -1,11 +1,8 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction, EmbedBuilder, type Role, type Guild as DiscordGuild } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, type Role, type Guild as DiscordGuild, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
-import type { Guild as GuildConfig } from "../../../models/Guild.js";
+import type { Guild as GuildConfig, GuildRoles } from "../../../models/Guild.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 import { getHighestMilestone, getTotalTaskCompletions, resolveMilestones } from "../../tasks/TaskMilestones.js";
-
-type RoleType = "milestone" | "champion";
 
 const ROLE_ID_MATCH = /^(?:<@&(\d+)>|(\d{17,}))$/;
 // TODO: Confirm the neutral milestone role color preference.
@@ -154,31 +151,29 @@ const taskroles: Command = {
                 .setDescription("Sync task roles with server roles and grant them to eligible users.")
         ),
 
-    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services?: ServiceContainer }) {
-        if (!interaction || !services) return;
+    async execute({ interaction, services }) {
+        if (!interaction) return;
 
-        const guildId = interaction.guildId!;
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const guildId = interaction.guildId;
         const guildConfig = await services.guilds.get(guildId);
-        if (!guildConfig) {
-            await interaction.reply({ content: "Guild configuration not found.", flags: 1 << 6 });
-            return;
-        }
 
         const guild = interaction.guild;
         if (!guild) {
-            await interaction.reply({ content: "Guild not found for this interaction.", flags: 1 << 6 });
+            await interaction.editReply({ content: "Guild not found for this interaction." });
             return;
         }
 
         await guild.roles.fetch();
 
         const sub = interaction.options.getSubcommand();
-        const current = resolveMilestones(guildConfig.taskSettings?.milestoneRoles).slice();
+        const current = resolveMilestones(guildConfig?.taskSettings?.milestoneRoles).slice();
         const championSettings = {
             first: true,
             second: true,
             third: true,
-            ...(guildConfig.taskSettings?.championRoles ?? {}),
+            ...(guildConfig?.taskSettings?.championRoles ?? {}),
         };
         const milestoneEnabled = current.length === 0 ? true : current.every((milestone) => milestone.enabled);
         const championEnabled = championSettings.first && championSettings.second && championSettings.third;
@@ -195,9 +190,9 @@ const taskroles: Command = {
                     : ["No milestone roles configured."];
 
             const championRoles = [
-                { label: "1st", roleId: guildConfig.roles?.taskChampionFirst },
-                { label: "2nd", roleId: guildConfig.roles?.taskChampionSecond },
-                { label: "3rd", roleId: guildConfig.roles?.taskChampionThird },
+                { label: "1st", roleId: guildConfig?.roles?.taskChampionFirst },
+                { label: "2nd", roleId: guildConfig?.roles?.taskChampionSecond },
+                { label: "3rd", roleId: guildConfig?.roles?.taskChampionThird },
             ].map((entry) => {
                 const roleName = entry.roleId ? guild.roles.cache.get(entry.roleId)?.name ?? "Missing role" : "Not set";
                 return `- ${entry.label} — ${roleName}`;
@@ -216,54 +211,60 @@ const taskroles: Command = {
                     ].join("\n")
                 );
 
-            await interaction.reply({ embeds: [embed], flags: 1 << 6 });
+            await interaction.editReply({ embeds: [embed] });
             return;
         }
 
         if (sub === "add") {
             const roleInput = interaction.options.getString("role", true);
-            const type = interaction.options.getString("type", true) as RoleType;
+            const type = interaction.options.getString("type", true);
             const value = interaction.options.getInteger("value", true);
+
+            if (type === "milestone" && value <= 0) {
+                await interaction.editReply({ content: "Milestone thresholds must be greater than 0." });
+                return;
+            }
+            const championField = type === "champion" ? resolveChampionField(value) : null;
+            if (type === "champion" && !championField) {
+                await interaction.editReply({ content: "Champion placement must be 1, 2, or 3." });
+                return;
+            }
 
             const resolved = resolveRoleByInput(guild, roleInput);
             if (resolved.error) {
-                await interaction.reply({ content: resolved.error, flags: 1 << 6 });
+                await interaction.editReply({ content: resolved.error });
                 return;
             }
 
             let role = resolved.role;
             if (!role) {
                 if (resolved.isIdLookup) {
-                    await interaction.reply({ content: "Role not found for the provided ID/mention.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "Role not found for the provided ID/mention." });
                     return;
                 }
                 try {
                     role = await guild.roles.create({ name: roleInput.trim() });
                 } catch (err) {
                     console.warn("[TaskRoles] Failed to create role:", err);
-                    await interaction.reply({ content: "Failed to create the role. Check bot permissions.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "Failed to create the role. Check bot permissions." });
                     return;
                 }
             }
 
-            if (type === "milestone") {
-                if (value <= 0) {
-                    await interaction.reply({ content: "Milestone thresholds must be greater than 0.", flags: 1 << 6 });
-                    return;
-                }
-
+            if (!championField) {
                 if (current.some((item) => item.roleId === role.id)) {
-                    await interaction.reply({ content: "That role is already configured as a milestone.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "That role is already configured as a milestone." });
                     return;
                 }
 
                 const placeholderIndex = current.findIndex(
                     (item) => !item.roleId && item.label.toLowerCase() === role.name.toLowerCase()
                 );
+                const placeholder = current[placeholderIndex];
 
-                if (placeholderIndex !== -1) {
+                if (placeholder) {
                     current[placeholderIndex] = {
-                        ...current[placeholderIndex]!,
+                        ...placeholder,
                         id: role.id,
                         label: role.name,
                         roleId: role.id,
@@ -281,23 +282,14 @@ const taskroles: Command = {
                 }
 
                 await services.guilds.update(guildId, { taskSettings: { milestoneRoles: current } });
-                await interaction.reply({ content: `Added milestone role **${role.name}** (${value}).`, flags: 1 << 6 });
+                await interaction.editReply({ content: `Added milestone role **${role.name}** (${value}).` });
                 return;
             }
 
-            const championField = resolveChampionField(value);
-            if (!championField) {
-                await interaction.reply({ content: "Champion placement must be 1, 2, or 3.", flags: 1 << 6 });
-                return;
-            }
+            await services.guilds.update(guildId, { roles: { [championField.key]: role.id } });
 
-            await services.guilds.update(guildId, {
-                roles: { [championField.key]: role.id } as GuildConfig["roles"],
-            });
-
-            await interaction.reply({
+            await interaction.editReply({
                 content: `Set ${championField.label} place champion role to **${role.name}**.`,
-                flags: 1 << 6,
             });
             return;
         }
@@ -309,12 +301,12 @@ const taskroles: Command = {
 
             const resolved = resolveRoleByInput(guild, roleInput);
             if (resolved.error) {
-                await interaction.reply({ content: resolved.error, flags: 1 << 6 });
+                await interaction.editReply({ content: resolved.error });
                 return;
             }
             const role = resolved.role;
             if (!role) {
-                await interaction.reply({ content: "Role not found for the provided input.", flags: 1 << 6 });
+                await interaction.editReply({ content: "Role not found for the provided input." });
                 return;
             }
 
@@ -323,33 +315,34 @@ const taskroles: Command = {
                     item.roleId === role.id ||
                     (!item.roleId && item.label.toLowerCase() === role.name.toLowerCase())
             );
-            const championPlacement = resolveChampionPlacement(role.id, guildConfig.roles);
+            const milestone = current[milestoneIndex];
+            const championPlacement = resolveChampionPlacement(role.id, guildConfig?.roles);
 
-            if (milestoneIndex !== -1 && championPlacement) {
-                await interaction.reply({ content: "That role is configured as both milestone and champion. Please resolve manually.", flags: 1 << 6 });
+            if (milestone && championPlacement) {
+                await interaction.editReply({ content: "That role is configured as both milestone and champion. Please resolve manually." });
                 return;
             }
 
-            if (milestoneIndex === -1 && !championPlacement) {
-                await interaction.reply({ content: "That role is not configured as a task role.", flags: 1 << 6 });
+            if (!milestone && !championPlacement) {
+                await interaction.editReply({ content: "That role is not configured as a task role." });
                 return;
             }
 
-            if (milestoneIndex !== -1) {
+            if (milestone) {
                 if (value <= 0) {
-                    await interaction.reply({ content: "Milestone thresholds must be greater than 0.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "Milestone thresholds must be greater than 0." });
                     return;
                 }
 
                 let targetRole = role;
                 const newRoleResolution = resolveRoleByInput(guild, newRoleInput);
                 if (newRoleResolution.error) {
-                    await interaction.reply({ content: newRoleResolution.error, flags: 1 << 6 });
+                    await interaction.editReply({ content: newRoleResolution.error });
                     return;
                 }
                 if (newRoleResolution.isIdLookup) {
                     if (!newRoleResolution.role) {
-                        await interaction.reply({ content: "New role not found for the provided ID/mention.", flags: 1 << 6 });
+                        await interaction.editReply({ content: "New role not found for the provided ID/mention." });
                         return;
                     }
                     if (newRoleResolution.role.id !== role.id) {
@@ -360,13 +353,13 @@ const taskroles: Command = {
                         targetRole = await role.setName(newRoleInput.trim());
                     } catch (err) {
                         console.warn("[TaskRoles] Failed to rename role:", err);
-                        await interaction.reply({ content: "Failed to rename the role. Check bot permissions.", flags: 1 << 6 });
+                        await interaction.editReply({ content: "Failed to rename the role. Check bot permissions." });
                         return;
                     }
                 }
 
                 current[milestoneIndex] = {
-                    ...current[milestoneIndex]!,
+                    ...milestone,
                     id: targetRole.id,
                     label: targetRole.name,
                     roleId: targetRole.id,
@@ -374,25 +367,25 @@ const taskroles: Command = {
                 };
 
                 await services.guilds.update(guildId, { taskSettings: { milestoneRoles: current } });
-                await interaction.reply({ content: `Updated milestone role **${targetRole.name}** (${value}).`, flags: 1 << 6 });
+                await interaction.editReply({ content: `Updated milestone role **${targetRole.name}** (${value}).` });
                 return;
             }
 
             const championField = resolveChampionField(value);
             if (!championField) {
-                await interaction.reply({ content: "Champion placement must be 1, 2, or 3.", flags: 1 << 6 });
+                await interaction.editReply({ content: "Champion placement must be 1, 2, or 3." });
                 return;
             }
 
             let targetRole = role;
             const newRoleResolution = resolveRoleByInput(guild, newRoleInput);
             if (newRoleResolution.error) {
-                await interaction.reply({ content: newRoleResolution.error, flags: 1 << 6 });
+                await interaction.editReply({ content: newRoleResolution.error });
                 return;
             }
             if (newRoleResolution.isIdLookup) {
                 if (!newRoleResolution.role) {
-                    await interaction.reply({ content: "New role not found for the provided ID/mention.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "New role not found for the provided ID/mention." });
                     return;
                 }
                 if (newRoleResolution.role.id !== role.id) {
@@ -403,26 +396,19 @@ const taskroles: Command = {
                     targetRole = await role.setName(newRoleInput.trim());
                 } catch (err) {
                     console.warn("[TaskRoles] Failed to rename role:", err);
-                    await interaction.reply({ content: "Failed to rename the role. Check bot permissions.", flags: 1 << 6 });
+                    await interaction.editReply({ content: "Failed to rename the role. Check bot permissions." });
                     return;
                 }
             }
 
-            const updates: Partial<GuildConfig> = {
-                roles: { [championField.key]: targetRole.id } as GuildConfig["roles"],
-            };
-
-            if (championPlacement && championPlacement.key !== championField.key) {
-                updates.roles = {
-                    ...updates.roles,
-                    [championPlacement.key]: "",
-                } as GuildConfig["roles"];
-            }
-
-            await services.guilds.update(guildId, updates);
-            await interaction.reply({
+            await services.guilds.update(guildId, {
+                roles: {
+                    ...(championPlacement && championPlacement.key !== championField.key && { [championPlacement.key]: "" }),
+                    [championField.key]: targetRole.id,
+                },
+            });
+            await interaction.editReply({
                 content: `Updated champion role **${targetRole.name}** to ${championField.label} place.`,
-                flags: 1 << 6,
             });
             return;
         }
@@ -431,13 +417,13 @@ const taskroles: Command = {
             const roleInput = interaction.options.getString("role", true);
             const resolved = resolveRoleByInput(guild, roleInput);
             if (resolved.error) {
-                await interaction.reply({ content: resolved.error, flags: 1 << 6 });
+                await interaction.editReply({ content: resolved.error });
                 return;
             }
 
             const role = resolved.role;
             if (!role) {
-                await interaction.reply({ content: "Role not found for the provided input.", flags: 1 << 6 });
+                await interaction.editReply({ content: "Role not found for the provided input." });
                 return;
             }
 
@@ -446,57 +432,53 @@ const taskroles: Command = {
                     item.roleId === role.id ||
                     (!item.roleId && item.label.toLowerCase() === role.name.toLowerCase())
             );
-            const championPlacement = resolveChampionPlacement(role.id, guildConfig.roles);
+            const championPlacement = resolveChampionPlacement(role.id, guildConfig?.roles);
 
             if (milestoneIndex !== -1 && championPlacement) {
-                await interaction.reply({ content: "That role is configured as both milestone and champion. Please resolve manually.", flags: 1 << 6 });
+                await interaction.editReply({ content: "That role is configured as both milestone and champion. Please resolve manually." });
                 return;
             }
 
-            if (milestoneIndex === -1 && !championPlacement) {
-                await interaction.reply({ content: "That role is not configured as a task role.", flags: 1 << 6 });
-                return;
-            }
-
+            let described: string;
+            let reason: string;
             if (milestoneIndex !== -1) {
-                const removed = current.splice(milestoneIndex, 1)[0];
+                const label = current.splice(milestoneIndex, 1)[0]?.label ?? role.name;
                 await services.guilds.update(guildId, { taskSettings: { milestoneRoles: current } });
-                try {
-                    await role.delete(`Removed task milestone role ${removed?.label ?? role.name}`);
-                } catch (err) {
-                    console.warn("[TaskRoles] Failed to delete milestone role:", err);
-                }
-                await interaction.reply({ content: `Deleted milestone role **${removed?.label ?? role.name}**.`, flags: 1 << 6 });
+                described = `milestone role **${label}**`;
+                reason = `Removed task milestone role ${label}`;
+            } else if (championPlacement) {
+                await services.guilds.update(guildId, { roles: { [championPlacement.key]: "" } });
+                described = `champion role **${role.name}** (${championPlacement.label})`;
+                reason = `Removed task champion role ${role.name}`;
+            } else {
+                await interaction.editReply({ content: "That role is not configured as a task role." });
                 return;
             }
 
-            if (championPlacement) {
-                await services.guilds.update(guildId, {
-                    roles: { [championPlacement.key]: "" } as GuildConfig["roles"],
-                });
-                try {
-                    await role.delete(`Removed task champion role ${role.name}`);
-                } catch (err) {
-                    console.warn("[TaskRoles] Failed to delete champion role:", err);
-                }
-                await interaction.reply({
-                    content: `Deleted champion role **${role.name}** (${championPlacement.label}).`,
-                    flags: 1 << 6,
-                });
-                return;
+            let deleted = true;
+            try {
+                await role.delete(reason);
+            } catch (err) {
+                console.warn("[TaskRoles] Failed to delete task role:", err);
+                deleted = false;
             }
+            await interaction.editReply({
+                content: deleted
+                    ? `Deleted ${described}.`
+                    : `Removed ${described}. It is no longer a task role, but I couldn't delete it from the server. Check my permissions, or delete it yourself.`,
+            });
+            return;
         }
 
         if (sub === "toggle") {
-            const type = interaction.options.getString("type", true) as RoleType;
+            const type = interaction.options.getString("type", true);
             const enabled = interaction.options.getBoolean("enabled", true);
 
             if (type === "milestone") {
                 const updated = current.map((milestone) => ({ ...milestone, enabled }));
                 await services.guilds.update(guildId, { taskSettings: { milestoneRoles: updated } });
-                await interaction.reply({
+                await interaction.editReply({
                     content: `${enabled ? "Enabled" : "Disabled"} milestone roles.`,
-                    flags: 1 << 6,
                 });
                 return;
             }
@@ -511,12 +493,12 @@ const taskroles: Command = {
 
             if (!enabled) {
                 try {
-                    const leaderboard = await services.repos.taskLeaderboardRepo?.getLeaderboard("periodic");
+                    const leaderboard = await services.repos.taskLeaderboardRepo.getLeaderboard("periodic");
                     const champions = leaderboard?.champions;
                     const removalTargets = [
-                        { roleId: guildConfig.roles?.taskChampionFirst, userIds: champions?.first ?? [] },
-                        { roleId: guildConfig.roles?.taskChampionSecond, userIds: champions?.second ?? [] },
-                        { roleId: guildConfig.roles?.taskChampionThird, userIds: champions?.third ?? [] },
+                        { roleId: guildConfig?.roles?.taskChampionFirst, userIds: champions?.first ?? [] },
+                        { roleId: guildConfig?.roles?.taskChampionSecond, userIds: champions?.second ?? [] },
+                        { roleId: guildConfig?.roles?.taskChampionThird, userIds: champions?.third ?? [] },
                     ];
 
                     for (const target of removalTargets) {
@@ -537,9 +519,8 @@ const taskroles: Command = {
                 }
             }
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: `${enabled ? "Enabled" : "Disabled"} champion roles.`,
-                flags: 1 << 6,
             });
             return;
         }
@@ -551,28 +532,22 @@ const taskroles: Command = {
             try {
                 const member = await guild.members.fetch(user.id);
                 await member.roles.add(role.id);
-                await interaction.reply({
+                await interaction.editReply({
                     content: `Granted **${role.name}** to ${user.tag}.`,
-                    flags: 1 << 6,
                 });
             } catch (err) {
                 console.warn("[TaskRoles] Failed to grant role:", err);
-                await interaction.reply({ content: "Failed to grant the role. Check bot permissions.", flags: 1 << 6 });
+                await interaction.editReply({ content: "Failed to grant the role. Check bot permissions." });
             }
             return;
         }
 
         if (sub === "init") {
-            await interaction.deferReply({ flags: 1 << 6 });
             const respond = async (content: string) => {
                 await interaction.editReply({ content });
             };
 
             const userRepo = services.repos.userRepo;
-            if (!userRepo) {
-                await respond("User stats are unavailable for role initialisation.");
-                return;
-            }
 
             const updates: Partial<GuildConfig> = {};
             const updatedMilestones = current.map((milestone) => ({ ...milestone }));
@@ -592,14 +567,14 @@ const taskroles: Command = {
 
                 if (!role) {
                     try {
-                        role = await guild.roles.create({ name: desiredName, color: NEUTRAL_ROLE_COLOR });
+                        role = await guild.roles.create({ name: desiredName, colors: { primaryColor: NEUTRAL_ROLE_COLOR } });
                     } catch (err) {
                         console.warn("[TaskRoles] Failed to create milestone role:", err);
                         continue;
                     }
-                } else if (role.color !== NEUTRAL_ROLE_COLOR) {
+                } else if (role.colors.primaryColor !== NEUTRAL_ROLE_COLOR) {
                     try {
-                        await role.setColor(NEUTRAL_ROLE_COLOR);
+                        await role.setColors({ primaryColor: NEUTRAL_ROLE_COLOR });
                     } catch (err) {
                         console.warn("[TaskRoles] Failed to update milestone role color:", err);
                     }
@@ -626,9 +601,9 @@ const taskroles: Command = {
                 { key: "taskChampionThird", label: "Task Champion (3rd)", color: CHAMPION_ROLE_COLORS.third },
             ] as const;
 
-            const roleUpdates: Partial<GuildConfig["roles"]> = {};
+            const roleUpdates: GuildRoles = {};
             for (const definition of championDefinitions) {
-                const configuredId = guildConfig.roles?.[definition.key];
+                const configuredId = guildConfig?.roles?.[definition.key];
                 let role = configuredId ? guild.roles.cache.get(configuredId) ?? null : null;
 
                 if (!role) {
@@ -640,14 +615,14 @@ const taskroles: Command = {
 
                 if (!role) {
                     try {
-                        role = await guild.roles.create({ name: definition.label, color: definition.color });
+                        role = await guild.roles.create({ name: definition.label, colors: { primaryColor: definition.color } });
                     } catch (err) {
                         console.warn("[TaskRoles] Failed to create champion role:", err);
                         continue;
                     }
-                } else if (role.color !== definition.color) {
+                } else if (role.colors.primaryColor !== definition.color) {
                     try {
-                        await role.setColor(definition.color);
+                        await role.setColors({ primaryColor: definition.color });
                     } catch (err) {
                         console.warn("[TaskRoles] Failed to update champion role color:", err);
                     }
@@ -706,9 +681,9 @@ const taskroles: Command = {
             }
 
             const championRoleIds = {
-                first: roleUpdates.taskChampionFirst ?? guildConfig.roles?.taskChampionFirst,
-                second: roleUpdates.taskChampionSecond ?? guildConfig.roles?.taskChampionSecond,
-                third: roleUpdates.taskChampionThird ?? guildConfig.roles?.taskChampionThird,
+                first: roleUpdates.taskChampionFirst ?? guildConfig?.roles?.taskChampionFirst,
+                second: roleUpdates.taskChampionSecond ?? guildConfig?.roles?.taskChampionSecond,
+                third: roleUpdates.taskChampionThird ?? guildConfig?.roles?.taskChampionThird,
             };
 
             if (!championEnabled) {
@@ -730,7 +705,7 @@ const taskroles: Command = {
                     }
                 }
             } else {
-                const leaderboard = await services.repos.taskLeaderboardRepo?.getLeaderboard("periodic");
+                const leaderboard = await services.repos.taskLeaderboardRepo.getLeaderboard("periodic");
                 const champions = leaderboard?.champions ?? {};
                 const championAssignments = [
                     { roleId: championRoleIds.first, userIds: champions.first ?? [] },
@@ -768,6 +743,8 @@ const taskroles: Command = {
             await respond("Task roles synced and granted to eligible users.");
             return;
         }
+
+        await interaction.editReply({ content: "Unknown taskroles option." });
     }
 };
 

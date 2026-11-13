@@ -1,28 +1,28 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { fetchMovieDetails } from '../../movies/MovieService.js';
-import { CommandModule, CommandRole, type Command } from '../../../models/Command.js';
-import { createMovieEmbed } from '../../movies/MovieEmbeds.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import { fetchMovieDetails } from "../../movies/MovieService.js";
+import { CommandModule, CommandRole, type Command } from "../../../models/Command.js";
+import { createMovieEmbed } from "../../movies/MovieEmbeds.js";
 
 const testmovie: Command = {
-    name: 'testmovie',
-    description: 'Search TMDb for a movie and preview its metadata.',
+    name: "testmovie",
+    description: "Search TMDb for a movie and preview its metadata.",
     module: CommandModule.Movie,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()
-        .setName('testmovie')
-        .setDescription('Search TMDb for a movie and preview its metadata.')
+        .setName("testmovie")
+        .setDescription("Search TMDb for a movie and preview its metadata.")
         .addStringOption(option =>
-            option.setName('title')
-                .setDescription('The title of the movie to search for.')
+            option.setName("title")
+                .setDescription("The title of the movie to search for.")
                 .setRequired(true)
         ),
 
     async execute({ interaction }: { interaction?: ChatInputCommandInteraction }) {
         if (!interaction) return;
 
-        const query = interaction.options.getString('title', true);
-        await interaction.deferReply({ flags: 1 << 6 });
+        const query = interaction.options.getString("title", true);
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
             const metadata = await fetchMovieDetails(query);
@@ -36,8 +36,8 @@ const testmovie: Command = {
 
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
-            console.error('[TestMovie Command Error]', error);
-            await interaction.editReply('An error occurred while fetching movie data. Check console for details.');
+            console.error("[TestMovie Command Error]", error);
+            await interaction.editReply("An error occurred while fetching movie data. Check console for details.");
         }
     }
 };

@@ -1,26 +1,27 @@
-import { replaceBustinEmote } from '../../../utils/EmoteHelper.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import { SlashCommandBuilder, TextChannel } from 'discord.js';
+import { replaceBustinEmote } from "../../../utils/EmoteHelper.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { SlashCommandBuilder, TextChannel } from "discord.js";
 
 const goodbot: Command = {
-    name: 'goodbot',
-    description: 'Praise BustinBot.',
+    name: "goodbot",
+    description: "Praise BustinBot.",
     module: CommandModule.Core,
     allowedRoles: [CommandRole.Everyone],
 
     slashData: new SlashCommandBuilder()
-        .setName('goodbot')
-        .setDescription('Praise BustinBot.'),
+        .setName("goodbot")
+        .setDescription("Praise BustinBot."),
 
     async execute({ interaction, message, services }) {
         const guild = message?.guild ?? interaction?.guild ?? null;
         const emoji = replaceBustinEmote("🥹", guild);
 
-        await services?.botStats.incrementGoodBot();
-        const count = services?.botStats.getGoodBotCount();
+        await interaction?.deferReply();
+        await services.botStats.incrementGoodBot();
+        const count = services.botStats.getGoodBotCount();
 
-        const reply = `*BustinBot has been called a good bot ${count} time${count !== 1 ? 's' : ''}!*`;
+        const reply = `*BustinBot has been called a good bot ${count} time${count !== 1 ? "s" : ""}!*`;
 
         if (message) {
             await message.reply(emoji);
@@ -29,7 +30,7 @@ const goodbot: Command = {
             }
             console.log(`${message.author.username} made BustinBot feel good!`);
         } else if (interaction) {
-            await interaction.reply(`${emoji} ${reply}`);
+            await interaction.editReply(`${emoji} ${reply}`);
             console.log(`${interaction.user.username} made BustinBot feel good!`);
         }
     },

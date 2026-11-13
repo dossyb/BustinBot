@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, time, TimestampStyles, MessageFlags } from "discord.js";
+import { DateTime } from "luxon";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
-import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 
 const suppress: Command = {
     name: "suppress",
@@ -21,28 +21,24 @@ const suppress: Command = {
                 .setMaxValue(1440)
         ),
 
-    async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services?: ServiceContainer }) {
-        if (!interaction || !services) return;
+    async execute({ interaction, services }) {
+        if (!interaction) return;
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const guildId = interaction.guildId;
-        if (!guildId) {
-            await interaction.reply({ content: "This command can only be used in a server.", flags: 1 << 6 });
-            return;
-        }
 
         const minutes = interaction.options.getInteger("minutes", true);
-        const untilMs = Date.now() + minutes * 60_000;
+        const until = DateTime.now().plus({ minutes }).toJSDate();
 
         await services.guilds.update(guildId, {
-            mentionSuppressedUntilMs: untilMs,
+            mentionSuppressedUntilMs: until.getTime(),
             updatedBy: interaction.user.id,
-            updatedAt: new Date() as any,
+            updatedAt: new Date(),
         });
 
-        const untilUnix = Math.floor(untilMs / 1000);
-        await interaction.reply({
-            content: `Mention suppression enabled for **${minutes}** minute${minutes === 1 ? "" : "s"}. It will expire <t:${untilUnix}:R> (<t:${untilUnix}:F>).`,
-            flags: 1 << 6,
+        await interaction.editReply({
+            content: `Mention suppression enabled for **${minutes}** minute${minutes === 1 ? "" : "s"}. It will expire ${time(until, TimestampStyles.RelativeTime)} (${time(until, TimestampStyles.LongDateTime)}).`,
         });
     },
 };

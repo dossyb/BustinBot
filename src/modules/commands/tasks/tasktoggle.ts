@@ -1,45 +1,34 @@
-import {
-    SlashCommandBuilder,
-    ChatInputCommandInteraction
-} from 'discord.js';
-import type { Command } from '../../../models/Command.js';
-import { CommandModule, CommandRole } from '../../../models/Command.js';
-import {
-    initTaskScheduler,
-    stopTaskScheduler
-} from '../../tasks/TaskScheduler.js';
-import type { ServiceContainer } from '../../../core/services/ServiceContainer.js';
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
+import type { Command } from "../../../models/Command.js";
+import { CommandModule, CommandRole } from "../../../models/Command.js";
+import { initTaskScheduler, stopTaskScheduler } from "../../tasks/TaskScheduler.js";
 
 const tasktoggle: Command = {
-    name: 'tasktoggle',
-    description: 'Toggle task automations on and off.',
+    name: "tasktoggle",
+    description: "Toggle task automations on and off.",
     module: CommandModule.Task,
     allowedRoles: [CommandRole.BotAdmin],
 
     slashData: new SlashCommandBuilder()
-        .setName('tasktoggle')
-        .setDescription('Toggle task automations on and off.')
+        .setName("tasktoggle")
+        .setDescription("Toggle task automations on and off.")
         .addSubcommand((sub) =>
             sub
-                .setName('schedule')
-                .setDescription('Toggle the task scheduler on and off.')
+                .setName("schedule")
+                .setDescription("Toggle the task scheduler on and off.")
         )
         .addSubcommand((sub) =>
             sub
-                .setName('leaderboard')
-                .setDescription('Toggle periodic leaderboard automation on and off.')
+                .setName("leaderboard")
+                .setDescription("Toggle periodic leaderboard automation on and off.")
         ),
 
-    async execute({
-        interaction,
-        services,
-    }: {
-        interaction?: ChatInputCommandInteraction;
-        services?: ServiceContainer;
-    }) {
-        if (!interaction || !services) return;
+    async execute({ interaction, services }) {
+        if (!interaction) return;
 
-        const guildId = interaction.guildId!;
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const guildId = interaction.guildId;
         const guildService = services.guilds;
 
         const sub = interaction.options.getSubcommand();
@@ -47,56 +36,53 @@ const tasktoggle: Command = {
         // Fetch the latest guild config from Firestore
         const guildConfig = await guildService.get(guildId);
 
-        if (sub === 'schedule') {
-            const currentState = guildConfig?.toggles.taskScheduler ?? false;
+        if (sub === "schedule") {
+            const currentState = guildConfig?.toggles?.taskScheduler ?? false;
             const newState = !currentState;
+
+            if (newState) {
+                // Enable scheduler
+                await initTaskScheduler(interaction.client, services);
+            } else {
+                // Disable scheduler
+                await stopTaskScheduler(guildId);
+            }
 
             await guildService.updateToggle(
                 guildId,
-                "toggles.taskScheduler",
+                "taskScheduler",
                 newState,
                 interaction.user.id
             );
 
-            if (newState) {
-                // Enable scheduler
-                initTaskScheduler(interaction.client, services);
-                await interaction.reply({
-                    content: `✅ Task scheduler **enabled** and started for this guild.`,
-                    flags: 1 << 6,
-                });
-            } else {
-                // Disable scheduler
-                stopTaskScheduler();
-                await interaction.reply({
-                    content: `⏹️ Task scheduler **disabled** and stopped for this guild.`,
-                    flags: 1 << 6,
-                });
-            }
+            await interaction.editReply({
+                content: newState
+                    ? `✅ Task scheduler **enabled** and started for this guild.`
+                    : `⏹️ Task scheduler **disabled** and stopped for this guild.`,
+            });
             return;
         }
 
-        if (sub === 'leaderboard') {
+        if (sub === "leaderboard") {
             const currentState = guildConfig?.toggles?.taskLeaderboard ?? true;
             const newState = !currentState;
 
             await guildService.updateToggle(
                 guildId,
-                "toggles.taskLeaderboard",
+                "taskLeaderboard",
                 newState,
                 interaction.user.id
             );
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: newState
                     ? "🏆 Periodic leaderboard automation **enabled**."
                     : "🧊 Periodic leaderboard automation **disabled** (read-only mode).",
-                flags: 1 << 6,
             });
             return;
         }
 
-        await interaction.reply({ content: "Unknown tasktoggle option.", flags: 1 << 6 });
+        await interaction.editReply({ content: "Unknown tasktoggle option." });
     },
 };
 

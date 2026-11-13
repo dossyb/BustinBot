@@ -1,9 +1,8 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, time, TimestampStyles, MessageFlags } from "discord.js";
 import type { Command } from "../../../models/Command.js";
 import { CommandModule, CommandRole } from "../../../models/Command.js";
 import type { ServiceContainer } from "../../../core/services/ServiceContainer.js";
 import type { UserStats } from "../../../models/UserStats.js";
-import { normaliseFirestoreDates } from "../../../utils/DateUtils.js";
 import { packageVersion } from "../../../utils/version.js";
 
 const stats: Command = {
@@ -24,20 +23,14 @@ const stats: Command = {
 
     async execute({ interaction, services }: { interaction?: ChatInputCommandInteraction; services: ServiceContainer; }) {
         if (!interaction) return;
-        await interaction.deferReply({ flags: 1 << 6 });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const targetUser = interaction.options.getUser("user") ?? interaction.user;
         const userRepo = services.repos.userRepo;
 
-        if (!userRepo) {
-            await interaction.editReply("User repository not available.");
-            return;
-        }
-
         let stats: UserStats | null = null;
         try {
-            const raw = await userRepo.getUserById(targetUser.id);
-            if (raw) stats = normaliseFirestoreDates(raw);
+            stats = await userRepo.getUserById(targetUser.id);
         } catch (err) {
             console.error("[Stats Command] Failed to fetch user stats:", err);
             await interaction.editReply("Failed to retrieve your stats. Please try again later.");
@@ -49,8 +42,8 @@ const stats: Command = {
             return;
         }
 
-        const joinedDate = stats.joinedAt ? new Date(stats.joinedAt).toLocaleDateString() : "Unknown";
-        const lastActive = stats.lastActiveAt ? new Date(stats.lastActiveAt).toLocaleDateString() : "Unknown";
+        const joinedDate = stats.joinedAt ? time(stats.joinedAt, TimestampStyles.LongDate) : "Unknown";
+        const lastActive = stats.lastActiveAt ? time(stats.lastActiveAt, TimestampStyles.LongDate) : "Unknown";
 
         const embed = new EmbedBuilder()
             .setColor(0x00ae86)

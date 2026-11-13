@@ -4,10 +4,10 @@ export interface UserStats {
 
     // General participation
     // First bot interaction
-    joinedAt: Date;
+    joinedAt?: Date;
 
     // Last time they used a command or feature
-    lastActiveAt: Date;
+    lastActiveAt?: Date;
 
     // Total commands run
     commandsRun: number;

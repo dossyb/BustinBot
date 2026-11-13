@@ -1,15 +1,35 @@
-import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import type { RepliableInteraction } from "discord.js";
+import { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
+import type { MessageComponentInteraction } from "discord.js";
 import type { Movie } from "../../models/Movie.js";
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
-import { normaliseFirestoreDates } from "../../utils/DateUtils.js";
+import { listPage } from "../../utils/Pagination.js";
 
 const PAGE_SIZE = 25;
-const sessions = new Map<string, { selected: Set<string>; page: number }>();
+const MAX_SELECTED = 5;
 
-function getPaginatedMovies(page: number, movies: Movie[]) {
-    const start = page * PAGE_SIZE;
-    return movies.slice(start, start + PAGE_SIZE);
+interface ManualPollSelection {
+    selected: Set<string>;
+    page: number;
+}
+
+export class ManualPollSelections {
+    private readonly selections = new Map<string, ManualPollSelection>();
+
+    get(userId: string): ManualPollSelection {
+        return this.selections.getOrInsertComputed(userId, () => ({ selected: new Set<string>(), page: 0 }));
+    }
+
+    select(userId: string, movieIds: string[]): void {
+        const selection = this.get(userId);
+        // If the user is selecting on this page, merge new selections
+        for (const id of movieIds) {
+            if (selection.selected.size < MAX_SELECTED) selection.selected.add(id);
+        }
+    }
+
+    clear(userId: string): void {
+        this.selections.delete(userId);
+    }
 }
 
 function normalizeLabel(title: string): string {
@@ -18,37 +38,23 @@ function normalizeLabel(title: string): string {
 }
 
 
-export async function showMovieManualPollMenu(services: ServiceContainer, interaction: RepliableInteraction) {
+export async function showMovieManualPollMenu(services: ServiceContainer, interaction: MessageComponentInteraction) {
     const movieRepo = services.repos.movieRepo;
-    if (!movieRepo) {
-        await interaction.followUp({
-            content: "Movie repository unavailable.",
-            flags: 1 << 6,
-        });
-        return;
-    }
 
     const allMovies: Movie[] = (await movieRepo.getAllMovies())
-        .map((movie) => normaliseFirestoreDates(movie))
         .filter((movie) => !movie.watched)
-        .sort((a, b) => {
-            const aTime = a.addedAt instanceof Date ? a.addedAt.getTime() : 0;
-            const bTime = b.addedAt instanceof Date ? b.addedAt.getTime() : 0;
-            return aTime - bTime;
-        });
+        .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime());
     if (!allMovies.length) {
         await interaction.followUp({
             content: "No active movies found.",
-            flags: 1 << 6,
+            flags: MessageFlags.Ephemeral,
         });
         return;
     }
 
-    const userId = interaction.user.id;
-    const session = sessions.get(userId) ?? { selected: new Set<string>(), page: 0 };
-    sessions.set(userId, session);
-
-    const pageMovies = getPaginatedMovies(session.page, allMovies);
+    const session = services.manualPolls.get(interaction.user.id);
+    const { page, lastPage, items: pageMovies } = listPage(allMovies, PAGE_SIZE, session.page);
+    session.page = page;
 
     const options = pageMovies.map((movie) => {
         const fullIndex = allMovies.findIndex((m) => m.id === movie.id);
@@ -61,7 +67,7 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
     });
 
     const alreadySelected = session.selected.size;
-    const remaining = Math.max(0, 5 - alreadySelected);
+    const remaining = Math.max(0, MAX_SELECTED - alreadySelected);
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId("movie_poll_manual_select")
@@ -90,12 +96,12 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
             .setCustomId("movie_poll_manual_prev")
             .setLabel("◀️")
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(session.page === 0),
+            .setDisabled(page === 0),
         new ButtonBuilder()
             .setCustomId("movie_poll_manual_next")
             .setLabel("▶️")
             .setStyle(ButtonStyle.Primary)
-            .setDisabled((session.page + 1) * PAGE_SIZE >= allMovies.length),
+            .setDisabled(page >= lastPage),
         new ButtonBuilder()
             .setCustomId("movie_poll_manual_confirm")
             .setLabel("Confirm")
@@ -118,7 +124,7 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
         .join("\n");
 
     const content = [
-        `Select **up to 5** movies for the poll (Page ${session.page + 1})`,
+        `Select **up to 5** movies for the poll (Page ${page + 1})`,
         selectedTitles
             ? `\n**Currently selected:**\n${selectedTitles}`
             : `\n_No movies selected yet._`,
@@ -129,49 +135,5 @@ export async function showMovieManualPollMenu(services: ServiceContainer, intera
         controlRow,
     ];
 
-    if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content, components });
-    } else if ("update" in interaction) {
-        await interaction.update({ content, components });
-    } else {
-        await interaction.reply({ content, components, flags: 1 << 6 });
-    }
-}
-
-export function getManualPollSession(userId: string) {
-    return sessions.get(userId);
-}
-
-export function clearManualPollSession(userId: string) {
-    sessions.delete(userId);
-}
-
-export function updateManualPollSelection(userId: string, selectedIds: string[]) {
-    const session = sessions.get(userId);
-    if (!session) return;
-
-    // If the user is selecting on this page, merge new selections
-    for (const id of selectedIds) {
-        if (session.selected.size < 5) {
-            session.selected.add(id);
-        }
-    }
-}
-
-export async function changeManualPollPage(
-    services: ServiceContainer,
-    userId: string,
-    delta: number
-) {
-    const movieRepo = services.repos.movieRepo;
-    if (!movieRepo) return;
-
-    const allMovies: Movie[] = (await movieRepo.getAllMovies()).filter((movie) => !movie.watched);
-    if (!allMovies.length) return;
-
-    const session = sessions.get(userId);
-    if (session) {
-        const totalPages = Math.ceil(allMovies.length / PAGE_SIZE);
-        session.page = Math.max(0, Math.min(session.page + delta, totalPages - 1));
-    }
+    await interaction.editReply({ content, components });
 }

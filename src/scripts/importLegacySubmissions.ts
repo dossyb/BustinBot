@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { db } from "../core/database/firestore.js";
+import { createFirestore } from "../core/database/firestore.js";
 import { Timestamp } from "firebase-admin/firestore";
 import "dotenv/config";
+
+const db = createFirestore();
 
 interface LegacyStat {
     id: string;

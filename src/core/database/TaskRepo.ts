@@ -1,17 +1,24 @@
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import { GuildScopedRepository } from "./CoreRepo.js";
-import { db } from "./firestore.js";
 import type { Task } from "../../models/Task.js";
 import type { TaskPoll } from "../../models/TaskPoll.js";
-import { SubmissionStatus, type TaskSubmission } from "../../models/TaskSubmission.js";
+import { SubmissionStatus, type TaskSubmission, type TaskSubmissionDraft } from "../../models/TaskSubmission.js";
 import type { TaskEvent } from "../../models/TaskEvent.js";
 import type { TaskFeedback } from "../../models/TaskFeedback.js";
 import type { ITaskRepository } from "./interfaces/ITaskRepo.js";
 import type { TaskCategory } from "../../models/Task.js";
+import {
+    taskConverter,
+    taskEventConverter,
+    taskFeedbackConverter,
+    taskPollConverter,
+    taskSubmissionConverter,
+    taskSubmissionDraftConverter,
+} from "./converters.js";
 
 export class TaskRepository extends GuildScopedRepository<Task> implements ITaskRepository {
-    constructor(guildId: string) {
-        super(guildId, 'tasks');
+    constructor(db: Firestore, guildId: string) {
+        super(db, guildId, "tasks", taskConverter);
     }
 
     // Fetch single task by ID
@@ -28,43 +35,18 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         await this.collection.doc(task.id).set(task, { merge: true });
     }
 
+    async addTask(task: Task): Promise<boolean> {
+        return this.createIfAbsent(task.id, task);
+    }
+
     // Fetch all tasks of a specific category
     async getTasksByCategory(category: string): Promise<Task[]> {
         const snapshot = await this.collection.where("category", "==", category).get();
         return snapshot.docs.map(doc => doc.data());
     }
 
-    // Get random tasks (optional category filter)
-    async getRandomTasks(limit = 3, category?: string): Promise<Task[]> {
-        const queryRef = category
-            ? this.collection.where("category", "==", category)
-            : this.collection;
-
-        const snapshot = await queryRef.get();
-        const tasks = snapshot.docs
-            .map((doc) => doc.data() as Task)
-            .filter((t): t is Task => !!t);
-
-        for (let i = tasks.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const ti = tasks[i];
-            const tj = tasks[j];
-            if (ti && tj) [tasks[i], tasks[j]] = [tj, ti];
-        }
-
-        return tasks.slice(0, limit);
-    }
-
-    // Increment weighting field
-    async incrementWeight(id: string, amount = 1): Promise<void> {
-        const docRef = this.collection.doc(id);
-        const snap = await docRef.get();
-        const current = (snap.data() as Task | undefined)?.weight ?? 0;
-        await docRef.update({ weight: current + amount });
-    }
-
     private get pollsCollection() {
-        return db.collection(`guilds/${this.guildId}/taskPolls`);
+        return this.guildCollection("taskPolls", taskPollConverter);
     }
 
     async createTaskPoll(poll: TaskPoll): Promise<void> {
@@ -73,55 +55,31 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
 
     async getTaskPollById(pollId: string): Promise<TaskPoll | null> {
         const doc = await this.pollsCollection.doc(pollId).get();
-        if (!doc.exists) return null;
-
-        const data = doc.data() as unknown as TaskPoll;
-        return {
-            ...data,
-            id: doc.id,
-        };
+        return doc.data() ?? null;
     }
 
     async getActiveTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null> {
         const snapshot = await this.pollsCollection
-            .where('category', '==', category)
-            .where('isActive', '==', true)
+            .where("category", "==", category)
+            .where("isActive", "==", true)
             .limit(1)
             .get();
 
-        if (snapshot.empty) {
-            return null;
-        }
-
-        const doc = snapshot.docs[0];
-        if (!doc?.exists) return null;
-
-        const data = doc.data() as unknown as TaskPoll;
-
-        return {
-            ...data,
-            id: doc.id,
-        };
+        return snapshot.docs[0]?.data() ?? null;
     }
 
     async getLatestTaskPollByCategory(category: TaskCategory): Promise<TaskPoll | null> {
         const snapshot = await this.pollsCollection
-            .where('category', '==', category)
-            .orderBy('createdAt', 'desc')
+            .where("category", "==", category)
+            .orderBy("createdAt", "desc")
             .limit(1)
             .get();
 
-        if (snapshot.empty) return null;
+        return snapshot.docs[0]?.data() ?? null;
+    }
 
-        const doc = snapshot.docs[0];
-        if (!doc?.exists) return null;
-
-        const data = doc.data() as unknown as TaskPoll;
-
-        return {
-            ...data,
-            id: doc.id,
-        };
+    async updateTaskPollOptions(pollId: string, options: TaskPoll["options"]): Promise<void> {
+        await this.pollsCollection.doc(pollId).update({ options });
     }
 
     async closeTaskPoll(pollId: string): Promise<void> {
@@ -134,23 +92,22 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
 
     async clearTaskPolls(): Promise<void> {
         const snapshot = await this.pollsCollection.get();
-        const batch = db.batch();
+        const batch = this.db.batch();
         snapshot.docs.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
     }
 
     private get eventsCollection() {
-        return db.collection(`guilds/${this.guildId}/taskEvents`);
+        return this.guildCollection("taskEvents", taskEventConverter);
     }
 
     async createTaskEvent(event: TaskEvent): Promise<void> {
-        await this.eventsCollection.doc(event.id).set(event as any);
+        await this.eventsCollection.doc(event.id).set(event);
     }
 
     async getTaskEventById(id: string): Promise<TaskEvent | null> {
         const doc = await this.eventsCollection.doc(id).get();
-        if (!doc.exists) return null;
-        return doc.data() as TaskEvent;
+        return doc.data() ?? null;
     }
 
     async getLatestTaskEvent(): Promise<TaskEvent | null> {
@@ -159,18 +116,19 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
             .limit(1)
             .get();
 
-        if (snapshot.empty) return null;
-        const data = snapshot.docs[0] ? (snapshot.docs[0].data() as unknown as TaskEvent) : null;
-        return data;
+        return snapshot.docs[0]?.data() ?? null;
     }
 
     async getTaskEventsBetween(start: Date, end: Date): Promise<TaskEvent[]> {
         const snapshot = await this.eventsCollection
-            .where("endTime", ">=", Timestamp.fromDate(start))
-            .where("endTime", "<=", Timestamp.fromDate(end))
+            .where("endTime", ">=", start)
+            .where("endTime", "<=", end)
             .get();
 
-        return snapshot.docs.map((doc) => doc.data() as TaskEvent);
+        return snapshot.docs.map((doc) => doc.data());
+    }
+    async updateTaskEventTask(taskEventId: string, task: TaskEvent["task"], amounts: TaskEvent["amounts"]): Promise<void> {
+        await this.eventsCollection.doc(taskEventId).update({ task, amounts });
     }
     async addCompletedUser(taskEventId: string, userId: string): Promise<void> {
         await this.eventsCollection.doc(taskEventId).set(
@@ -181,17 +139,37 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
         );
     }
 
-    async removeCompletedUser(taskEventId: string, userId: string): Promise<void> {
-        await this.eventsCollection.doc(taskEventId).set(
-            {
-                completedUserIds: FieldValue.arrayRemove(userId),
-            },
-            { merge: true }
-        );
+    private get submissionsCollection() {
+        return this.guildCollection("taskSubmissions", taskSubmissionConverter);
     }
 
-    private get submissionsCollection() {
-        return db.collection(`guilds/${this.guildId}/taskSubmissions`);
+    private get draftsCollection() {
+        return this.guildCollection("taskSubmissionDrafts", taskSubmissionDraftConverter);
+    }
+
+    async saveSubmissionDraft(draft: TaskSubmissionDraft): Promise<void> {
+        await this.draftsCollection.doc(draft.userId).set(draft);
+    }
+
+    async getSubmissionDraft(userId: string): Promise<TaskSubmissionDraft | null> {
+        const doc = await this.draftsCollection.doc(userId).get();
+        return doc.data() ?? null;
+    }
+
+    async deleteSubmissionDraft(userId: string): Promise<void> {
+        await this.draftsCollection.doc(userId).delete();
+    }
+
+    async submitDraft(submission: TaskSubmission): Promise<boolean> {
+        const draftRef = this.draftsCollection.doc(submission.userId);
+        return this.db.runTransaction(async (transaction) => {
+            const draft = (await transaction.get(draftRef)).data();
+            if (draft?.taskEventId !== submission.taskEventId) return false;
+
+            transaction.create(this.submissionsCollection.doc(submission.id), submission);
+            transaction.delete(draftRef);
+            return true;
+        });
     }
 
     async createSubmission(submission: TaskSubmission): Promise<void> {
@@ -200,85 +178,82 @@ export class TaskRepository extends GuildScopedRepository<Task> implements ITask
 
     async getSubmissionById(submissionId: string): Promise<TaskSubmission | null> {
         const doc = await this.submissionsCollection.doc(submissionId).get();
-        return doc.exists ? (doc.data() as TaskSubmission) : null;
+        return doc.data() ?? null;
     }
 
     async getSubmissionsForTask(taskId: string): Promise<TaskSubmission[]> {
-        const snapshot = await this.submissionsCollection.where('taskEventId', '==', taskId).get();
-        return snapshot.docs.map(doc => doc.data() as TaskSubmission);
+        const snapshot = await this.submissionsCollection.where("taskEventId", "==", taskId).get();
+        return snapshot.docs.map(doc => doc.data());
     }
 
     async getSubmissionsByUser(userId: string): Promise<TaskSubmission[]> {
-        const snapshot = await this.submissionsCollection.where('userId', '==', userId).get();
-        return snapshot.docs.map(doc => doc.data() as TaskSubmission);
-    }
-
-    async getSubmissionByUserAndTask(userId: string, taskEventId: string): Promise<TaskSubmission | null> {
-        const snapshot = await this.submissionsCollection
-            .where('userId', '==', userId)
-            .where('taskEventId', '==', taskEventId)
-            .where('status', 'in', [SubmissionStatus.Bronze, SubmissionStatus.Silver, SubmissionStatus.Gold])
-            .orderBy('reviewedAt', 'desc')
-            .limit(1)
-            .get();
-
-        if (snapshot.empty) return null;
-
-        const doc = snapshot.docs[0];
-        if (!doc || !doc.exists) return null;
-        return doc.data() as TaskSubmission;
+        const snapshot = await this.submissionsCollection.where("userId", "==", userId).get();
+        return snapshot.docs.map(doc => doc.data());
     }
 
     async updateSubmissionStatus(
         submissionId: string,
         status: "pending" | "approved" | "rejected" | "bronze" | "silver" | "gold",
         reviewedBy: string
-    ): Promise<void> {
+    ): Promise<boolean> {
         const docRef = this.submissionsCollection.doc(submissionId);
-        await docRef.update({
-            status,
-            reviewedBy,
-            reviewedAt: Timestamp.now(),
+        return this.db.runTransaction(async (tx) => {
+            const snap = await tx.get(docRef);
+            if (snap.data()?.status !== SubmissionStatus.Pending) return false;
+
+            tx.update(docRef, {
+                status,
+                reviewedBy,
+                reviewedAt: Timestamp.now(),
+            });
+            return true;
         });
     }
 
     private get feedbackCollection() {
-        return db.collection(`guilds/${this.guildId}/taskFeedback`);
+        return this.guildCollection("taskFeedback", taskFeedbackConverter);
     }
 
-    async addFeedback(feedback: TaskFeedback): Promise<void> {
-        await this.feedbackCollection.doc(feedback.id).set(feedback);
+    async voteOnTaskOnce(feedback: Omit<TaskFeedback, "id">): Promise<TaskFeedback["vote"] | undefined> {
+        const { taskId, userId } = feedback;
+        const voteRef = this.feedbackCollection.doc(`${taskId}_${userId}`);
+
+        return this.db.runTransaction(async (transaction) => {
+            const stored = await transaction.get(voteRef);
+            const older = stored.exists
+                ? []
+                : (await transaction.get(this.feedbackCollection.where("taskId", "==", taskId).where("userId", "==", userId))).docs;
+            const previous = stored.data()?.vote ?? older[0]?.data().vote;
+
+            transaction.set(voteRef, { ...feedback, id: voteRef.id });
+            for (const old of older) transaction.delete(old.ref);
+            return previous;
+        });
     }
 
-    async getFeedbackForTask(taskId: string, eventId?: string): Promise<TaskFeedback[]> {
-    let query = this.feedbackCollection.where('taskId', '==', taskId);
-    if (eventId) query = query.where('eventId', '==', eventId);
-    const snapshot = await query.get();
-    return snapshot.docs.map((d) => d.data() as TaskFeedback);
+    async incrementWeight(id: string, amount = 1): Promise<void> {
+        await this.collection.doc(id).update({ weight: FieldValue.increment(amount) });
     }
 
     async deleteAllTasks(): Promise<void> {
         const snapshot = await this.collection.get();
-        const batch = db.batch();
+        const batch = this.db.batch();
         snapshot.docs.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
     }
 
     async seedTasks(tasks: Task[]): Promise<void> {
-        const batch = db.batch();
-        tasks.forEach(task => {
-            const ref = this.collection.doc(task.id);
-            batch.set(ref, task);
-        });
+        const batch = this.db.batch();
+        for (const task of tasks) batch.set(this.collection.doc(task.id), task);
         await batch.commit();
     }
 
     async voteInPollOnce(pollId: string, userId: string, optionId: string): Promise<{ firstTime: boolean, updatedPoll: TaskPoll; }> {
         const pollRef = this.pollsCollection.doc(pollId);
-        return db.runTransaction(async (tx) => {
+        return this.db.runTransaction(async (tx) => {
             const snap = await tx.get(pollRef);
-            if (!snap.exists) throw new Error("Poll not found.");
-            const poll = snap.data() as TaskPoll;
+            const poll = snap.data();
+            if (!poll) throw new Error("Poll not found.");
 
             poll.votes = poll.votes ?? {};
             const firstTime = !poll.votes[userId];

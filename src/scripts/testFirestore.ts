@@ -1,4 +1,7 @@
-import { db } from "../core/database/firestore.js";
+import "dotenv/config";
+import { createFirestore } from "../core/database/firestore.js";
+
+const db = createFirestore();
 
 async function test() {
     const docRef = db.collection("test").doc("ping");

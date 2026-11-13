@@ -1,9 +1,11 @@
-import type { Interaction } from "discord.js";
-import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie, handleMoviePollVote, handleManualPollInteraction, handleRandomPollCountSelect } from "./PickMovieInteractions.js";
+import { MessageFlags, type Interaction } from "discord.js";
+import { handleMoviePickChooseModalSubmit, handleConfirmRandomMovie, handleRerollRandomMovie, handleMoviePollVote, handleManualPollInteraction, handlePickMovieButton, handleRandomPollCountSelect, PICK_MOVIE_BUTTONS } from "./PickMovieInteractions.js";
 import { handleMovieNightDate, handleMovieNightTime } from "./MovieScheduler.js";
-import { updateManualPollSelection, showMovieManualPollMenu } from "./MovieManualPoll.js";
+import { showMovieManualPollMenu } from "./MovieManualPoll.js";
+import { MOVIE_LIST_BUTTON, buildMovieListPage } from "./MovieList.js";
+import { ADD_MOVIE_BUTTON, handleAddMovieButton } from "./MovieSelector.js";
 import type { ServiceContainer } from "../../core/services/ServiceContainer.js";
-import { setupService } from "../../core/services/SetupService.js";
+import { buttonPage } from "../../utils/Pagination.js";
 
 export async function handleMovieInteraction(
     interaction: Interaction,
@@ -46,20 +48,36 @@ export async function handleMovieInteraction(
             return;
         }
 
-        if (customId === "moviesetup_confirm") {
-            const selections = setupService.getSelections("movie", userId);
-            const missing = setupService.getMissingFields("movie", selections);
+        if (Object.values(PICK_MOVIE_BUTTONS).some((id) => id === customId)) {
+            await handlePickMovieButton(services, interaction);
+            return;
+        }
 
-            if (missing.length) {
+        if (customId.startsWith(ADD_MOVIE_BUTTON)) {
+            await handleAddMovieButton(services, interaction);
+            return;
+        }
+
+        if (customId.startsWith(MOVIE_LIST_BUTTON)) {
+            await interaction.deferUpdate();
+            await interaction.editReply(await buildMovieListPage(services, buttonPage(customId)));
+            return;
+        }
+
+        if (customId === "moviesetup_confirm") {
+            const selections = services.setup.getSelections("movie", userId);
+            const missing = services.setup.getMissingFields("movie", selections);
+
+            if (!selections || missing.length) {
                 await interaction.reply({
                     content: `Please select: ${missing.join(", ")} before confirming.`,
-                    flags: 1 << 6,
+                    flags: MessageFlags.Ephemeral,
                 });
                 return;
             }
 
-            await setupService.persist("movie", services.guilds, interaction.guildId!, selections!);
-            setupService.clearSelections("movie", userId);
+            await services.setup.persist("movie", services.guilds, services.guildId, selections);
+            services.setup.clearSelections("movie", userId);
 
             await interaction.update({
                 content: "Movie module setup complete! Movie roles and channels have been saved.",
@@ -69,7 +87,7 @@ export async function handleMovieInteraction(
         }
 
         if (customId === "moviesetup_cancel") {
-            setupService.clearSelections("movie", userId);
+            services.setup.clearSelections("movie", userId);
             await interaction.update({
                 content: "Movie setup cancelled. No changes were made.",
                 components: [],
@@ -84,7 +102,8 @@ export async function handleMovieInteraction(
                 await handleRandomPollCountSelect(services, interaction);
                 return;
             case "movie_poll_manual_select":
-                updateManualPollSelection(interaction.user.id, interaction.values);
+                await interaction.deferUpdate();
+                services.manualPolls.select(interaction.user.id, interaction.values);
                 await showMovieManualPollMenu(services, interaction);
                 return;
             case "movienight-select-date":
@@ -99,16 +118,16 @@ export async function handleMovieInteraction(
         const userId = interaction.user.id;
         const channelId = interaction.values[0];
         if (!channelId) {
-            await interaction.reply({ content: "No channel selected.", flags: 1 << 6 });
+            await interaction.reply({ content: "No channel selected.", flags: MessageFlags.Ephemeral });
             return;
         }
 
         switch (interaction.customId) {
             case "moviesetup_channel":
-                setupService.setSelection("movie", userId, "movieNight", channelId);
+                services.setup.setSelection("movie", userId, "movieNight", channelId);
                 break;
             case "moviesetup_voice_channel":
-                setupService.setSelection("movie", userId, "movieVC", channelId);
+                services.setup.setSelection("movie", userId, "movieVC", channelId);
                 break;
             default:
                 return;
@@ -121,16 +140,16 @@ export async function handleMovieInteraction(
         const userId = interaction.user.id;
         const roleId = interaction.values[0];
         if (!roleId) {
-            await interaction.reply({ content: "No role selected.", flags: 1 << 6 });
+            await interaction.reply({ content: "No role selected.", flags: MessageFlags.Ephemeral });
             return;
         }
 
         switch (interaction.customId) {
             case "moviesetup_admin_role":
-                setupService.setSelection("movie", userId, "movieAdmin", roleId);
+                services.setup.setSelection("movie", userId, "movieAdmin", roleId);
                 break;
             case "moviesetup_user_role":
-                setupService.setSelection("movie", userId, "movieUser", roleId);
+                services.setup.setSelection("movie", userId, "movieUser", roleId);
                 break;
             default:
                 return;
